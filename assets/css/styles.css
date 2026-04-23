@@ -531,6 +531,17 @@ footer {
 }
 .form-card textarea { min-height: 140px; resize: vertical; }
 .form-card button { width: 100%; }
+.form-card .form-note {
+  font-size: 0.9rem;
+  color: #5a5750;
+  background: var(--stone);
+  border-left: 3px solid var(--gold);
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+.form-card .form-note a { color: var(--crimson); text-decoration: underline; }
 @media (max-width: 620px) { .form-card .row { grid-template-columns: 1fr; } }
 
 /* ---------- CALLOUT ---------- */
