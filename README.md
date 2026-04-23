@@ -202,15 +202,15 @@ GitHub Pages rebuilds within 1–2 minutes.
 
 - [x] Part 1.1–1.3 — Create GitHub repo, push, enable Pages
 - [x] Part 2 — Add 4 A records + www CNAME at GoDaddy for ballkingdom.com
-- [x] Verify https://ballkingdom.com loads
+- [ ] Verify https://ballkingdom.com loads
 - [ ] Enable "Enforce HTTPS" in GitHub Pages settings
-- [x] Part 3 — Configure theballerskingdom.com → ballkingdom.com 301 redirect
+- [ ] Part 3 — Configure theballerskingdom.com → ballkingdom.com 301 redirect
 - [x] Part 4 — Email on Microsoft 365 (info@ballkingdom.com already active)
-- [x] Part 4.2 — Confirm SPF record includes `spf.protection.outlook.com` (update if still set to secureserver.net)
+- [ ] Part 4.2 — Confirm SPF record includes `spf.protection.outlook.com` (update if still set to secureserver.net)
 - [ ] Part 4.3 — (optional) Add theballerskingdom.com to M365 + info@theballerskingdom.com alias
 - [x] Part 5 — Contact form uses mailto handler (no backend or signup required)
 - [ ] Part 6 — (optional) Connect Calendly
-- [x] Test: navigate to theballerskingdom.com and confirm it redirects to ballkingdom.com
+- [ ] Test: navigate to theballerskingdom.com and confirm it redirects to ballkingdom.com
 - [ ] Test: send an email to info@ballkingdom.com from a third address and confirm it arrives in the M365 inbox
 
 ---
