@@ -65,7 +65,8 @@
         -->
       </div>
 
-      <form class="form-card" data-reveal action="https://formspree.io/f/YOUR_FORMSPREE_ID" method="POST">
+      <form class="form-card" data-reveal id="consultation-form">
+        <p class="form-note">Click <strong>Request Consultation</strong> and your email client will open with this message ready to send to <a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a>.</p>
         <div class="row">
           <div class="field">
             <label for="first_name">First Name</label>
@@ -138,5 +139,39 @@
 
 <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 <script src="assets/js/main.js"></script>
+<script>
+(function () {
+  var form = document.getElementById('consultation-form');
+  if (!form) return;
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var data = new FormData(form);
+    var first = (data.get('first_name') || '').trim();
+    var last = (data.get('last_name') || '').trim();
+    var email = (data.get('email') || '').trim();
+    var phone = (data.get('phone') || '').trim();
+    var interest = (data.get('interest') || '').trim();
+    var age = (data.get('athlete_age') || '').trim();
+    var message = (data.get('message') || '').trim();
+    var lines = [
+      'Name: ' + first + ' ' + last,
+      'Email: ' + email,
+      'Phone: ' + (phone || '—'),
+      'Interested in: ' + interest,
+      "Athlete's age: " + (age || '—'),
+      '',
+      '— About the athlete —',
+      message,
+      '',
+      '(Sent from the consultation form at ballkingdom.com)'
+    ];
+    var subject = 'Consultation Request — ' + (first || 'The Ballers Kingdom');
+    var mailto = 'mailto:info@ballkingdom.com'
+      + '?subject=' + encodeURIComponent(subject)
+      + '&body=' + encodeURIComponent(lines.join('\n'));
+    window.location.href = mailto;
+  });
+})();
+</script>
 </body>
 </html>
