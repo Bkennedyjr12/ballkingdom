@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ballkingdom.com/sitemap.xml
