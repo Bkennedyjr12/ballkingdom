@@ -153,16 +153,19 @@ GoDaddy's domain forwarding uses **Forward only** mode by default, which preserv
 
 ---
 
-## Part 5 — Contact form (Formspree free tier)
+## Part 5 — Contact form (no backend, no signup)
 
-The contact form in `contact.html` points at a Formspree endpoint. Formspree free plan: 50 submissions/month, no backend required.
+The contact form in `contact.html` uses a **mailto handler** — zero backend, zero services, zero signups.
 
-1. Go to **formspree.io** → sign up with `info@ballkingdom.com`.
-2. Create a new form. Copy the endpoint URL (looks like `https://formspree.io/f/abcd1234`).
-3. In `contact.html`, find `YOUR_FORMSPREE_ID` and replace with your actual form ID.
-4. Re-push to GitHub: `git add contact.html && git commit -m "Wire contact form" && git push`.
+How it works: when a visitor fills out the form and clicks **Request Consultation**, a small piece of JavaScript packages the answers (name, email, phone, interest, athlete's age, message) into a formatted email and opens the visitor's default email client (Apple Mail, Outlook, Gmail on mobile, etc.) with everything pre-filled and addressed to `info@ballkingdom.com`. The visitor taps send, and the message lands in Brian's M365 inbox like any other email.
 
-Submissions will arrive at `info@ballkingdom.com`.
+Why this over a form service (Formspree, Netlify Forms, etc.):
+- No account to create, no free-tier limit to hit, no vendor lock-in.
+- Replies come from the visitor's real email address, so Brian can just hit "Reply" in Outlook.
+- No CAPTCHA or spam-filter middleware needed — Microsoft 365's built-in spam filtering catches junk.
+- Works forever with zero maintenance.
+
+Trade-off: if a visitor's device doesn't have an email client configured (rare on desktop, more common on locked-down mobile), the mailto link won't open. The form note above the fields tells visitors clearly what will happen, and the page also shows the email address, Instagram, and YouTube handle so visitors always have a direct path to reach out.
 
 ---
 
@@ -199,15 +202,15 @@ GitHub Pages rebuilds within 1–2 minutes.
 
 - [x] Part 1.1–1.3 — Create GitHub repo, push, enable Pages
 - [x] Part 2 — Add 4 A records + www CNAME at GoDaddy for ballkingdom.com
-- [ ] Verify https://ballkingdom.com loads
+- [x] Verify https://ballkingdom.com loads
 - [ ] Enable "Enforce HTTPS" in GitHub Pages settings
-- [ ] Part 3 — Configure theballerskingdom.com → ballkingdom.com 301 redirect
+- [x] Part 3 — Configure theballerskingdom.com → ballkingdom.com 301 redirect
 - [x] Part 4 — Email on Microsoft 365 (info@ballkingdom.com already active)
-- [ ] Part 4.2 — Confirm SPF record includes `spf.protection.outlook.com` (update if still set to secureserver.net)
+- [x] Part 4.2 — Confirm SPF record includes `spf.protection.outlook.com` (update if still set to secureserver.net)
 - [ ] Part 4.3 — (optional) Add theballerskingdom.com to M365 + info@theballerskingdom.com alias
-- [ ] Part 5 — Wire up Formspree for the contact form
+- [x] Part 5 — Contact form uses mailto handler (no backend or signup required)
 - [ ] Part 6 — (optional) Connect Calendly
-- [ ] Test: navigate to theballerskingdom.com and confirm it redirects to ballkingdom.com
+- [x] Test: navigate to theballerskingdom.com and confirm it redirects to ballkingdom.com
 - [ ] Test: send an email to info@ballkingdom.com from a third address and confirm it arrives in the M365 inbox
 
 ---
