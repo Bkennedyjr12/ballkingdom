@@ -39,6 +39,6 @@ Today, Brian leads two programs under The Ballers Kingdom: private and group soc
 - **Founded:** The Ballers Kingdom, 2019
 - **Current:** Entrepreneur Ecosystem Director at AmPac (CA, AZ, NV)
 - **Tagline:** "One degree, two rings, not done yet."
-- **Email:** brian@ballkingdom.com
+- **Email:** info@ballkingdom.com
 - **Instagram:** @theballerskingdom_
 - **YouTube:** @TheBallersKingdom

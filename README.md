@@ -1,6 +1,6 @@
 # The Ballers Kingdom — ballkingdom.com
 
-Static website for The Ballers Kingdom. Hosted free on **GitHub Pages**. Domain managed at **GoDaddy**. Email on **Zoho Mail** free tier.
+Static website for The Ballers Kingdom. Hosted free on **GitHub Pages**. Domain managed at **GoDaddy**. Email on **Microsoft 365** (already active on `info@ballkingdom.com`).
 
 **Primary domain:** `ballkingdom.com` (canonical)
 **Backup domain:** `theballerskingdom.com` → 301 redirect to `ballkingdom.com`
@@ -33,7 +33,7 @@ No build step. No dependencies. Open `index.html` in a browser to preview locall
 ## Part 1 — Deploy to GitHub Pages (free)
 
 ### 1.1 Create the repo
-1. Sign in to GitHub. If you don't have an account, create one with your `brian@ballkingdom.com` address once Zoho is set up — or any address for now.
+1. Sign in to GitHub. If you don't have an account, create one with your `info@ballkingdom.com` address — or any address for now.
 2. Click **New repository**.
 3. Name it `ballkingdom` (or any name — public).
 4. Set it to **Public**.
@@ -113,59 +113,43 @@ That makes `theballerskingdom.com` and `www.theballerskingdom.com` both 301-redi
 
 ---
 
-## Part 4 — Email: Zoho Mail free tier
+## Part 4 — Email: Microsoft 365 (already active)
 
-Zoho Mail's free plan: 1 user, 5 GB, custom domain. Perfect for `brian@ballkingdom.com`.
+Brian's `info@ballkingdom.com` inbox runs on **Microsoft 365**, not Zoho. The MX, SPF/DKIM/DMARC, and autodiscover records were already in place on GoDaddy DNS before the site launch, so nothing to change on the primary domain for mail to keep flowing.
 
-### 4.1 Sign up for Zoho Mail
-1. Go to **zoho.com/mail** → sign up → choose the **Forever Free Plan** (5 GB, 1 user, 1 domain).
-2. When prompted for a domain, enter `ballkingdom.com`.
+### 4.1 Existing M365 records on ballkingdom.com (do not delete)
+GoDaddy DNS for `ballkingdom.com` already has Microsoft's required records:
 
-### 4.2 Verify domain ownership
-Zoho will give you a TXT record to add at GoDaddy.
+- **MX** `@` → `ballkingdom-com.mail.protection.outlook.com` (priority 0)
+- **TXT** `@` → `MS=msXXXXXXXX` (M365 domain verification)
+- **CNAME** `autodiscover` → `autodiscover.outlook.com`
+- **CNAME** `selector1._domainkey` / `selector2._domainkey` → M365 DKIM
+- **TXT** `_dmarc` → DMARC policy
+- Domain-connect CNAMEs wired by Microsoft
 
-In GoDaddy DNS for `ballkingdom.com`:
+When doing the GitHub Pages DNS work in Part 2, only the `A @` and `CNAME www` records are modified. Leave everything above alone.
 
-| Type | Name            | Value                        | TTL    |
-| ---- | --------------- | ---------------------------- | ------ |
-| TXT  | @ (or zb_code)  | (the zoho-verification value) | 1 Hour |
+### 4.2 SPF — confirm it covers Microsoft 365
+In GoDaddy DNS for `ballkingdom.com`, find the `TXT @` record starting with `v=spf1`. It should look like:
 
-Return to Zoho → click **Verify** once the record is saved.
+```
+v=spf1 include:spf.protection.outlook.com -all
+```
 
-### 4.3 Create your mailbox
-Create: `brian@ballkingdom.com`. Set a strong password.
+If it's the GoDaddy default (`v=spf1 include:secureserver.net -all`), edit it to the M365 value above. Only **one** SPF record should exist on the domain — never add a second.
 
-### 4.4 Add Zoho MX records in GoDaddy
-Delete any existing MX records for `ballkingdom.com`, then add:
+### 4.3 Adding info@theballerskingdom.com as an M365 alias (optional)
+If Brian wants mail sent to `info@theballerskingdom.com` to land in the same inbox:
 
-| Type | Name | Priority | Value              | TTL    |
-| ---- | ---- | -------- | ------------------ | ------ |
-| MX   | @    | 10       | mx.zoho.com        | 1 Hour |
-| MX   | @    | 20       | mx2.zoho.com       | 1 Hour |
-| MX   | @    | 50       | mx3.zoho.com       | 1 Hour |
+1. In **admin.microsoft.com** → **Settings → Domains → Add domain** → enter `theballerskingdom.com`.
+2. M365 gives you a TXT verification value. Add it in GoDaddy DNS **for theballerskingdom.com**.
+3. After verification, M365 prompts for MX + autodiscover + DKIM records — add them in GoDaddy DNS for `theballerskingdom.com`.
+4. In M365 Admin: **Users → Active users → [Brian] → Manage username and email → Aliases** → add `info@theballerskingdom.com`.
 
-### 4.5 Add SPF + DKIM (prevents your emails from going to spam)
-Also in GoDaddy DNS for `ballkingdom.com`:
+> Alternative: skip the alias and rely on Part 3's 301 redirect. Anyone who types `theballerskingdom.com` in a browser lands on `ballkingdom.com`, but email to `info@theballerskingdom.com` without the alias configured will bounce.
 
-**SPF (TXT):**
-
-| Type | Name | Value                                      |
-| ---- | ---- | ------------------------------------------ |
-| TXT  | @    | `v=spf1 include:zoho.com ~all`             |
-
-**DKIM:** Zoho will generate a DKIM record inside its admin panel (Mail Admin → Domains → DKIM). Copy the TXT record they give you and paste it into GoDaddy — the host will be something like `zoho._domainkey`.
-
-### 4.6 Forwarder from theballerskingdom.com
-Once the primary mailbox is working, add the forwarder:
-
-1. In Zoho admin, go to **Domains** → **Add Domain** → enter `theballerskingdom.com`.
-2. Verify that domain the same way (TXT record in GoDaddy DNS **for theballerskingdom.com**).
-3. Once verified, in Zoho admin → **Mail Accounts** → your user → **Aliases** → add alias `brian@theballerskingdom.com`.
-4. Confirm MX records in GoDaddy DNS for `theballerskingdom.com` also point to Zoho (same three MX entries as 4.4).
-
-Now mail sent to **either** `brian@ballkingdom.com` or `brian@theballerskingdom.com` lands in the same inbox. The primary is `brian@ballkingdom.com`.
-
-> Note: if you forwarded `theballerskingdom.com` to `ballkingdom.com` in Part 3, **Forward only** mode preserves DNS records — MX and TXT still work. If web requests stop working for the secondary domain's email, it usually means masking was accidentally enabled. Make sure Part 3 used **Forward only**, not **Forward with masking**.
+### 4.4 Why Part 3 (domain forwarding) doesn't break email
+GoDaddy's domain forwarding uses **Forward only** mode by default, which preserves DNS records — MX, TXT, CNAME all continue to resolve. Only unhandled HTTP requests are 301-redirected. If email for the secondary domain ever stops working, check that masking is OFF (masking breaks SSL and DNS).
 
 ---
 
@@ -173,12 +157,12 @@ Now mail sent to **either** `brian@ballkingdom.com` or `brian@theballerskingdom.
 
 The contact form in `contact.html` points at a Formspree endpoint. Formspree free plan: 50 submissions/month, no backend required.
 
-1. Go to **formspree.io** → sign up with `brian@ballkingdom.com`.
+1. Go to **formspree.io** → sign up with `info@ballkingdom.com`.
 2. Create a new form. Copy the endpoint URL (looks like `https://formspree.io/f/abcd1234`).
 3. In `contact.html`, find `YOUR_FORMSPREE_ID` and replace with your actual form ID.
 4. Re-push to GitHub: `git add contact.html && git commit -m "Wire contact form" && git push`.
 
-Submissions will arrive at `brian@ballkingdom.com`.
+Submissions will arrive at `info@ballkingdom.com`.
 
 ---
 
@@ -186,7 +170,7 @@ Submissions will arrive at `brian@ballkingdom.com`.
 
 Want 1-click consultation booking?
 
-1. Sign up at **calendly.com** with `brian@ballkingdom.com` (free plan: 1 event type).
+1. Sign up at **calendly.com** with `info@ballkingdom.com` (free plan: 1 event type).
 2. Create a "Consultation" event (30 min).
 3. In `contact.html`, find the commented-out Calendly block (HTML comment around line ~55) and uncomment it. Replace `YOUR-USERNAME` with your Calendly handle.
 4. Re-push to GitHub.
@@ -213,18 +197,18 @@ GitHub Pages rebuilds within 1–2 minutes.
 
 ## Checklist (follow in order)
 
-- [ ] Part 1.1–1.3 — Create GitHub repo, push, enable Pages
-- [ ] Part 2 — Add 4 A records + www CNAME at GoDaddy for ballkingdom.com
+- [x] Part 1.1–1.3 — Create GitHub repo, push, enable Pages
+- [x] Part 2 — Add 4 A records + www CNAME at GoDaddy for ballkingdom.com
 - [ ] Verify https://ballkingdom.com loads
 - [ ] Enable "Enforce HTTPS" in GitHub Pages settings
 - [ ] Part 3 — Configure theballerskingdom.com → ballkingdom.com 301 redirect
-- [ ] Part 4 — Sign up for Zoho Mail free tier, verify ballkingdom.com
-- [ ] Part 4 — Add MX + SPF + DKIM records, create brian@ballkingdom.com
-- [ ] Part 4.6 — Add theballerskingdom.com to Zoho, create brian@theballerskingdom.com alias
+- [x] Part 4 — Email on Microsoft 365 (info@ballkingdom.com already active)
+- [ ] Part 4.2 — Confirm SPF record includes `spf.protection.outlook.com` (update if still set to secureserver.net)
+- [ ] Part 4.3 — (optional) Add theballerskingdom.com to M365 + info@theballerskingdom.com alias
 - [ ] Part 5 — Wire up Formspree for the contact form
 - [ ] Part 6 — (optional) Connect Calendly
-- [ ] Test: send an email from a third address to both brian@ballkingdom.com and brian@theballerskingdom.com and confirm both arrive
 - [ ] Test: navigate to theballerskingdom.com and confirm it redirects to ballkingdom.com
+- [ ] Test: send an email to info@ballkingdom.com from a third address and confirm it arrives in the M365 inbox
 
 ---
 
