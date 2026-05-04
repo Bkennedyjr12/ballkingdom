@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Ballers Kingdom — Soccer Training & Youth Venture Program | Inland Empire</title>
-  <meta name="description" content="Elite soccer training and youth entrepreneurship development in California. Founded by Brian Kennedy Jr, M.Ed — 2024 California 30 Under 30, 2× BIG EAST, NCAA Final Four & Elite 8 Providence College graduate, and Entrepreneur Ecosystem Executive Director at AmPac Business Capital. Book a consultation." />
+  <title>The Ballers Kingdom — Training Platform · Consulting Company · Community Impact</title>
+  <meta name="description" content="The Ballers Kingdom is a tech-forward, community-centered training platform. Personal soccer training, multi-dimensional development consulting, and a member app for tournaments, NIL, programs, and community. Founded in 2019 by Brian Kennedy Jr, M.Ed — 2024 California 30 Under 30." />
   <meta name="author" content="Brian Kennedy Jr, M.Ed" />
   <link rel="canonical" href="https://ballkingdom.com/" />
 
   <!-- Open Graph -->
-  <meta property="og:title" content="The Ballers Kingdom — Where Athletes Become Entrepreneurs" />
-  <meta property="og:description" content="Soccer training + youth entrepreneurship for the next generation of leaders. Book a consultation." />
+  <meta property="og:title" content="The Ballers Kingdom — Building Ballers. Advancing Kingdoms." />
+  <meta property="og:description" content="Tech-forward training platform + multi-dimensional development consulting. Open the app, book consulting, build your kingdom." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://ballkingdom.com/" />
   <meta property="og:image" content="https://ballkingdom.com/assets/img/brian_smile.jpg" />
@@ -23,6 +23,127 @@
 
   <link rel="stylesheet" href="assets/css/styles.css" />
 
+  <style>
+    /* ---- Manus-style hero overrides ---- */
+    .hero-bigtype h1 {
+      font-size: clamp(3rem, 8.5vw, 6.8rem);
+      line-height: 0.95;
+      letter-spacing: -0.005em;
+      margin: 18px 0 24px;
+    }
+    .pos-pill {
+      display: inline-block;
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(11,18,32,0.55);
+      color: #BFC8D6;
+      font-family: var(--font-display);
+      letter-spacing: 0.14em;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      backdrop-filter: blur(6px);
+    }
+
+    /* ---- Kingdom System (numbered pillars) ---- */
+    .ks-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 22px;
+      margin-top: 36px;
+    }
+    @media (max-width: 1100px) { .ks-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 620px)  { .ks-grid { grid-template-columns: 1fr; } }
+    .ks-card {
+      position: relative;
+      display: block;
+      padding: 28px 24px;
+      border-radius: 14px;
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      box-shadow: var(--shadow-sm);
+      text-decoration: none;
+      color: inherit;
+      transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+    }
+    .ks-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--crimson);
+    }
+    .ks-num {
+      position: absolute;
+      top: 18px;
+      right: 22px;
+      color: var(--gray-400);
+      font-family: var(--font-display);
+      font-size: 0.82rem;
+      letter-spacing: 0.22em;
+    }
+    .ks-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      background: var(--crimson);
+      color: var(--white);
+      display: inline-flex;
+      align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 14px;
+    }
+    .ks-title {
+      font-family: var(--font-display);
+      font-size: 1.18rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--black);
+      margin: 0 0 8px;
+    }
+    .ks-desc {
+      color: var(--gray-600);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin: 0 0 14px;
+    }
+    .ks-arrow {
+      color: var(--crimson);
+      font-family: var(--font-display);
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+    }
+
+    /* ---- App CTA band ---- */
+    .app-cta {
+      background: linear-gradient(135deg, var(--crimson-dark), var(--crimson));
+      color: var(--white);
+      padding: 64px 0;
+      text-align: center;
+    }
+    .app-cta h2 { color: var(--white); margin: 0 0 14px; }
+    .app-cta p { color: rgba(255,255,255,0.85); max-width: 640px; margin: 0 auto 28px; }
+    .app-cta .btn-primary {
+      background: var(--white);
+      color: var(--crimson-dark);
+    }
+    .app-cta .btn-primary:hover { background: var(--gray-200); }
+    .app-cta .price-pill {
+      display: inline-block;
+      margin-left: 14px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      font-family: var(--font-display);
+      letter-spacing: 0.15em;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+    }
+  </style>
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -31,7 +152,7 @@
     "url": "https://ballkingdom.com",
     "founder": "Brian Kennedy Jr, M.Ed",
     "foundingDate": "2019",
-    "description": "Soccer training and youth entrepreneurship development.",
+    "description": "Tech-forward training platform, multi-dimensional development consulting, and member app for athletes and entrepreneurs.",
     "address": { "@type": "PostalAddress", "addressRegion": "CA", "addressCountry": "US" },
     "sameAs": [
       "https://www.instagram.com/theballerskingdom_",
@@ -54,41 +175,82 @@
     </a>
     <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="soccer.html">Soccer Training</a>
-      <a href="yvp.html">Youth Venture</a>
+      <a href="soccer.html">Training</a>
+      <a href="yvp.html">EE Venture</a>
       <a href="about.html">About</a>
-      <a href="contact.html" class="nav-cta">Book Consultation</a>
+      <a href="contact.html">Book Consulting</a>
+      <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" class="nav-cta">Open App</a>
     </div>
   </div>
 </nav>
 
 <!-- HERO -->
-<header class="hero">
+<header class="hero hero-bigtype">
   <div class="hero-inner">
-    <div class="hero-eyebrow">Personal Training · Development Consulting</div>
-    <h1>Train the player. Develop the <span class="accent">person.</span></h1>
+    <span class="pos-pill">Training Platform · Consulting Company · Community Impact</span>
+    <h1>Building Ballers.<br />Advancing Kingdoms.<br /><span class="accent">Continually Setting the Standard.</span></h1>
     <p class="sub">
-      The Ballers Kingdom is Brian Kennedy Jr's personal soccer training and multi-dimensional development consulting practice — one-on-one coaching on the field, plus personal (life), educational (academic), career, business, and digital development off it. Built on Division I experience at Providence College and an M.Ed in Guidance & Counseling. Founded 2019 in the Inland Empire. 2024 California 30 Under 30 · 2× BIG EAST · NCAA Final Four & Elite 8 Providence Friar.
+      The Ballers Kingdom is a tech-forward, community-centered training platform — personal soccer training, multi-dimensional development consulting, and a member app for tournaments, NIL, programs, and community. Founded in 2019 by <strong>Brian Kennedy Jr, M.Ed</strong> — 2024 California 30 Under 30, 2× BIG EAST, NCAA Final Four &amp; Elite 8 Providence Friar.
     </p>
     <div class="hero-ctas">
-      <a href="contact.html" class="btn btn-primary">Book a Consultation</a>
-      <a href="soccer.html" class="btn btn-ghost">Explore Training</a>
+      <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" class="btn btn-primary">Open the App →</a>
+      <a href="contact.html" class="btn btn-ghost">Book Consulting</a>
     </div>
     <div class="hero-stats">
-      <div class="stat"><div class="num">2×</div><div class="lbl">Big East Champion</div></div>
-      <div class="stat"><div class="num">6+</div><div class="lbl">Years Coaching</div></div>
+      <div class="stat"><div class="num">2024</div><div class="lbl">CA 30 Under 30</div></div>
+      <div class="stat"><div class="num">$29/mo</div><div class="lbl">Baller Membership</div></div>
       <div class="stat"><div class="num">M.Ed</div><div class="lbl">Providence College</div></div>
     </div>
   </div>
 </header>
 
-<!-- 3 F'S PILLARS -->
+<!-- KINGDOM SYSTEM -->
 <section class="section-stone">
   <div class="container">
     <div class="section-header">
+      <div class="kicker">Kingdom System</div>
+      <h2>Four pillars. One platform.</h2>
+      <p class="lead">Training, entrepreneurship, apparel, and direct member access — all under one roof, plus the app for Tournaments, NIL Tracker, Programs, and Community.</p>
+    </div>
+    <div class="ks-grid">
+      <a class="ks-card" href="soccer.html" data-reveal>
+        <span class="ks-num">01</span>
+        <span class="ks-icon">⚽</span>
+        <h3 class="ks-title">Training Hub</h3>
+        <p class="ks-desc">Tech-forward training where Ballers create personal plans, book local coaches, and access consulting support. 1-on-1, group, and team programs.</p>
+        <span class="ks-arrow">Explore →</span>
+      </a>
+      <a class="ks-card" href="yvp.html" data-reveal>
+        <span class="ks-num">02</span>
+        <span class="ks-icon">EE</span>
+        <h3 class="ks-title">EE Venture</h3>
+        <p class="ks-desc">Entrepreneurship, financial literacy, brand-building, and leadership for youth and adults building beyond the game.</p>
+        <span class="ks-arrow">View Program →</span>
+      </a>
+      <a class="ks-card" href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" data-reveal>
+        <span class="ks-num">03</span>
+        <span class="ks-icon">SH</span>
+        <h3 class="ks-title">Apparel &amp; Shop</h3>
+        <p class="ks-desc">Wear the kingdom. Member-exclusive drops and community gear that fund scholarships and impact programs.</p>
+        <span class="ks-arrow">Shop the Drop →</span>
+      </a>
+      <a class="ks-card" href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" data-reveal>
+        <span class="ks-num">04</span>
+        <span class="ks-icon">★</span>
+        <h3 class="ks-title">Member Dashboard</h3>
+        <p class="ks-desc">Tournaments, NIL Tracker, Programs, Civic Action, Community. Every Baller's home base — Baller tier $29/mo.</p>
+        <span class="ks-arrow">Open App →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- 3 F'S VALUES -->
+<section>
+  <div class="container">
+    <div class="section-header">
       <div class="kicker">The Three F's</div>
-      <h2>What we stand on</h2>
+      <h2>What we stand on.</h2>
       <p class="lead">Every player, every parent, every program — built on the same three pillars.</p>
     </div>
     <div class="pillars">
@@ -111,45 +273,12 @@
   </div>
 </section>
 
-<!-- SERVICES -->
-<section>
-  <div class="container">
-    <div class="section-header">
-      <div class="kicker">Services</div>
-      <h2>Two programs. One mission.</h2>
-      <p class="lead">Soccer training for the serious athlete. Entrepreneurship development for the young leader. Built by the same coach.</p>
-    </div>
-    <div class="service-grid">
-      <a class="service-card as-link" href="soccer.html" data-reveal>
-        <img src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1600&q=80" alt="Soccer training session" />
-        <div class="overlay"></div>
-        <div class="content">
-          <div class="tag">Primary Service</div>
-          <h3>Soccer Training</h3>
-          <p>1-on-1, small group, and team sessions. Technical, tactical, and mental development built on Division I experience.</p>
-          <span class="arrow">View program →</span>
-        </div>
-      </a>
-      <a class="service-card as-link" href="yvp.html" data-reveal>
-        <img src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1600&q=80" alt="Youth Venture Program mentorship" />
-        <div class="overlay"></div>
-        <div class="content">
-          <div class="tag">Growing Service</div>
-          <h3>Youth Venture Program</h3>
-          <p>Summer and after-school entrepreneurship training. Financial literacy, business fundamentals, and real venture building for ages 10–17.</p>
-          <span class="arrow">View program →</span>
-        </div>
-      </a>
-    </div>
-  </div>
-</section>
-
 <!-- MEET BRIAN -->
 <section class="section-dark">
   <div class="container">
     <div class="split">
       <div class="split-img badge" data-reveal>
-        <img src="assets/img/brian_smile.jpg" alt="Brian Kennedy Jr, M.Ed — founder of The Ballers Kingdom, official Providence College Big East headshot" />
+        <img src="assets/img/brian_smile.jpg" alt="Brian Kennedy Jr, M.Ed — founder of The Ballers Kingdom" />
       </div>
       <div data-reveal>
         <div class="kicker" style="color: var(--gold); font-family: var(--font-display); letter-spacing: 0.25em; font-size: 0.82rem; text-transform: uppercase; margin-bottom: 12px;">Meet the Founder</div>
@@ -167,7 +296,7 @@
           Born and raised in Upland, California, Brian played Division I soccer at Providence College, wearing #12 for the Friars. In 2014 the program captured the BIG EAST Championship and reached the NCAA Final Four — both firsts in program history. Two years later the Friars took the BIG EAST Regular Season title and advanced to the NCAA Elite 8. Brian earned his B.A. in 2017 and his M.Ed. in Guidance &amp; Counseling in 2019, and founded The Ballers Kingdom to carry what he learned at the D-I level home to the Inland Empire.
         </p>
         <p style="color: #CBD5E1;">
-          Brian's professional practice spans civic service, entrepreneurial development, and educational administration. He serves as <strong style="color:#fff;">Entrepreneur Ecosystem Executive Director at AmPac Business Capital</strong> — helping deploy <strong style="color:#fff;">$1B+ in loans</strong> and support <strong style="color:#fff;">1,500+ businesses</strong> across CA, AZ, and NV. In 2024, Assembly Majority Leader Emerita Eloise Gómez Reyes recognized him with the <strong style="color:#fff;">California District 50 · 30 Under 30 Award</strong>. That same year he founded <strong style="color:#fff;">The Entrepreneur Ecosystem</strong>, a 501(c)(3) advancing small business support for underserved communities. He represents CA/AZ/NV small-business priorities on Capitol Hill via the CDFI Coalition Institute, co-facilitates state policy roundtables with CalOSBA and the California I-Bank, and serves as Student Success Counselor at Los Angeles College of Music.
+          Brian's professional practice spans <strong style="color:#fff;">civic service, entrepreneurial development, and educational administration</strong>. He serves as <strong style="color:#fff;">Entrepreneur Ecosystem Executive Director at AmPac Business Capital</strong> — helping deploy <strong style="color:#fff;">$1B+ in loans</strong> and support <strong style="color:#fff;">1,500+ businesses</strong> across CA, AZ, and NV. In 2024, Assembly Majority Leader Emerita Eloise Gómez Reyes recognized him with the <strong style="color:#fff;">California District 50 · 30 Under 30 Award</strong>. He represents CA/AZ/NV small-business priorities on Capitol Hill via the CDFI Coalition Institute, co-facilitates state policy roundtables with CalOSBA and the California I-Bank, and serves as Student Success Counselor at Los Angeles College of Music.
         </p>
         <div class="pullquote">
           "One degree. Two rings. Not done yet."
@@ -179,41 +308,50 @@
   </div>
 </section>
 
-<!-- MEDIA GRID -->
-<section>
+<!-- APP CTA BAND -->
+<section class="app-cta">
+  <div class="container-tight">
+    <h2>Get the App. Build the Kingdom.</h2>
+    <p>Tournaments. NIL Tracker. Programs. Civic Action. Community. Every Baller's home base — and your direct line to coaches, mentors, and capital partners. <span class="price-pill">Baller Tier · $29/mo</span></p>
+    <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" class="btn btn-primary">Open the App →</a>
+  </div>
+</section>
+
+<!-- ECOSYSTEM STRIP -->
+<section class="ecosystem-strip">
   <div class="container">
-    <div class="section-header">
-      <div class="kicker">In the Field</div>
-      <h2>Sessions. Stories. Moments.</h2>
-      <p class="lead">A glimpse of training, mentorship, and the community we're building.</p>
-    </div>
-    <div class="media-grid">
-      <div class="media-tile" data-reveal><img src="https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&w=1600&q=80" alt="Brian Kennedy Jr striking the ball, #12 Providence Friars" loading="lazy" /></div>
-      <div class="media-tile" data-reveal><img src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1600&q=80" alt="Group training" loading="lazy" /></div>
-      <div class="media-tile" data-reveal><img src="https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&w=1600&q=80" alt="Brian Kennedy Jr at the BIG EAST Soccer wall — M.Ed graduation, Providence College" loading="lazy" /></div>
-      <div class="media-tile" data-reveal>
-        <video poster="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1600&q=80" muted playsinline autoplay loop aria-label="Training clip">
-          <source src="assets/img/_off.mp4" type="video/mp4" />
-        </video>
+    <div class="kicker">Part of the Brian Kennedy Jr Ecosystem</div>
+    <h2>Three organizations. One founder. One mission.</h2>
+    <p class="eco-intro">Develop leaders young — through sport, through school, through small business — and keep developing them for life. Brian's work spans youth athletics, entrepreneurship education, and access to capital for underserved communities.</p>
+    <div class="ecosystem-grid">
+      <div class="eco-card current">
+        <div class="eco-kicker">You are here</div>
+        <div class="eco-name">The Ballers Kingdom</div>
+        <p>Tech-forward training platform, consulting practice, and member app. Built in 2019 to develop the whole athlete on and off the field.</p>
+        <div class="eco-link">ballkingdom.com →</div>
       </div>
-      <div class="media-tile" data-reveal><img src="https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=1600&q=80" alt="Brian Kennedy Jr on the ball for Providence" loading="lazy" /></div>
-      <div class="media-tile" data-reveal style="background: var(--black); display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center;">
-        <div>
-          <div style="color: var(--gold); font-family: var(--font-display); letter-spacing: 0.25em; font-size: 0.72rem; text-transform: uppercase; margin-bottom: 10px;">Follow</div>
-          <a href="https://www.instagram.com/theballerskingdom_" target="_blank" rel="noopener" style="color: var(--white); font-family: var(--font-display); font-size: 1.4rem; text-transform: uppercase;">@theballerskingdom_</a>
-          <div style="color: #8e8e8e; font-size: 0.85rem; margin-top: 10px;">Daily behind-the-scenes on Instagram</div>
-        </div>
-      </div>
+      <a class="eco-card" href="https://entrepreneur-ecosystem.com" target="_blank" rel="noopener">
+        <div class="eco-kicker">Nonprofit · 501(c)(3)</div>
+        <div class="eco-name">The Entrepreneur Ecosystem</div>
+        <p>501(c)(3) founded in 2024. Advancing entrepreneurship education and access to capital for underserved communities across CA, AZ, and NV.</p>
+        <div class="eco-link">entrepreneur-ecosystem.com →</div>
+      </a>
+      <a class="eco-card" href="https://ampac.com" target="_blank" rel="noopener">
+        <div class="eco-kicker">Access to capital</div>
+        <div class="eco-name">AmPac Business Capital</div>
+        <p>SBA's first faith-based certified lender. $1B+ deployed · 1,500+ businesses supported. Brian serves as Entrepreneur Ecosystem Executive Director.</p>
+        <div class="eco-link">ampac.com →</div>
+      </a>
     </div>
   </div>
 </section>
 
-<!-- CTA BAND -->
+<!-- CTA BAND - CONSULTING -->
 <section class="cta-band">
   <div class="container-tight">
-    <h2>Ready to develop?</h2>
-    <p>Book a free consultation. We'll talk about your athlete, your goals, and whether The Ballers Kingdom is the right fit.</p>
-    <a href="contact.html" class="btn btn-ghost">Book Your Consultation</a>
+    <h2>Need consulting first?</h2>
+    <p>Personal training, life coaching, academic guidance, career strategy, business launch, or digital build — book a free 30-minute consultation and we'll map the path.</p>
+    <a href="contact.html" class="btn btn-ghost">Book Consulting</a>
   </div>
 </section>
 
@@ -229,7 +367,7 @@
             <span class="est">EST 2019</span>
           </span>
         </div>
-        <p>Soccer training and youth entrepreneurship development. Inland Empire, California.</p>
+        <p>Tech-forward training platform, multi-dimensional development consulting, and member app. Inland Empire, California.</p>
         <div class="socials">
           <a href="https://www.instagram.com/theballerskingdom_" target="_blank" rel="noopener" aria-label="Instagram">
             <svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 1.2.1 1.8.3 2.2.5.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .5 2.2.1 1.2.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 1.2-.3 1.8-.5 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.5-1.2.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-1.2-.1-1.8-.3-2.2-.5-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.5-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8c.1-1.2.3-1.8.5-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.5C8.4 2.2 8.8 2.2 12 2.2zm0 1.9c-3.1 0-3.5 0-4.7.1-1.1.1-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1C2.6 9.5 2.6 9.9 2.6 13s0 3.5.1 4.7c.1 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-4.7s0-3.5-.1-4.7c-.1-1.1-.2-1.7-.4-2.1-.2-.5-.4-.9-.8-1.3-.4-.4-.8-.6-1.3-.8-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1zm0 3.3c2.7 0 4.9 2.2 4.9 4.9s-2.2 4.9-4.9 4.9-4.9-2.2-4.9-4.9 2.2-4.9 4.9-4.9zm0 8.1c1.8 0 3.2-1.4 3.2-3.2s-1.4-3.2-3.2-3.2-3.2 1.4-3.2 3.2 1.4 3.2 3.2 3.2zm6.3-8.3c0 .6-.5 1.1-1.1 1.1s-1.1-.5-1.1-1.1.5-1.1 1.1-1.1 1.1.5 1.1 1.1z"/></svg>
@@ -240,21 +378,23 @@
         </div>
       </div>
       <div>
-        <h4>Services</h4>
-        <a href="soccer.html">Soccer Training</a>
-        <a href="yvp.html">Youth Venture Program</a>
-        <a href="contact.html">Book Consultation</a>
+        <h4>Kingdom System</h4>
+        <a href="soccer.html">Training Hub</a>
+        <a href="yvp.html">EE Venture</a>
+        <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Apparel &amp; Shop</a>
+        <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Member Dashboard</a>
       </div>
       <div>
         <h4>About</h4>
         <a href="about.html">Meet Brian</a>
         <a href="about.html#philosophy">Philosophy</a>
-        <a href="contact.html">Contact</a>
+        <a href="contact.html">Book Consulting</a>
       </div>
       <div>
         <h4>Get in touch</h4>
         <a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a>
         <a href="https://linktr.ee/TheBallersKingdom" target="_blank" rel="noopener">Linktree</a>
+        <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Open the App</a>
       </div>
     </div>
     <div class="footer-bottom">
