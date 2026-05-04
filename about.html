@@ -4,15 +4,49 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>About Brian Kennedy Jr, M.Ed | The Ballers Kingdom</title>
-  <meta name="description" content="Meet Brian Kennedy Jr — 2024 California 30 Under 30, Providence '17 &amp; '19, 2× BIG EAST, NCAA Final Four &amp; Elite 8, M.Ed., founder of The Ballers Kingdom, and Entrepreneur Ecosystem Executive Director at AmPac Business Capital with $1B+ in loans deployed across 1,500+ businesses. Upland, California." />
+  <meta name="description" content="Brian Kennedy Jr — personal soccer trainer and multi-dimensional development consultant. Founder of The Ballers Kingdom. 2024 California 30 Under 30. Connect on LinkedIn for the full record." />
   <link rel="canonical" href="https://ballkingdom.com/about.html" />
   <meta property="og:title" content="About Brian Kennedy Jr, M.Ed" />
-  <meta property="og:description" content="Personal soccer trainer and multi-dimensional development consultant — civic service, entrepreneurial development, and educational administration. Founder of The Ballers Kingdom." />
-  <meta property="og:image" content="https://ballkingdom.com/assets/img/brian_profile.jpg" />
+  <meta property="og:description" content="Personal soccer trainer and multi-dimensional development consultant. Founder of The Ballers Kingdom." />
+  <meta property="og:image" content="https://ballkingdom.com/assets/img/brian_smile.jpg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <style>
+    .about-hero { background: linear-gradient(180deg, var(--black) 0%, var(--ink) 100%); color: var(--white); padding: 84px 0 56px; }
+    .about-hero .kicker { color: var(--gold); }
+    .about-hero h1 { color: var(--white); margin: 14px 0 16px; font-size: clamp(2.6rem, 6vw, 5rem); line-height: 0.98; }
+    .about-hero .lead { color: #BFC8D6; max-width: 60ch; }
+
+    .photo-gallery { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; margin: 36px 0 12px; }
+    .photo-gallery .stack { display: grid; grid-template-rows: 1fr 1fr; gap: 20px; }
+    .photo-tile { position: relative; overflow: hidden; border-radius: 16px; box-shadow: var(--shadow-md); background: var(--ink); aspect-ratio: 4 / 5; }
+    .photo-tile.lead { aspect-ratio: 4 / 4.4; }
+    .photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 600ms ease; }
+    .photo-tile:hover img { transform: scale(1.04); }
+    .photo-tile .caption { position: absolute; bottom: 14px; left: 16px; color: var(--white); font-family: var(--font-display); letter-spacing: 0.18em; font-size: 0.72rem; text-transform: uppercase; background: rgba(11,18,32,0.55); padding: 6px 12px; border-radius: 4px; backdrop-filter: blur(4px); }
+    @media (max-width: 800px) { .photo-gallery { grid-template-columns: 1fr; } .photo-gallery .stack { grid-template-columns: 1fr 1fr; grid-template-rows: auto; } }
+
+    .creds-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 8px; }
+    .creds-row .cred { background: rgba(255,255,255,0.06); color: var(--white); border: 1px solid rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 999px; font-family: var(--font-display); font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; }
+
+    .li-cta { background: linear-gradient(135deg, #0a66c2, #084d92); color: var(--white); padding: 64px 0; text-align: center; }
+    .li-cta h2 { color: var(--white); margin: 0 0 14px; }
+    .li-cta p { color: rgba(255,255,255,0.92); max-width: 580px; margin: 0 auto 28px; }
+    .btn-li { display: inline-flex; align-items: center; gap: 10px; background: var(--white); color: #0a66c2; padding: 14px 26px; border-radius: 6px; font-family: var(--font-display); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.86rem; text-decoration: none; transition: background 200ms ease, transform 200ms ease; }
+    .btn-li:hover { background: var(--gray-200); transform: translateY(-2px); }
+    .btn-li svg { width: 22px; height: 22px; fill: #0a66c2; }
+
+    .bio-prose { max-width: 720px; margin: 36px 0 0; }
+    .bio-prose p { color: #CBD5E1; font-size: 1.05rem; line-height: 1.65; margin-bottom: 18px; }
+    .bio-prose p strong { color: var(--white); }
+
+    .pullquote-light { border-left: 3px solid var(--gold); padding: 10px 0 10px 22px; margin: 28px 0 0; max-width: 640px; }
+    .pullquote-light blockquote { font-family: var(--font-serif); font-style: italic; font-size: 1.25rem; color: var(--white); margin: 0 0 8px; line-height: 1.4; }
+    .pullquote-light cite { color: rgba(255,255,255,0.65); font-size: 0.86rem; letter-spacing: 0.1em; font-style: normal; }
+  </style>
 </head>
 <body>
 
@@ -21,89 +55,94 @@
     <a href="index.html" class="logo"><span class="monogram">BK</span><span class="wordmark"><span>The Ballers Kingdom</span><span class="est">EST 2019</span></span></a>
     <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="soccer.html">Soccer Training</a>
-      <a href="yvp.html">Youth Venture</a>
+      <a href="soccer.html">Training</a>
+      <a href="ee-venture.html">EE Venture</a>
       <a href="about.html">About</a>
-      <a href="contact.html" class="nav-cta">Book Consultation</a>
+      <a href="contact.html">Book Consulting</a>
+      <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" class="nav-cta">Open App</a>
     </div>
   </div>
 </nav>
 
-<header class="page-head">
-  <div class="container inner">
+<header class="about-hero">
+  <div class="container">
     <div class="kicker">About the Founder</div>
     <h1>Brian Kennedy Jr, M.Ed</h1>
-    <p>Personal soccer trainer. Multi-dimensional development consultant. Civic service, entrepreneurial development, and educational administration.</p>
+    <p class="lead">Personal soccer trainer · Multi-dimensional development consultant · 2024 California 30 Under 30.</p>
+
+    <div class="creds-row">
+      <span class="cred">CA 30 Under 30 · 2024</span>
+      <span class="cred">M.Ed · Providence '19</span>
+      <span class="cred">B.A. · Providence '17</span>
+      <span class="cred">#12 Friars · 2× BIG EAST</span>
+      <span class="cred">NCAA Final Four &amp; Elite 8</span>
+      <span class="cred">Upland, CA</span>
+    </div>
+
+    <div class="photo-gallery">
+      <div class="photo-tile lead" data-reveal>
+        <img src="assets/img/brian_smile.jpg" alt="Brian Kennedy Jr" loading="lazy" />
+        <span class="caption">Founder · 2026</span>
+      </div>
+      <div class="stack">
+        <div class="photo-tile" data-reveal>
+          <img src="assets/img/brian_profile.jpg" alt="Brian Kennedy Jr — profile" loading="lazy" />
+          <span class="caption">Consultant</span>
+        </div>
+        <div class="photo-tile" data-reveal>
+          <img src="assets/img/brian_seated.jpg" alt="Brian Kennedy Jr — seated" loading="lazy" />
+          <span class="caption">Coach</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bio-prose">
+      <p>Brian is the founder of <strong>The Ballers Kingdom</strong> — a tech-forward training platform and multi-dimensional development consulting practice rooted in the Inland Empire. His work spans <strong>civic service, entrepreneurial development, and educational administration</strong>.</p>
+      <p>Off the field, Brian serves as <strong>Entrepreneur Ecosystem Executive Director at AmPac Business Capital</strong> and Student Success Counselor at Los Angeles College of Music. He founded <strong>The Entrepreneur Ecosystem 501(c)(3)</strong> in 2024, the same year Assembly Majority Leader Emerita Eloise Gómez Reyes recognized him with the California District 50 · 30 Under 30 Award.</p>
+
+      <div class="pullquote-light">
+        <blockquote>"One degree. Two rings. Not done yet."</blockquote>
+        <cite>— Brian's graduation cap, Providence College</cite>
+      </div>
+    </div>
   </div>
 </header>
 
-<section>
+<section class="li-cta">
+  <div class="container-tight">
+    <h2>The full record lives on LinkedIn.</h2>
+    <p>Awards, speaking engagements, leadership roles, recommendations, and current work — all kept current there. Connect for the complete story.</p>
+    <a href="https://linkedin.com/in/brian-kennedy-jr-ampac" target="_blank" rel="noopener" class="btn-li">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 110-4.12 2.06 2.06 0 010 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.28V1.72C24 .77 23.2 0 22.23 0z"/></svg>
+      Connect on LinkedIn
+    </a>
+  </div>
+</section>
+
+<section class="ecosystem-strip">
   <div class="container">
-    <div class="split">
-      <div class="split-img badge" data-reveal>
-        <img src="assets/img/brian_profile.jpg" alt="Brian Kennedy Jr, M.Ed — official Providence College Big East headshot" />
+    <div class="kicker">Part of the Brian Kennedy Jr Ecosystem</div>
+    <h2>Three organizations. One mission.</h2>
+    <p class="eco-intro">Develop leaders young — through sport, through school, through small business — and keep developing them for life.</p>
+    <div class="ecosystem-grid">
+      <div class="eco-card current">
+        <div class="eco-kicker">You are here</div>
+        <div class="eco-name">The Ballers Kingdom</div>
+        <p>Tech-forward training platform, consulting practice, and member app.</p>
+        <div class="eco-link">ballkingdom.com →</div>
       </div>
-      <div class="prose" data-reveal>
-        <div class="credentials">
-          <span class="cred">CA 30 Under 30 · 2024</span>
-          <span class="cred">Providence '17 &amp; '19</span>
-          <span class="cred">M.Ed., Guidance &amp; Counseling</span>
-          <span class="cred">#12 Friars · BIG EAST</span>
-          <span class="cred">NCAA Final Four '14</span>
-          <span class="cred">NCAA Elite 8 '16</span>
-          <span class="cred">All-Academic Honor Roll</span>
-          <span class="cred">Upland, CA</span>
-        </div>
-        <p>Brian Kennedy Jr was born and raised in Upland, California. He played Division I soccer at Providence College, wearing #12 for the Friars in the BIG EAST Conference. In 2014, Providence captured the BIG EAST Conference Championship and advanced to the NCAA Final Four — both firsts in program history. Two years later the Friars claimed the BIG EAST Regular Season title and reached the NCAA Elite 8. Brian earned his B.A. in Political Science in 2017 and returned to complete his M.Ed. in Guidance &amp; Counseling in 2019, earning Athletics All-Academic Honor Roll recognition along the way.</p>
-        <p>After Providence, Brian returned to Southern California with a mission: take what he learned at the Division I level — the discipline, the training systems, the leadership — and make it available to youth in the Inland Empire. He founded The Ballers Kingdom in 2019 as the vehicle for that work — beginning as personal one-on-one soccer training and growing into a multi-dimensional development consulting practice spanning life (personal), academic (educational), career (vocational), business (entrepreneurial), and digital growth.</p>
-
-        <div class="pullquote">
-          "One degree. Two rings. Not done yet."
-          <cite>— From Brian's graduation cap, Providence College</cite>
-        </div>
-
-        <h3 id="philosophy">The philosophy</h3>
-        <p>Brian's coaching is built on three pillars — Faith, Family, and Furtherment. Faith gives character; family gives foundation; furtherment moves every player forward. That framework runs through every private session, every youth clinic, and every Youth Venture Program cohort he leads.</p>
-
-        <h3>Beyond the field</h3>
-        <p>Off the field, Brian serves as <strong>Entrepreneur Ecosystem Executive Director at AmPac Business Capital</strong> — the SBA's first faith-based certified lender and the <strong>#1 SBA 504 lender</strong> for the Orange County / Inland Empire District in 2017. He directs access-to-capital programming and technical assistance across SBA 504, 7(a), microloan, SSBCI, and CDFI product lines, helping deploy <strong>$1B+ in loans</strong> and support <strong>1,500+ businesses</strong> across California, Arizona, and Nevada. He administered <strong>$15M+ in PPP relief</strong> during COVID and advocates for CDFI and SSBCI priorities with the <strong>CDFI Coalition Institute in Washington, D.C.</strong></p>
-        <p>In 2024, Assembly Majority Leader Emerita <strong>Eloise Gómez Reyes</strong> recognized Brian with the <strong>California District 50 · 30 Under 30 Award</strong> for his impact on access to capital, coaching, and community. That same year he founded <strong>The Entrepreneur Ecosystem</strong>, a 501(c)(3) nonprofit advancing entrepreneurship education, access to capital, and small business support for underserved communities.</p>
-        <p>Brian also serves as <strong>Student Success Counselor at Los Angeles College of Music (LACM)</strong>, carrying his M.Ed. training into higher education through student, mental-health, career, and academic advising. The Ballers Kingdom is one piece of a larger mission: develop leaders young, and keep developing them for life.</p>
-
-        <h3>Awards &amp; recognition</h3>
-        <ul class="speaking-list">
-          <li><strong>2024 California 30 Under 30 — District 50</strong> — Presented by Assembly Majority Leader Emerita Eloise Gómez Reyes for leadership in access to capital, coaching, and community impact.</li>
-          <li><strong>#1 SBA 504 Lender (OC / IE District, 2017)</strong> — AmPac selected as the top 504 lender in the Orange County / Inland Empire SBA District during Brian's tenure.</li>
-          <li><strong>Athletics All-Academic Honor Roll</strong> — BIG EAST Conference academic recognition, Providence College.</li>
-        </ul>
-
-        <h3>Speaking &amp; featured</h3>
-        <ul class="speaking-list">
-          <li><strong>James Irvine Foundation (2024)</strong> — Featured at the statewide <em>Priority Communities Learning Summit</em>; cited at irvine.org on inclusive economy and barrier-free capital access.</li>
-          <li><strong>CCIM SoCal Chapter (2026)</strong> — Keynote on AmPac's origin story and Entrepreneur Ecosystem impact; SBA 504 owner-user CRE financing. Victoria Club, Riverside, CA.</li>
-          <li><strong>CalOSBA &amp; I-Bank State Roundtable (2026)</strong> — Co-host and co-facilitator with CalOSBA Director Elmy Borrego and I-Bank Director Andy Natakaha.</li>
-          <li><strong>CSUSB — FIN 4900 (2026)</strong> — Guest lecturer on business plan implementation, <em>Know Your Numbers</em>, and SBA loan readiness.</li>
-          <li><strong>Capitol Hill — CDFI Coalition Institute (2026)</strong> — Congressional delegation visits (CA/AZ/NV) on CDFI Fund and SSBCI priorities.</li>
-          <li><strong>AmPac Leap 2 Launch (2025)</strong> — Graduation keynote for Cohorts 1, 2, and 3 of AmPac's entrepreneur development program.</li>
-        </ul>
-
-        <h3>Leadership &amp; experience</h3>
-        <ul class="speaking-list">
-          <li><strong>Entrepreneur Ecosystem Executive Director · AmPac Business Capital (2021 –)</strong> — Directs SBA lending outreach, coworking, incubator, and technical assistance across CA / AZ / NV.</li>
-          <li><strong>Founder &amp; Executive Director · The Entrepreneur Ecosystem 501(c)(3) (2024 –)</strong> — Nonprofit advancing entrepreneurship education and access to capital for underserved communities.</li>
-          <li><strong>Student Success Counselor · Los Angeles College of Music (2023 –)</strong> — Higher education counseling and academic advising for college musicians and creatives.</li>
-          <li><strong>Business Finance Consultant · BUREAUCOM LLC (2023 – 25)</strong> — Financial advisory, loan readiness, and growth planning for small businesses.</li>
-          <li><strong>Founder &amp; President · The Ballers Kingdom (2019 –)</strong> — Faith-based soccer training and the Youth Venture Program.</li>
-          <li><strong>Skills &amp; Technical Development Specialist · ABC School of Soccer (2016 –)</strong> — Nearly a decade of youth soccer skill development in Riverside, CA.</li>
-          <li><strong>Resident Director / DEI Coordinator · Marymount California University (2019 – 20)</strong> — Supervised 11 undergraduate RAs; BFSA Executive Team; designed and facilitated DEI trainings.</li>
-        </ul>
-
-        <div class="callout">
-          <h4>By the numbers</h4>
-          <p>2024 California 30 Under 30 (District 50) · M.Ed. &amp; B.A., Providence College · 2× BIG EAST · NCAA Final Four &amp; Elite 8 · Founded The Ballers Kingdom 2019 · Founded The Entrepreneur Ecosystem 501(c)(3) 2024 · $1B+ in loans deployed · 1,500+ businesses supported · $15M+ PPP deployed · CA · AZ · NV.</p>
-        </div>
-      </div>
+      <a class="eco-card" href="https://entrepreneur-ecosystem.com" target="_blank" rel="noopener">
+        <div class="eco-kicker">Nonprofit · 501(c)(3)</div>
+        <div class="eco-name">The Entrepreneur Ecosystem</div>
+        <p>Entrepreneurship education and access to capital for underserved communities. CA · AZ · NV.</p>
+        <div class="eco-link">entrepreneur-ecosystem.com →</div>
+      </a>
+      <a class="eco-card" href="https://ampac.com" target="_blank" rel="noopener">
+        <div class="eco-kicker">Access to capital</div>
+        <div class="eco-name">AmPac Business Capital</div>
+        <p>SBA's first faith-based certified lender. $1B+ deployed · 1,500+ businesses supported.</p>
+        <div class="eco-link">ampac.com →</div>
+      </a>
     </div>
   </div>
 </section>
@@ -113,10 +152,11 @@
     <div class="section-header">
       <div class="kicker">Connect</div>
       <h2>Training starts with a conversation.</h2>
-      <p class="lead">Whether it's private soccer training, a YVP cohort, or a team program — the first step is always a consultation.</p>
+      <p class="lead">Personal training, group sessions, EE Venture, or consulting — start with a free 30-minute consultation.</p>
     </div>
     <div style="text-align:center;">
-      <a href="contact.html" class="btn btn-primary">Book a Consultation</a>
+      <a href="contact.html" class="btn btn-primary">Book Consulting</a>
+      <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" class="btn btn-ghost" style="margin-left: 12px;">Open the App →</a>
     </div>
   </div>
 </section>
@@ -126,15 +166,16 @@
     <div class="footer-grid">
       <div class="footer-brand">
         <div class="logo" style="color: var(--cream);"><span class="monogram">BK</span><span class="wordmark"><span>The Ballers Kingdom</span><span class="est">EST 2019</span></span></div>
-        <p>Soccer training and youth entrepreneurship development. Inland Empire, California.</p>
+        <p>Tech-forward training platform, multi-dimensional development consulting, and member app. Inland Empire, California.</p>
         <div class="socials">
           <a href="https://www.instagram.com/theballerskingdom_" target="_blank" rel="noopener" aria-label="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 1.2.1 1.8.3 2.2.5.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .5 2.2.1 1.2.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 1.2-.3 1.8-.5 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.5-1.2.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-1.2-.1-1.8-.3-2.2-.5-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.5-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8c.1-1.2.3-1.8.5-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.5C8.4 2.2 8.8 2.2 12 2.2zm0 1.9c-3.1 0-3.5 0-4.7.1-1.1.1-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1C2.6 9.5 2.6 9.9 2.6 13s0 3.5.1 4.7c.1 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-4.7s0-3.5-.1-4.7c-.1-1.1-.2-1.7-.4-2.1-.2-.5-.4-.9-.8-1.3-.4-.4-.8-.6-1.3-.8-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1zm0 3.3c2.7 0 4.9 2.2 4.9 4.9s-2.2 4.9-4.9 4.9-4.9-2.2-4.9-4.9 2.2-4.9 4.9-4.9zm0 8.1c1.8 0 3.2-1.4 3.2-3.2s-1.4-3.2-3.2-3.2-3.2 1.4-3.2 3.2 1.4 3.2 3.2 3.2zm6.3-8.3c0 .6-.5 1.1-1.1 1.1s-1.1-.5-1.1-1.1.5-1.1 1.1-1.1 1.1.5 1.1 1.1z"/></svg></a>
           <a href="https://www.youtube.com/@TheBallersKingdom" target="_blank" rel="noopener" aria-label="YouTube"><svg viewBox="0 0 24 24"><path d="M23.5 6.2c-.3-1-1-1.8-2-2.1C19.7 3.5 12 3.5 12 3.5s-7.7 0-9.5.6c-1 .3-1.8 1.1-2 2.1C0 8 0 12 0 12s0 4 .5 5.8c.3 1 1 1.8 2 2.1 1.8.6 9.5.6 9.5.6s7.7 0 9.5-.6c1-.3 1.8-1.1 2-2.1C24 16 24 12 24 12s0-4-.5-5.8zM9.5 15.5V8.5l6.5 3.5-6.5 3.5z"/></svg></a>
+          <a href="https://linkedin.com/in/brian-kennedy-jr-ampac" target="_blank" rel="noopener" aria-label="LinkedIn"><svg viewBox="0 0 24 24"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 110-4.12 2.06 2.06 0 010 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.28V1.72C24 .77 23.2 0 22.23 0z"/></svg></a>
         </div>
       </div>
-      <div><h4>Services</h4><a href="soccer.html">Soccer Training</a><a href="yvp.html">Youth Venture Program</a><a href="contact.html">Book Consultation</a></div>
-      <div><h4>About</h4><a href="about.html">Meet Brian</a><a href="contact.html">Contact</a></div>
-      <div><h4>Get in touch</h4><a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a><a href="https://linktr.ee/TheBallersKingdom" target="_blank" rel="noopener">Linktree</a></div>
+      <div><h4>Kingdom System</h4><a href="soccer.html">Training Hub</a><a href="ee-venture.html">EE Venture</a><a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Apparel &amp; Shop</a><a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Member Dashboard</a></div>
+      <div><h4>About</h4><a href="about.html">Meet Brian</a><a href="https://linkedin.com/in/brian-kennedy-jr-ampac" target="_blank" rel="noopener">LinkedIn</a><a href="contact.html">Book Consulting</a></div>
+      <div><h4>Get in touch</h4><a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a><a href="https://linktr.ee/TheBallersKingdom" target="_blank" rel="noopener">Linktree</a><a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Open the App</a></div>
     </div>
     <div class="footer-bottom"><div>© <span id="year">2026</span> The Ballers Kingdom. All rights reserved.</div><div>A program of the AmPac Entrepreneur Ecosystem.</div></div>
   </div>
