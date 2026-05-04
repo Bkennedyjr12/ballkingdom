@@ -3,16 +3,63 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Soccer Training | The Ballers Kingdom</title>
-  <meta name="description" content="1-on-1, small group, and team soccer training with Brian Kennedy Jr — Division I graduate and 2× BIG EAST champion. Technical, tactical, and mental development. Inland Empire, CA." />
+  <title>Training Hub | The Ballers Kingdom</title>
+  <meta name="description" content="Tech-forward soccer training where Ballers create personal plans, book local coaches, and access consulting support. 1-on-1, group, and team programs. Built on Division I experience by Brian Kennedy Jr — 2× BIG EAST, NCAA Final Four & Elite 8 Providence Friar." />
   <link rel="canonical" href="https://ballkingdom.com/soccer.html" />
-  <meta property="og:title" content="Soccer Training | The Ballers Kingdom" />
-  <meta property="og:description" content="Division I-level soccer training for serious athletes." />
-  <meta property="og:image" content="https://i.ytimg.com/vi/FL9xiMrWNAg/maxresdefault.jpg" />
+  <meta property="og:title" content="Training Hub | The Ballers Kingdom" />
+  <meta property="og:description" content="Personal soccer training. Tech-forward. Division I-built. Open the app to book sessions." />
+  <meta property="og:image" content="https://ballkingdom.com/assets/img/brian_action_dribble.jpg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <style>
+    .training-hero { background: linear-gradient(180deg, var(--black) 0%, var(--ink) 100%); color: var(--white); padding: 80px 0 64px; position: relative; overflow: hidden; }
+    .training-hero::before { content:""; position: absolute; inset: 0; background: radial-gradient(circle at 80% 20%, rgba(20,48,111,0.5), transparent 60%); pointer-events:none; }
+    .training-hero .kicker { color: var(--gold); position: relative; }
+    .training-hero h1 { color: var(--white); font-size: clamp(2.6rem, 6.5vw, 5.4rem); line-height: 0.98; margin: 14px 0 18px; position: relative; }
+    .training-hero h1 .accent { color: var(--gold); }
+    .training-hero .lead { color: #BFC8D6; max-width: 60ch; position: relative; }
+
+    .pos-pill { display: inline-block; padding: 8px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(11,18,32,0.55); color: #BFC8D6; font-family: var(--font-display); letter-spacing: 0.14em; font-size: 0.78rem; text-transform: uppercase; }
+
+    .hero-ctas { margin-top: 28px; position: relative; }
+
+    .hero-video-card { background: linear-gradient(140deg, rgba(20,48,111,0.6), rgba(11,18,32,0.95)); border-radius: 24px; padding: 6px; box-shadow: 0 30px 80px rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.08); overflow: hidden; }
+    .hero-video-card video, .hero-video-card img { width: 100%; height: auto; display: block; border-radius: 18px; }
+
+    .training-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 36px; align-items: center; margin-top: 40px; }
+    @media (max-width: 900px) { .training-grid { grid-template-columns: 1fr; } }
+
+    /* Numbered training options */
+    .opts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 36px; }
+    @media (max-width: 900px) { .opts-grid { grid-template-columns: 1fr; } }
+    .opt-card { background: var(--white); border: 1px solid var(--gray-200); border-radius: 14px; padding: 28px 24px; box-shadow: var(--shadow-sm); transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease; position: relative; }
+    .opt-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--crimson); }
+    .opt-num { position: absolute; top: 18px; right: 22px; color: var(--gray-400); font-family: var(--font-display); font-size: 0.82rem; letter-spacing: 0.22em; }
+    .opt-icon { width: 48px; height: 48px; border-radius: 12px; background: var(--crimson); color: var(--white); display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; margin-bottom: 14px; }
+    .opt-card h3 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 8px; }
+    .opt-card p { color: var(--gray-600); margin: 0 0 14px; font-size: 0.95rem; line-height: 1.5; }
+    .opt-card a.inquire { color: var(--crimson); font-family: var(--font-display); font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; font-size: 0.78rem; text-decoration: none; }
+
+    /* YouTube cards */
+    .yt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 36px; }
+    @media (max-width: 900px) { .yt-grid { grid-template-columns: 1fr; } }
+    .yt-card { background: var(--white); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-sm); text-decoration: none; color: inherit; display: block; transition: transform 220ms ease, box-shadow 220ms ease; }
+    .yt-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+    .yt-thumb { aspect-ratio: 16/9; background-size: cover; background-position: center; position: relative; display: flex; align-items: center; justify-content: center; }
+    .yt-thumb::after { content: "▶"; width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.95); color: var(--crimson-dark); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; padding-left: 4px; }
+    .yt-tag { position: absolute; top: 12px; left: 12px; background: rgba(11,18,32,0.85); color: var(--white); font-family: var(--font-display); font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 5px 10px; border-radius: 4px; z-index: 2; }
+    .yt-meta { padding: 16px 18px; }
+    .yt-meta strong { display: block; color: var(--ink); font-size: 0.98rem; line-height: 1.4; margin-bottom: 4px; }
+    .yt-meta span { color: var(--gray-400); font-size: 0.82rem; }
+
+    .app-cta { background: linear-gradient(135deg, var(--crimson-dark), var(--crimson)); color: var(--white); padding: 64px 0; text-align: center; }
+    .app-cta h2 { color: var(--white); margin: 0 0 14px; }
+    .app-cta p { color: rgba(255,255,255,0.85); max-width: 640px; margin: 0 auto 28px; }
+    .app-cta .btn-primary { background: var(--white); color: var(--crimson-dark); }
+  </style>
 </head>
 <body>
 
@@ -21,40 +68,97 @@
     <a href="index.html" class="logo"><span class="monogram">BK</span><span class="wordmark"><span>The Ballers Kingdom</span><span class="est">EST 2019</span></span></a>
     <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="soccer.html">Soccer Training</a>
-      <a href="yvp.html">Youth Venture</a>
+      <a href="soccer.html">Training</a>
+      <a href="yvp.html">EE Venture</a>
       <a href="about.html">About</a>
-      <a href="contact.html" class="nav-cta">Book Consultation</a>
+      <a href="contact.html">Book Consulting</a>
+      <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" class="nav-cta">Open App</a>
     </div>
   </div>
 </nav>
 
-<header class="page-head">
-  <div class="container inner">
-    <div class="kicker">Primary Service</div>
-    <h1>Soccer Training</h1>
-    <p>Division I experience. Big East championship preparation. Built for the serious athlete who wants more than drills.</p>
+<header class="training-hero">
+  <div class="container">
+    <div class="training-grid">
+      <div>
+        <span class="pos-pill">01 · Training Hub</span>
+        <h1>Train smarter.<br />Play <span class="accent">Division I-ready.</span></h1>
+        <p class="lead">Tech-forward training where Ballers create personal plans, book local coaches, and access consulting support. 1-on-1, group, and team programs — built on Division I experience and the BIG EAST.</p>
+        <div class="hero-ctas">
+          <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" class="btn btn-primary">Open the App →</a>
+          <a href="contact.html" class="btn btn-ghost">Book a Consultation</a>
+        </div>
+      </div>
+      <div data-reveal>
+        <div class="hero-video-card">
+          <video poster="assets/img/IMG_2557_poster.jpg" muted playsinline autoplay loop aria-label="The Ballers Kingdom training">
+            <source src="assets/img/IMG_2557.mp4" type="video/mp4" />
+          </video>
+        </div>
+      </div>
+    </div>
   </div>
 </header>
 
+<section class="section-stone">
+  <div class="container">
+    <div class="section-header">
+      <div class="kicker">Philosophy</div>
+      <h2>We don't train you harder. We train you smarter.</h2>
+      <p class="lead">Three questions every session: can you read the game, can you execute under pressure, and can you do it when you're tired? That's how championships are won.</p>
+    </div>
+    <div class="pillars">
+      <div class="pillar" data-reveal><div class="icon">T</div><h3>Technical</h3><p>First touch, weight of pass, finishing in the 18, 1v1 attacking and defending.</p></div>
+      <div class="pillar" data-reveal><div class="icon">T</div><h3>Tactical</h3><p>Positional awareness, reading transition, decision-making under fatigue.</p></div>
+      <div class="pillar" data-reveal><div class="icon">M</div><h3>Mental</h3><p>Competitive mindset, handling setbacks, college-level preparation.</p></div>
+    </div>
+  </div>
+</section>
+
 <section>
   <div class="container">
-    <div class="split">
-      <div class="prose" data-reveal>
-        <h2 style="margin-top:0;">The philosophy</h2>
-        <p>We don't train you harder — we train you smarter. Every session is built around three questions: can you read the game, can you execute under pressure, and can you do it when you're tired? That's how championships are won. That's what I was coached on at Providence, and that's what you'll get here.</p>
-
-        <h3>What we work on</h3>
-        <ul>
-          <li><strong>Technical:</strong> first touch, weight of pass, finishing in the 18, 1v1 attacking and defending.</li>
-          <li><strong>Tactical:</strong> positional awareness, reading transition, decision-making under fatigue.</li>
-          <li><strong>Mental:</strong> competitive mindset, handling setbacks, college-level preparation.</li>
-          <li><strong>Physical:</strong> speed, agility, and soccer-specific conditioning.</li>
-        </ul>
+    <div class="section-header">
+      <div class="kicker">Training Options</div>
+      <h2>Three ways to train.</h2>
+      <p class="lead">All levels, all ages — youth through college-bound. Every program starts with a free consultation so we can place you correctly.</p>
+    </div>
+    <div class="opts-grid">
+      <div class="opt-card" data-reveal>
+        <span class="opt-num">01</span>
+        <span class="opt-icon">1:1</span>
+        <h3>Private Training</h3>
+        <p>1-on-1 sessions tailored to the athlete. Fastest skill development. Full attention on weaknesses, full reinforcement of strengths.</p>
+        <a class="inquire" href="contact.html">Inquire →</a>
       </div>
+      <div class="opt-card" data-reveal>
+        <span class="opt-num">02</span>
+        <span class="opt-icon">2-6</span>
+        <h3>Small Group</h3>
+        <p>2–6 athletes. Competitive, pressurized reps with teammates of similar level. Best value per session. Builds chemistry and game IQ.</p>
+        <a class="inquire" href="contact.html">Inquire →</a>
+      </div>
+      <div class="opt-card" data-reveal>
+        <span class="opt-num">03</span>
+        <span class="opt-icon">XI</span>
+        <h3>Team Training</h3>
+        <p>Full team sessions for clubs and school programs. Position-specific work, tactical installs, and team-wide culture building.</p>
+        <a class="inquire" href="contact.html">Inquire →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section-dark">
+  <div class="container">
+    <div class="split">
       <div class="split-img" data-reveal>
-        <img src="https://i.ytimg.com/vi/FL9xiMrWNAg/maxresdefault.jpg" alt="Soccer training session with Brian Kennedy" />
+        <img src="assets/img/brian_action_dribble.jpg" alt="Brian Kennedy Jr at Providence — Division I dribble" />
+      </div>
+      <div class="prose" data-reveal>
+        <h2 style="color: var(--white); margin-top: 0;">Built on Division I experience.</h2>
+        <p style="color: #CBD5E1;">Brian played D-I at Providence College, wore #12 for the Friars, and won the BIG EAST Championship + NCAA Final Four (2014) and BIG EAST Regular Season + Elite 8 (2016) — both program firsts. He earned an M.Ed. in Guidance &amp; Counseling and brings that training to every session.</p>
+        <p style="color: #CBD5E1;">Every Ballers Kingdom program is built on the discipline, training systems, and leadership Brian learned at the highest level of college soccer. You don't just get a coach — you get a mentor who's been through what you want to go through.</p>
+        <a href="about.html" class="btn btn-ghost">Read Brian's Story</a>
       </div>
     </div>
   </div>
@@ -63,59 +167,47 @@
 <section class="section-stone">
   <div class="container">
     <div class="section-header">
-      <div class="kicker">Training Options</div>
-      <h2>Three ways to train</h2>
-      <p class="lead">All levels, all ages — youth through college-bound. Every program starts with a consultation so we can place you correctly.</p>
+      <div class="kicker">From the Field</div>
+      <h2>Watch the work.</h2>
+      <p class="lead">Real reps. Real sessions. Real players developing in real time. Subscribe on @TheBallersKingdom for the full library.</p>
     </div>
-    <div class="pillars">
-      <div class="pillar" data-reveal>
-        <div class="icon">1</div>
-        <h3>Private Training</h3>
-        <p>1-on-1 sessions tailored to the athlete. Fastest skill development. Full attention on weaknesses, full reinforcement of strengths.</p>
-        <a href="contact.html" style="color: var(--crimson); font-family: var(--font-display); letter-spacing: 0.15em; font-size: 0.85rem; text-transform: uppercase;">Inquire →</a>
-      </div>
-      <div class="pillar" data-reveal>
-        <div class="icon">2</div>
-        <h3>Small Group</h3>
-        <p>2–6 athletes. Competitive, pressurized reps with teammates of similar level. Best value per session. Builds chemistry and game intelligence.</p>
-        <a href="contact.html" style="color: var(--crimson); font-family: var(--font-display); letter-spacing: 0.15em; font-size: 0.85rem; text-transform: uppercase;">Inquire →</a>
-      </div>
-      <div class="pillar" data-reveal>
-        <div class="icon">3</div>
-        <h3>Team Training</h3>
-        <p>Full team sessions for clubs and school programs. Position-specific work, tactical installs, and team-wide culture building.</p>
-        <a href="contact.html" style="color: var(--crimson); font-family: var(--font-display); letter-spacing: 0.15em; font-size: 0.85rem; text-transform: uppercase;">Inquire →</a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="container">
-    <div class="split">
-      <div class="split-img" data-reveal>
-        <img src="assets/img/brian_action_dribble.jpg" alt="Player mentorship moment" />
-      </div>
-      <div class="prose" data-reveal>
-        <h2 style="margin-top:0;">What makes it different</h2>
-        <p>I've been where you want to go. I played Division I at Providence College, wore #12, won the BIG EAST Conference Championship and reached the NCAA Final Four in 2014, and the NCAA Elite 8 in 2016 — both firsts in program history — and earned my Master's in Education after. I know what college coaches are looking for because I was recruited by them — and I know how to develop players who can reach that level.</p>
-
-        <p>But I'm not just interested in making you a better soccer player. I want you to be a better person — a leader, a son or daughter, a future entrepreneur. That's why every player at The Ballers Kingdom gets mentorship, not just training.</p>
-
-        <div class="callout">
-          <h4>Who this is for</h4>
-          <p>Youth and high school athletes serious about development, college-bound players preparing for recruiting, and parents who want their son or daughter trained by someone who's been through it.</p>
+    <div class="yt-grid">
+      <a class="yt-card" href="https://www.youtube.com/shorts/KIyE1l9trUc" target="_blank" rel="noopener">
+        <div class="yt-thumb" style="background-image: url('https://i.ytimg.com/vi/KIyE1l9trUc/hqdefault.jpg');">
+          <span class="yt-tag">1-on-1 &amp; Group</span>
         </div>
-      </div>
+        <div class="yt-meta">
+          <strong>Soccer Training · The Ballers Kingdom way</strong>
+          <span>@TheBallersKingdom</span>
+        </div>
+      </a>
+      <a class="yt-card" href="https://www.youtube.com/shorts/FL9xiMrWNAg" target="_blank" rel="noopener">
+        <div class="yt-thumb" style="background-image: url('https://i.ytimg.com/vi/FL9xiMrWNAg/hqdefault.jpg');">
+          <span class="yt-tag">All Ages</span>
+        </div>
+        <div class="yt-meta">
+          <strong>Infant, youth, and adult-level training</strong>
+          <span>@TheBallersKingdom</span>
+        </div>
+      </a>
+      <a class="yt-card" href="https://youtu.be/rBrqD6qSTSk" target="_blank" rel="noopener">
+        <div class="yt-thumb" style="background-image: url('https://i.ytimg.com/vi/rBrqD6qSTSk/maxresdefault.jpg');">
+          <span class="yt-tag">Program Overview</span>
+        </div>
+        <div class="yt-meta">
+          <strong>The Ballers Kingdom — Program Overview</strong>
+          <span>@TheBallersKingdom</span>
+        </div>
+      </a>
     </div>
   </div>
 </section>
 
-<section class="cta-band">
+<section class="app-cta">
   <div class="container-tight">
-    <h2>Let's build a plan.</h2>
-    <p>Book a free consultation and we'll talk through your athlete's goals, current level, and the right program to start with.</p>
-    <a href="contact.html" class="btn btn-ghost">Book a Consultation</a>
+    <h2>Book your first session in the app.</h2>
+    <p>Coach booking. Personal plans. Session history. Tournaments. NIL Tracker. Every Baller's home base.</p>
+    <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" class="btn btn-primary">Open the App →</a>
   </div>
 </section>
 
@@ -124,15 +216,16 @@
     <div class="footer-grid">
       <div class="footer-brand">
         <div class="logo" style="color: var(--cream);"><span class="monogram">BK</span><span class="wordmark"><span>The Ballers Kingdom</span><span class="est">EST 2019</span></span></div>
-        <p>Soccer training and youth entrepreneurship development. Inland Empire, California.</p>
+        <p>Tech-forward training platform, multi-dimensional development consulting, and member app. Inland Empire, California.</p>
         <div class="socials">
           <a href="https://www.instagram.com/theballerskingdom_" target="_blank" rel="noopener" aria-label="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 1.2.1 1.8.3 2.2.5.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .5 2.2.1 1.2.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 1.2-.3 1.8-.5 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.5-1.2.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-1.2-.1-1.8-.3-2.2-.5-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.5-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8c.1-1.2.3-1.8.5-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.5C8.4 2.2 8.8 2.2 12 2.2zm0 1.9c-3.1 0-3.5 0-4.7.1-1.1.1-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1C2.6 9.5 2.6 9.9 2.6 13s0 3.5.1 4.7c.1 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-4.7s0-3.5-.1-4.7c-.1-1.1-.2-1.7-.4-2.1-.2-.5-.4-.9-.8-1.3-.4-.4-.8-.6-1.3-.8-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1zm0 3.3c2.7 0 4.9 2.2 4.9 4.9s-2.2 4.9-4.9 4.9-4.9-2.2-4.9-4.9 2.2-4.9 4.9-4.9zm0 8.1c1.8 0 3.2-1.4 3.2-3.2s-1.4-3.2-3.2-3.2-3.2 1.4-3.2 3.2 1.4 3.2 3.2 3.2zm6.3-8.3c0 .6-.5 1.1-1.1 1.1s-1.1-.5-1.1-1.1.5-1.1 1.1-1.1 1.1.5 1.1 1.1z"/></svg></a>
           <a href="https://www.youtube.com/@TheBallersKingdom" target="_blank" rel="noopener" aria-label="YouTube"><svg viewBox="0 0 24 24"><path d="M23.5 6.2c-.3-1-1-1.8-2-2.1C19.7 3.5 12 3.5 12 3.5s-7.7 0-9.5.6c-1 .3-1.8 1.1-2 2.1C0 8 0 12 0 12s0 4 .5 5.8c.3 1 1 1.8 2 2.1 1.8.6 9.5.6 9.5.6s7.7 0 9.5-.6c1-.3 1.8-1.1 2-2.1C24 16 24 12 24 12s0-4-.5-5.8zM9.5 15.5V8.5l6.5 3.5-6.5 3.5z"/></svg></a>
+          <a href="https://linkedin.com/in/brian-kennedy-jr-ampac" target="_blank" rel="noopener" aria-label="LinkedIn"><svg viewBox="0 0 24 24"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 110-4.12 2.06 2.06 0 010 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.28V1.72C24 .77 23.2 0 22.23 0z"/></svg></a>
         </div>
       </div>
-      <div><h4>Services</h4><a href="soccer.html">Soccer Training</a><a href="yvp.html">Youth Venture Program</a><a href="contact.html">Book Consultation</a></div>
-      <div><h4>About</h4><a href="about.html">Meet Brian</a><a href="contact.html">Contact</a></div>
-      <div><h4>Get in touch</h4><a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a><a href="https://linktr.ee/TheBallersKingdom" target="_blank" rel="noopener">Linktree</a></div>
+      <div><h4>Kingdom System</h4><a href="soccer.html">Training Hub</a><a href="yvp.html">EE Venture</a><a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Apparel &amp; Shop</a><a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Member Dashboard</a></div>
+      <div><h4>About</h4><a href="about.html">Meet Brian</a><a href="https://linkedin.com/in/brian-kennedy-jr-ampac" target="_blank" rel="noopener">LinkedIn</a><a href="contact.html">Book Consulting</a></div>
+      <div><h4>Get in touch</h4><a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a><a href="https://linktr.ee/TheBallersKingdom" target="_blank" rel="noopener">Linktree</a><a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Open the App</a></div>
     </div>
     <div class="footer-bottom"><div>© <span id="year">2026</span> The Ballers Kingdom. All rights reserved.</div><div>A program of the AmPac Entrepreneur Ecosystem.</div></div>
   </div>

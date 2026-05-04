@@ -3,15 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Book a Consultation | The Ballers Kingdom</title>
-  <meta name="description" content="Book a free consultation with Brian Kennedy Jr for soccer training or the Youth Venture Program. Serving California youth athletes and families." />
+  <title>Book Consulting | The Ballers Kingdom</title>
+  <meta name="description" content="Book a free 30-minute consultation with Brian Kennedy Jr — personal soccer training, EE Venture, or multi-dimensional development consulting. Or open the app to get started instantly." />
   <link rel="canonical" href="https://ballkingdom.com/contact.html" />
-  <meta property="og:title" content="Book a Consultation | The Ballers Kingdom" />
-  <meta property="og:description" content="Start with a free consultation. Let's talk about your athlete." />
+  <meta property="og:title" content="Book Consulting | The Ballers Kingdom" />
+  <meta property="og:description" content="Book a free 30-minute consultation, or open the app to get started." />
+  <meta property="og:image" content="https://ballkingdom.com/assets/img/brian_smile.jpg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <style>
+    .contact-hero { background: linear-gradient(180deg, var(--black) 0%, var(--ink) 100%); color: var(--white); padding: 84px 0 56px; }
+    .contact-hero .kicker { color: var(--gold); }
+    .contact-hero h1 { color: var(--white); font-size: clamp(2.6rem, 6.2vw, 5rem); line-height: 0.98; margin: 14px 0 16px; }
+    .contact-hero .lead { color: #BFC8D6; max-width: 60ch; }
+    .pos-pill { display: inline-block; padding: 8px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(11,18,32,0.55); color: #BFC8D6; font-family: var(--font-display); letter-spacing: 0.14em; font-size: 0.78rem; text-transform: uppercase; }
+
+    .contact-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 36px; margin-top: 48px; }
+    @media (max-width: 900px) { .contact-grid { grid-template-columns: 1fr; } }
+    .contact-card { background: var(--white); border-radius: 14px; padding: 32px 28px; box-shadow: var(--shadow-md); border: 1px solid var(--gray-200); }
+    .contact-card h2 { margin: 0 0 16px; }
+    .contact-row { display: flex; align-items: center; gap: 14px; padding: 16px 0; border-top: 1px solid var(--gray-200); }
+    .contact-row:first-of-type { border-top: 0; }
+    .contact-row .ico { width: 44px; height: 44px; border-radius: 12px; background: var(--crimson); color: var(--white); display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; flex-shrink: 0; }
+    .contact-row strong { display: block; color: var(--ink); font-family: var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.95rem; margin-bottom: 2px; }
+    .contact-row a, .contact-row span { color: var(--crimson); font-size: 0.95rem; text-decoration: none; word-break: break-word; }
+    .contact-row a:hover { color: var(--crimson-dark); }
+
+    .next-card { background: linear-gradient(140deg, var(--crimson-dark), var(--crimson)); color: var(--white); border-radius: 14px; padding: 36px 32px; box-shadow: var(--shadow-lg); }
+    .next-card h2 { color: var(--white); margin: 0 0 14px; }
+    .next-card p { color: rgba(255,255,255,0.9); margin: 0 0 22px; line-height: 1.55; }
+    .next-card .btn-primary { background: var(--white); color: var(--crimson-dark); margin-bottom: 12px; display: inline-flex; }
+    .next-card .btn-ghost { color: var(--white); border-color: rgba(255,255,255,0.5); }
+    .next-list { list-style: none; padding: 0; margin: 0; }
+    .next-list li { padding: 8px 0; color: rgba(255,255,255,0.9); display: flex; align-items: center; gap: 8px; font-size: 0.92rem; }
+    .next-list li::before { content: "✓"; color: var(--gold); font-weight: 700; }
+
+    .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 36px; }
+    @media (max-width: 900px) { .quick-grid { grid-template-columns: 1fr; } }
+    .quick-card { background: var(--stone); border-radius: 14px; padding: 24px 22px; text-align: center; }
+    .quick-card .icon { width: 48px; height: 48px; border-radius: 12px; background: var(--crimson); color: var(--white); margin: 0 auto 12px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; }
+    .quick-card h3 { font-family: var(--font-display); margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .quick-card p { color: var(--gray-600); margin: 0 0 14px; font-size: 0.92rem; line-height: 1.5; }
+    .quick-card a { color: var(--crimson); font-family: var(--font-display); font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; font-size: 0.78rem; text-decoration: none; }
+  </style>
 </head>
 <body>
 
@@ -20,101 +57,145 @@
     <a href="index.html" class="logo"><span class="monogram">BK</span><span class="wordmark"><span>The Ballers Kingdom</span><span class="est">EST 2019</span></span></a>
     <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="soccer.html">Soccer Training</a>
-      <a href="yvp.html">Youth Venture</a>
+      <a href="soccer.html">Training</a>
+      <a href="yvp.html">EE Venture</a>
       <a href="about.html">About</a>
-      <a href="contact.html" class="nav-cta">Book Consultation</a>
+      <a href="contact.html">Book Consulting</a>
+      <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" class="nav-cta">Open App</a>
     </div>
   </div>
 </nav>
 
-<header class="page-head">
-  <div class="container inner">
-    <div class="kicker">Get Started</div>
-    <h1>Book a consultation.</h1>
-    <p>Free, no-pressure conversation about your athlete, your goals, and whether we're the right fit. Soccer training, Youth Venture Program, or team services — start here.</p>
+<header class="contact-hero">
+  <div class="container">
+    <span class="pos-pill">Get Started</span>
+    <h1>Two ways to begin.</h1>
+    <p class="lead">Open the app to start instantly, or book a free 30-minute consultation with Brian. Either way — let's build the kingdom.</p>
   </div>
 </header>
 
 <section>
   <div class="container">
-    <div class="split">
-      <div data-reveal>
-        <h2 style="margin-top:0;">Reach out</h2>
-        <p class="lead" style="margin-bottom: 28px;">Fill out the form and we'll respond within 24 hours. Or email directly.</p>
-
-        <div class="callout">
-          <h4>Direct Contact</h4>
-          <p>
-            <strong>Email:</strong> <a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a><br>
-            <strong>Instagram:</strong> <a href="https://www.instagram.com/theballerskingdom_" target="_blank" rel="noopener">@theballerskingdom_</a><br>
-            <strong>YouTube:</strong> <a href="https://www.youtube.com/@TheBallersKingdom" target="_blank" rel="noopener">@TheBallersKingdom</a>
-          </p>
+    <div class="contact-grid">
+      <div class="contact-card">
+        <h2>Reach the Kingdom</h2>
+        <div class="contact-row">
+          <span class="ico">@</span>
+          <div>
+            <strong>Email</strong>
+            <a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a>
+          </div>
         </div>
-
-        <div class="callout" style="border-left-color: var(--crimson);">
-          <h4>Service Area</h4>
-          <p>Inland Empire, California. In-person sessions in Ontario and surrounding cities. Remote mentorship and YVP sessions available nationwide.</p>
+        <div class="contact-row">
+          <span class="ico">in</span>
+          <div>
+            <strong>LinkedIn</strong>
+            <a href="https://linkedin.com/in/brian-kennedy-jr-ampac" target="_blank" rel="noopener">brian-kennedy-jr-ampac</a>
+          </div>
         </div>
-
-        <!-- Calendly embed slot — once Calendly is set up, drop the inline embed here -->
-        <!--
-        <div class="calendly-inline-widget" data-url="https://calendly.com/YOUR-USERNAME/consultation" style="min-width:320px;height:700px;"></div>
-        <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async></script>
-        -->
+        <div class="contact-row">
+          <span class="ico">IG</span>
+          <div>
+            <strong>Instagram</strong>
+            <a href="https://www.instagram.com/theballerskingdom_" target="_blank" rel="noopener">@theballerskingdom_</a>
+          </div>
+        </div>
+        <div class="contact-row">
+          <span class="ico">▶</span>
+          <div>
+            <strong>YouTube</strong>
+            <a href="https://www.youtube.com/@TheBallersKingdom" target="_blank" rel="noopener">@TheBallersKingdom</a>
+          </div>
+        </div>
+        <div class="contact-row">
+          <span class="ico">🔗</span>
+          <div>
+            <strong>Linktree</strong>
+            <a href="https://linktr.ee/TheBallersKingdom" target="_blank" rel="noopener">linktr.ee/TheBallersKingdom</a>
+          </div>
+        </div>
+        <div class="contact-row">
+          <span class="ico">📍</span>
+          <div>
+            <strong>Based In</strong>
+            <span>Inland Empire · Upland, California</span>
+          </div>
+        </div>
       </div>
 
-      <form class="form-card" data-reveal id="consultation-form">
-        <p class="form-note">Click <strong>Request Consultation</strong> and your email client will open with this message ready to send to <a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a>.</p>
-        <div class="row">
-          <div class="field">
-            <label for="first_name">First Name</label>
-            <input type="text" id="first_name" name="first_name" required />
-          </div>
-          <div class="field">
-            <label for="last_name">Last Name</label>
-            <input type="text" id="last_name" name="last_name" required />
-          </div>
-        </div>
-        <div class="field">
-          <label for="email">Email</label>
-          <input type="email" id="email" name="email" required />
-        </div>
-        <div class="field">
-          <label for="phone">Phone</label>
-          <input type="tel" id="phone" name="phone" />
-        </div>
-        <div class="field">
-          <label for="interest">I'm interested in</label>
-          <select id="interest" name="interest" required>
-            <option value="">Select a service</option>
-            <option>Private soccer training (1-on-1)</option>
-            <option>Small-group soccer training</option>
-            <option>Team training (club or school)</option>
-            <option>Youth Venture Program — Summer</option>
-            <option>Youth Venture Program — After-school</option>
-            <option>Not sure yet — let's talk</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="athlete_age">Athlete's age (if applicable)</label>
-          <input type="text" id="athlete_age" name="athlete_age" placeholder="e.g., 13" />
-        </div>
-        <div class="field">
-          <label for="message">Tell us about your athlete</label>
-          <textarea id="message" name="message" placeholder="Level of play, goals, what you're hoping for from training..." required></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary">Request Consultation</button>
-      </form>
+      <div class="next-card">
+        <h2>Faster: Open the App</h2>
+        <p>Skip the back-and-forth. Open the Ballers Kingdom platform and start now — book coaches, join programs, track development, and connect to community.</p>
+        <ul class="next-list">
+          <li>Personal training plans</li>
+          <li>Coach booking</li>
+          <li>Tournaments &amp; programs</li>
+          <li>NIL Tracker</li>
+          <li>Civic Action &amp; Community</li>
+        </ul>
+        <p style="margin-top: 22px; font-family: var(--font-display); letter-spacing: 0.15em; text-transform: uppercase; font-size: 0.78rem; color: rgba(255,255,255,0.7);">Baller Tier · $29/mo</p>
+        <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" class="btn btn-primary">Open the App →</a>
+        <a href="mailto:info@ballkingdom.com?subject=Free%20Consultation%20Request" class="btn btn-ghost">Email First</a>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="cta-band">
-  <div class="container-tight">
-    <h2>Prefer to pick a time directly?</h2>
-    <p>Once Brian's booking calendar is live, you'll be able to schedule a consultation in one click right here. In the meantime, the form above gets to him the same day.</p>
+<section class="section-stone">
+  <div class="container">
+    <div class="section-header">
+      <div class="kicker">Common Inquiries</div>
+      <h2>What are you here for?</h2>
+      <p class="lead">Three of the most common starting points. All begin with a free consultation.</p>
+    </div>
+    <div class="quick-grid">
+      <div class="quick-card" data-reveal>
+        <div class="icon">⚽</div>
+        <h3>Training</h3>
+        <p>Personal, small-group, or team soccer training. Youth through college-bound.</p>
+        <a href="mailto:info@ballkingdom.com?subject=Training%20Inquiry">Email →</a>
+      </div>
+      <div class="quick-card" data-reveal>
+        <div class="icon">EE</div>
+        <h3>EE Venture</h3>
+        <p>Multi-dimensional consulting — life, academic, career, business, digital tracks.</p>
+        <a href="mailto:info@ballkingdom.com?subject=EE%20Venture%20Inquiry">Email →</a>
+      </div>
+      <div class="quick-card" data-reveal>
+        <div class="icon">★</div>
+        <h3>Speaking</h3>
+        <p>Keynotes, panels, and workshops on entrepreneurship, soccer, and youth development.</p>
+        <a href="mailto:info@ballkingdom.com?subject=Speaking%20Inquiry">Email →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ecosystem-strip">
+  <div class="container">
+    <div class="kicker">Part of the Brian Kennedy Jr Ecosystem</div>
+    <h2>Three organizations. One mission.</h2>
+    <p class="eco-intro">For nonprofit work, visit The Entrepreneur Ecosystem. For SBA capital and lending, visit AmPac Business Capital.</p>
+    <div class="ecosystem-grid">
+      <div class="eco-card current">
+        <div class="eco-kicker">You are here</div>
+        <div class="eco-name">The Ballers Kingdom</div>
+        <p>Tech-forward training platform, consulting practice, and member app.</p>
+        <div class="eco-link">ballkingdom.com →</div>
+      </div>
+      <a class="eco-card" href="https://entrepreneur-ecosystem.com" target="_blank" rel="noopener">
+        <div class="eco-kicker">Nonprofit · 501(c)(3)</div>
+        <div class="eco-name">The Entrepreneur Ecosystem</div>
+        <p>Entrepreneurship education and access to capital for underserved communities.</p>
+        <div class="eco-link">entrepreneur-ecosystem.com →</div>
+      </a>
+      <a class="eco-card" href="https://ampac.com" target="_blank" rel="noopener">
+        <div class="eco-kicker">Access to capital</div>
+        <div class="eco-name">AmPac Business Capital</div>
+        <p>SBA's first faith-based certified lender. $1B+ deployed · 1,500+ businesses.</p>
+        <div class="eco-link">ampac.com →</div>
+      </a>
+    </div>
   </div>
 </section>
 
@@ -123,15 +204,16 @@
     <div class="footer-grid">
       <div class="footer-brand">
         <div class="logo" style="color: var(--cream);"><span class="monogram">BK</span><span class="wordmark"><span>The Ballers Kingdom</span><span class="est">EST 2019</span></span></div>
-        <p>Soccer training and youth entrepreneurship development. Inland Empire, California.</p>
+        <p>Tech-forward training platform, multi-dimensional development consulting, and member app. Inland Empire, California.</p>
         <div class="socials">
           <a href="https://www.instagram.com/theballerskingdom_" target="_blank" rel="noopener" aria-label="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 1.2.1 1.8.3 2.2.5.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .5 2.2.1 1.2.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 1.2-.3 1.8-.5 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.5-1.2.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-1.2-.1-1.8-.3-2.2-.5-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.5-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8c.1-1.2.3-1.8.5-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.5C8.4 2.2 8.8 2.2 12 2.2zm0 1.9c-3.1 0-3.5 0-4.7.1-1.1.1-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1C2.6 9.5 2.6 9.9 2.6 13s0 3.5.1 4.7c.1 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-4.7s0-3.5-.1-4.7c-.1-1.1-.2-1.7-.4-2.1-.2-.5-.4-.9-.8-1.3-.4-.4-.8-.6-1.3-.8-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1zm0 3.3c2.7 0 4.9 2.2 4.9 4.9s-2.2 4.9-4.9 4.9-4.9-2.2-4.9-4.9 2.2-4.9 4.9-4.9zm0 8.1c1.8 0 3.2-1.4 3.2-3.2s-1.4-3.2-3.2-3.2-3.2 1.4-3.2 3.2 1.4 3.2 3.2 3.2zm6.3-8.3c0 .6-.5 1.1-1.1 1.1s-1.1-.5-1.1-1.1.5-1.1 1.1-1.1 1.1.5 1.1 1.1z"/></svg></a>
           <a href="https://www.youtube.com/@TheBallersKingdom" target="_blank" rel="noopener" aria-label="YouTube"><svg viewBox="0 0 24 24"><path d="M23.5 6.2c-.3-1-1-1.8-2-2.1C19.7 3.5 12 3.5 12 3.5s-7.7 0-9.5.6c-1 .3-1.8 1.1-2 2.1C0 8 0 12 0 12s0 4 .5 5.8c.3 1 1 1.8 2 2.1 1.8.6 9.5.6 9.5.6s7.7 0 9.5-.6c1-.3 1.8-1.1 2-2.1C24 16 24 12 24 12s0-4-.5-5.8zM9.5 15.5V8.5l6.5 3.5-6.5 3.5z"/></svg></a>
+          <a href="https://linkedin.com/in/brian-kennedy-jr-ampac" target="_blank" rel="noopener" aria-label="LinkedIn"><svg viewBox="0 0 24 24"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 110-4.12 2.06 2.06 0 010 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.28V1.72C24 .77 23.2 0 22.23 0z"/></svg></a>
         </div>
       </div>
-      <div><h4>Services</h4><a href="soccer.html">Soccer Training</a><a href="yvp.html">Youth Venture Program</a><a href="contact.html">Book Consultation</a></div>
-      <div><h4>About</h4><a href="about.html">Meet Brian</a><a href="contact.html">Contact</a></div>
-      <div><h4>Get in touch</h4><a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a><a href="https://linktr.ee/TheBallersKingdom" target="_blank" rel="noopener">Linktree</a></div>
+      <div><h4>Kingdom System</h4><a href="soccer.html">Training Hub</a><a href="yvp.html">EE Venture</a><a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Apparel &amp; Shop</a><a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Member Dashboard</a></div>
+      <div><h4>About</h4><a href="about.html">Meet Brian</a><a href="https://linkedin.com/in/brian-kennedy-jr-ampac" target="_blank" rel="noopener">LinkedIn</a><a href="contact.html">Book Consulting</a></div>
+      <div><h4>Get in touch</h4><a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a><a href="https://linktr.ee/TheBallersKingdom" target="_blank" rel="noopener">Linktree</a><a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener">Open the App</a></div>
     </div>
     <div class="footer-bottom"><div>© <span id="year">2026</span> The Ballers Kingdom. All rights reserved.</div><div>A program of the AmPac Entrepreneur Ecosystem.</div></div>
   </div>
@@ -139,39 +221,5 @@
 
 <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 <script src="assets/js/main.js"></script>
-<script>
-(function () {
-  var form = document.getElementById('consultation-form');
-  if (!form) return;
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var data = new FormData(form);
-    var first = (data.get('first_name') || '').trim();
-    var last = (data.get('last_name') || '').trim();
-    var email = (data.get('email') || '').trim();
-    var phone = (data.get('phone') || '').trim();
-    var interest = (data.get('interest') || '').trim();
-    var age = (data.get('athlete_age') || '').trim();
-    var message = (data.get('message') || '').trim();
-    var lines = [
-      'Name: ' + first + ' ' + last,
-      'Email: ' + email,
-      'Phone: ' + (phone || '—'),
-      'Interested in: ' + interest,
-      "Athlete's age: " + (age || '—'),
-      '',
-      '— About the athlete —',
-      message,
-      '',
-      '(Sent from the consultation form at ballkingdom.com)'
-    ];
-    var subject = 'Consultation Request — ' + (first || 'The Ballers Kingdom');
-    var mailto = 'mailto:info@ballkingdom.com'
-      + '?subject=' + encodeURIComponent(subject)
-      + '&body=' + encodeURIComponent(lines.join('\n'));
-    window.location.href = mailto;
-  });
-})();
-</script>
 </body>
 </html>
