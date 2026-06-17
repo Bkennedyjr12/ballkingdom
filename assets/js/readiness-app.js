@@ -259,7 +259,7 @@
   }
 
   // ---- Lead capture via Formspree (no backend needed) ----
-  var FORMSPREE_ENDPOINT = 'https://formspree.io/f/xrejgddq';
+  var FORMSPREE_ENDPOINT = 'https://formspree.io/f/mwvjjrre';
 
   function scoreSummary(scores, overall, g) {
     var lines = ['Overall readiness: ' + overall + '/100 (Grade ' + g.grade + ' \u2014 ' + g.stage + ')'];
