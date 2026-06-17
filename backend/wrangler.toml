@@ -1,0 +1,11 @@
+# Cloudflare Worker config for the Ballers Kingdom AI analysis proxy.
+# Deploy:  wrangler deploy   (then: wrangler secret put ANTHROPIC_API_KEY)
+name = "bk-ai"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# No KV/DO required for the basic rate limiter. If you want durable
+# rate limiting across isolates, uncomment and create a KV namespace:
+# [[kv_namespaces]]
+# binding = "RATE_KV"
+# id = "<your-kv-namespace-id>"

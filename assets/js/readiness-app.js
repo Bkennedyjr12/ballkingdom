@@ -176,6 +176,204 @@
     return plan;
   }
 
+  // ---- Personalized analysis (rule-based, no API key needed) ----
+  // Reads the actual answer pattern and produces a tailored narrative,
+  // a strongest/weakest read, and specific SBA 7(a) vs 504 guidance.
+  function analyze(scores, overall) {
+    var ids = Object.keys(scores);
+    var sorted = ids.slice().sort(function (a, b) { return scores[a].pct - scores[b].pct; });
+    var weakest = scores[sorted[0]];
+    var strongest = scores[sorted[sorted.length - 1]];
+    var spread = strongest.pct - weakest.pct;
+
+    var paras = [];
+
+    // Opening read
+    if (overall >= 85) {
+      paras.push('You scored ' + overall + '/100 \u2014 deal-ready. The foundation is in place across the board. Your work now is timing and execution: moving on the right asset at the right moment while the wealth-transfer window is open.');
+    } else if (overall >= 70) {
+      paras.push('You scored ' + overall + '/100 \u2014 real momentum with specific gaps to close. You\u2019re closer than most owners think. Tightening one or two areas moves you into deal-ready territory.');
+    } else if (overall >= 50) {
+      paras.push('You scored ' + overall + '/100 \u2014 a forming foundation. The opportunity is real, but a lender, buyer, or successor would find gaps today. The good news: the gaps are fixable and you now know exactly where they are.');
+    } else {
+      paras.push('You scored ' + overall + '/100 \u2014 early stage, which is the right time to build correctly. Owners who fix these fundamentals early avoid the expensive scramble later when capital, a contract, or an exit is suddenly on the table.');
+    }
+
+    // Strongest / weakest read
+    if (spread >= 25) {
+      paras.push('Your strongest area is <strong>' + esc(strongest.name) + '</strong> (' + strongest.pct + '%) and your biggest gap is <strong>' + esc(weakest.name) + '</strong> (' + weakest.pct + '%). That ' + spread + '-point spread matters: lenders, buyers, and partners judge you by the weakest link, not the average. Closing ' + esc(weakest.name) + ' first will lift your whole profile.');
+    } else {
+      paras.push('Your three domains are fairly balanced, with <strong>' + esc(weakest.name) + '</strong> (' + weakest.pct + '%) as the area with the most room. Balanced profiles are good \u2014 it means no single gap is holding you hostage. Work top-down on the plan below.');
+    }
+
+    // Domain-specific guidance
+    if (scores.capital && scores.capital.pct < 70) {
+      paras.push('<strong>On capital:</strong> before you approach any lender, get your books current and know your credit position and debt-service coverage. If your goal is buying a building or major equipment, that\u2019s typically <strong>SBA 504</strong> territory (long-term, fixed-asset financing). If it\u2019s acquiring a business, working capital, or a change of ownership, that\u2019s usually <strong>SBA 7(a)</strong>. Eligible borrowers may be able to combine them \u2014 up to $10M in SBA-backed capital \u2014 which is exactly the kind of structuring conversation worth having early.');
+    } else if (scores.capital) {
+      paras.push('<strong>On capital:</strong> your financial house is in good order. The leverage now is structuring \u2014 matching the right SBA tool (504 for real estate/equipment, 7(a) for acquisition/working capital) to a specific asset and growth plan.');
+    }
+
+    if (scores.contract && scores.contract.pct < 60) {
+      paras.push('<strong>On contracts:</strong> the fastest wins are getting fully registered (entity, EIN, licenses, SAM.gov if you want government work), pursuing the certifications that fit your market, and building a one-page capability statement. Buyers ask for that statement first \u2014 not having one ends the conversation before it starts.');
+    }
+
+    if (scores.exit && scores.exit.pct < 60) {
+      paras.push('<strong>On continuity/exit:</strong> the single highest-leverage move is reducing how much the business depends on you personally. A business that can\u2019t run without the owner isn\u2019t transferable \u2014 and untransferable businesses are worth far less to a buyer, a lender, or your own family. Document the core processes and start delegating now, long before you plan to exit.');
+    }
+
+    return paras;
+  }
+
+  // ---- Optional AI analysis (off by default) ----
+  // Flip AI_ENABLED to true and set AI_PROXY_URL after deploying
+  // backend/worker.js (see backend/README.md). When off, the built-in
+  // rule-based analyze() is used \u2014 no key, no backend, no cost.
+  var AI_ENABLED = false;
+  var AI_PROXY_URL = ''; // e.g. 'https://bk-ai.<your-subdomain>.workers.dev'
+
+  function fetchAIAnalysis(scores, overall, container) {
+    if (!AI_ENABLED || !AI_PROXY_URL) return;
+    var payload = {
+      overall: overall,
+      domains: DATA.domains.map(function (d) { return { name: d.name, pct: scores[d.id].pct }; }),
+      goal: ''
+    };
+    var note = el('p', 'rs-ai-note', 'Generating a personalized analysis\u2026');
+    container.appendChild(note);
+    fetch(AI_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (data && data.analysis) {
+          note.remove();
+          var ai = el('div', 'rs-ai-analysis');
+          ai.appendChild(el('div', 'rs-ai-tag', 'AI analysis'));
+          data.analysis.split(/\n{2,}/).forEach(function (p) {
+            if (p.trim()) ai.appendChild(el('p', null, esc(p.trim())));
+          });
+          container.appendChild(ai);
+        } else { note.remove(); }
+      }).catch(function () { note.remove(); });
+  }
+
+  // ---- Lead capture via Formspree (no backend needed) ----
+  var FORMSPREE_ENDPOINT = 'https://formspree.io/f/xrejgddq';
+
+  function scoreSummary(scores, overall, g) {
+    var lines = ['Overall readiness: ' + overall + '/100 (Grade ' + g.grade + ' \u2014 ' + g.stage + ')'];
+    DATA.domains.forEach(function (dom) {
+      lines.push(dom.name + ': ' + scores[dom.id].pct + '%');
+    });
+    return lines.join('\n');
+  }
+
+  function renderLeadForm(scores, overall, g) {
+    var box = el('div', 'rs-lead');
+    box.appendChild(el('h3', null, 'Get your full scorecard + a personalized path'));
+    box.appendChild(el('p', 'rs-lead-sub',
+      'Send your results to Brian Kennedy Jr and get a tailored follow-up on financing, contracts, and exit readiness. No spam \u2014 just a real next step.'));
+
+    var form = el('form', 'rs-form');
+    form.setAttribute('novalidate', 'novalidate');
+
+    var nameI = inputField('rs-name', 'text', 'Your name', true);
+    var emailI = inputField('rs-email', 'email', 'Email', true);
+    var bizI = inputField('rs-biz', 'text', 'Business name (optional)', false);
+    var phoneI = inputField('rs-phone', 'tel', 'Phone (optional)', false);
+
+    var goalWrap = el('label', 'rs-field');
+    goalWrap.appendChild(el('span', 'rs-field-label', 'What are you trying to do? (optional)'));
+    var goal = el('textarea', 'rs-input');
+    goal.rows = 3;
+    goal.placeholder = 'e.g. buy my building, acquire a competitor, win government contracts, plan my exit\u2026';
+    goalWrap.appendChild(goal);
+
+    form.appendChild(fieldWrap('Your name', nameI));
+    form.appendChild(fieldWrap('Email', emailI));
+    form.appendChild(fieldWrap('Business name (optional)', bizI));
+    form.appendChild(fieldWrap('Phone (optional)', phoneI));
+    form.appendChild(goalWrap);
+
+    var consent = el('label', 'rs-consent');
+    var cb = el('input'); cb.type = 'checkbox'; cb.checked = true;
+    consent.appendChild(cb);
+    consent.appendChild(el('span', null, 'It\u2019s OK to contact me about my results. (You can opt out anytime.)'));
+    form.appendChild(consent);
+
+    var msg = el('div', 'rs-form-msg');
+    var submit = el('button', 'btn btn-primary', 'Send me my scorecard \u2192');
+    submit.type = 'submit';
+    form.appendChild(submit);
+    form.appendChild(msg);
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var name = nameI.value.trim();
+      var email = emailI.value.trim();
+      if (!name || !email || email.indexOf('@') < 0) {
+        msg.className = 'rs-form-msg err';
+        msg.textContent = 'Please add your name and a valid email.';
+        return;
+      }
+      submit.disabled = true; submit.textContent = 'Sending\u2026';
+
+      var payload = {
+        name: name,
+        email: email,
+        business: bizI.value.trim(),
+        phone: phoneI.value.trim(),
+        goal: goal.value.trim(),
+        consent: cb.checked ? 'yes' : 'no',
+        source: 'ballkingdom.com Readiness Scorecard',
+        overall_score: overall,
+        grade: g.grade + ' \u2014 ' + g.stage,
+        scorecard: scoreSummary(scores, overall, g),
+        _subject: 'New Readiness Scorecard lead: ' + name + ' (' + overall + '/100, ' + g.grade + ')'
+      };
+
+      fetch(FORMSPREE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function (res) {
+        if (res.ok) {
+          form.innerHTML = '';
+          var ok = el('div', 'rs-form-success');
+          ok.innerHTML = '<strong>Sent. Thank you, ' + esc(name) + '.</strong><br>' +
+            'Your scorecard is on its way to Brian. Want to skip the wait? ' +
+            '<a href="' + esc(DATA.booking) + '">Book a strategy session now \u2192</a>';
+          form.appendChild(ok);
+        } else {
+          throw new Error('Formspree error');
+        }
+      }).catch(function () {
+        submit.disabled = false; submit.textContent = 'Send me my scorecard \u2192';
+        msg.className = 'rs-form-msg err';
+        msg.innerHTML = 'Something went wrong sending the form. You can email your results directly to ' +
+          '<a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a> or ' +
+          '<a href="' + esc(DATA.booking) + '">book a session</a>.';
+      });
+    });
+
+    box.appendChild(form);
+    return box;
+  }
+
+  function inputField(id, type, ph, required) {
+    var i = el('input', 'rs-input');
+    i.type = type; i.id = id; i.placeholder = ph;
+    if (required) i.required = true;
+    return i;
+  }
+  function fieldWrap(label, input) {
+    var w = el('label', 'rs-field');
+    w.appendChild(el('span', 'rs-field-label', label));
+    w.appendChild(input);
+    return w;
+  }
+
   function renderResults() {
     var scores = domainScores();
     var overall = Math.round(
@@ -211,6 +409,18 @@
       setTimeout(function () { fill.style.width = s.pct + '%'; }, 60);
     });
     wrap.appendChild(bars);
+
+    // personalized analysis
+    var analysisWrap = el('div', 'rs-analysis');
+    analysisWrap.appendChild(el('h3', null, 'What your scores mean for you'));
+    analyze(scores, overall).forEach(function (p) {
+      analysisWrap.appendChild(el('p', null, p));
+    });
+    fetchAIAnalysis(scores, overall, analysisWrap); // no-op unless AI_ENABLED
+    wrap.appendChild(analysisWrap);
+
+    // lead capture (Formspree -> emails Brian the full scorecard)
+    wrap.appendChild(renderLeadForm(scores, overall, g));
 
     // plan
     var plan = buildPlan(scores);
