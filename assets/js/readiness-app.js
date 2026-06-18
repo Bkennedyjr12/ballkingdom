@@ -44,7 +44,7 @@
 
   function renderIntro() {
     var c = el('div', 'rs-intro-card');
-    c.appendChild(el('div', 'ig-kicker', 'Readiness Scorecard'));
+    c.appendChild(el('div', 'ig-kicker', 'Business Readiness Scorecard'));
     c.appendChild(el('h2', 'ig-h2', 'Where does your business actually stand?'));
     c.appendChild(el('p', 'ig-lead',
       'A straight-talk diagnostic across the three things that decide whether you build real, transferable wealth \u2014 not just run a business. Answer honestly; this is for you.'));
@@ -326,11 +326,11 @@
         phone: phoneI.value.trim(),
         goal: goal.value.trim(),
         consent: cb.checked ? 'yes' : 'no',
-        source: 'ballkingdom.com Readiness Scorecard',
+        source: 'ballkingdom.com Business Readiness Scorecard',
         overall_score: overall,
         grade: g.grade + ' \u2014 ' + g.stage,
         scorecard: scoreSummary(scores, overall, g),
-        _subject: 'New Readiness Scorecard lead: ' + name + ' (' + overall + '/100, ' + g.grade + ')'
+        _subject: 'New Business Readiness Scorecard lead: ' + name + ' (' + overall + '/100, ' + g.grade + ')'
       };
 
       fetch(FORMSPREE_ENDPOINT, {
