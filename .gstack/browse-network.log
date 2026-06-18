@@ -1,0 +1,8 @@
+[2026-06-18T08:42:16.272Z] GET http://localhost:8765/audit.html → 200 (12ms, 16324B)
+[2026-06-18T08:42:16.293Z] GET https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap → 200 (245ms, 1597B)
+[2026-06-18T08:42:16.293Z] GET http://localhost:8765/assets/css/styles.css → 200 (3ms, 17820B)
+[2026-06-18T08:42:16.293Z] GET http://localhost:8765/assets/css/tools.css → 200 (3ms, 16382B)
+[2026-06-18T08:42:16.293Z] GET http://localhost:8765/assets/js/main.js → 200 (5ms, 1658B)
+[2026-06-18T08:42:16.587Z] GET https://fonts.gstatic.com/s/oswald/v57/TK3IWkUHHAIjg75cFRf3bXL8LICs1_Fv40pKlN4NNSeSASz7FmlWHYjMdZwl.woff2 → 200 (212ms, 21954B)
+[2026-06-18T08:42:16.587Z] GET https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw.woff2 → 200 (549ms, 48568B)
+[2026-06-18T08:42:16.587Z] GET https://fonts.gstatic.com/s/playfairdisplay/v40/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKebunDXbtPK-F2qC0s.woff2 → 200 (470ms, 23330B)

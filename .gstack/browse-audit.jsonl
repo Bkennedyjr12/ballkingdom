@@ -1,0 +1,2 @@
+{"ts":"2026-06-18T08:42:16.592Z","cmd":"goto","args":"http://localhost:8765/audit.html","origin":"http://localhost:8765/audit.html","durationMs":327,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-06-18T08:42:16.632Z","cmd":"js","args":"document.querySelector('.au-email .btn').href","origin":"http://localhost:8765/audit.html","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
