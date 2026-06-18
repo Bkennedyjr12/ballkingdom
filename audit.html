@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Site Leak Audit — Find What's Costing You Customers · $99 · The Ballers Kingdom</title>
+  <meta name="description" content="The Site Leak Audit is a $99 fixed-price website review. We find the broken buyer path, trust gaps, and mobile friction quietly leaking ready-to-buy customers — and send back a blunt report with the few fixes most likely to lift inquiries. 48-hour turnaround." />
+  <meta name="author" content="Brian Kennedy Jr, M.Ed" />
+  <link rel="canonical" href="https://ballkingdom.com/audit.html" />
+
+  <meta property="og:title" content="Site Leak Audit — Find What's Costing You Customers · $99" />
+  <meta property="og:description" content="A blunt, fixed-price website review. We show you the broken buyer path and the fastest fixes to win back the customers your site is quietly losing." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://ballkingdom.com/audit.html" />
+  <meta property="og:image" content="https://ballkingdom.com/assets/img/brian_portrait_suit.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="assets/css/tools.css" />
+
+  <style>
+    /* ---- Site Leak Audit page ---- */
+    .au-wrap { max-width: 880px; margin: 0 auto; }
+
+    /* price + buy card */
+    .au-buy {
+      margin: 0 auto 40px;
+      max-width: 720px;
+      padding: 36px;
+      border-radius: 18px;
+      background: var(--white);
+      border: 2px solid var(--royal);
+      box-shadow: var(--shadow-md);
+      text-align: center;
+    }
+    @media (max-width: 540px) { .au-buy { padding: 26px 18px; } }
+    .au-price {
+      font-family: var(--font-display);
+      font-weight: 700;
+      line-height: 1;
+      color: var(--black);
+      font-size: clamp(3rem, 9vw, 4.4rem);
+    }
+    .au-price sup { font-size: 0.42em; top: -0.7em; color: var(--royal); margin-right: 2px; }
+    .au-price-sub {
+      font-family: var(--font-display);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.82rem;
+      color: var(--gray-600);
+      margin-top: 6px;
+    }
+    .au-buy-btns {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 26px 0 14px;
+    }
+    .au-btn-pay {
+      background: var(--royal);
+      color: var(--white) !important;
+      font-size: 1.05rem;
+      padding: 16px 34px;
+    }
+    .au-btn-pay:hover { background: var(--royal-dark); }
+    .au-trust {
+      display: flex; gap: 18px; justify-content: center; flex-wrap: wrap;
+      color: var(--gray-400); font-size: 0.86rem; margin-top: 14px;
+    }
+    .au-trust span { display: inline-flex; align-items: center; gap: 6px; }
+    .au-trust strong { color: var(--royal); }
+
+    /* includes grid */
+    .au-includes {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 34px 0;
+    }
+    @media (max-width: 680px) { .au-includes { grid-template-columns: 1fr; } }
+    .au-card {
+      background: var(--white); border: 1px solid var(--gray-200); border-radius: 14px;
+      padding: 24px; box-shadow: var(--shadow-sm);
+    }
+    .au-card-num {
+      font-family: var(--font-display); font-weight: 700; color: var(--royal);
+      letter-spacing: 0.18em; font-size: 0.82rem; margin-bottom: 8px; display: block;
+    }
+    .au-card h3 { text-transform: none; letter-spacing: 0; font-size: 1.12rem; margin-bottom: 8px; }
+    .au-card p { color: var(--gray-600); font-size: 0.95rem; line-height: 1.55; margin: 0; }
+
+    /* leaks list */
+    .au-leaks { list-style: none; margin: 0; padding: 0; }
+    .au-leaks li {
+      position: relative; padding: 14px 0 14px 34px; border-bottom: 1px solid var(--gray-200);
+      color: var(--gray-600); line-height: 1.5;
+    }
+    .au-leaks li::before {
+      content: '\2192'; position: absolute; left: 0; top: 14px;
+      color: var(--royal); font-weight: 700; font-family: var(--font-display);
+    }
+    .au-leaks strong { color: var(--ink); }
+
+    /* steps */
+    .au-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 30px 0; }
+    @media (max-width: 680px) { .au-steps { grid-template-columns: 1fr; } }
+    .au-step { text-align: center; padding: 24px 18px; background: var(--stone); border-radius: 14px; border-top: 3px solid var(--royal); }
+    .au-step-num {
+      width: 44px; height: 44px; border-radius: 50%; background: var(--royal); color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; margin-bottom: 12px;
+    }
+    .au-step h3 { text-transform: none; letter-spacing: 0; font-size: 1.05rem; margin-bottom: 6px; }
+    .au-step p { color: var(--gray-600); font-size: 0.9rem; margin: 0; line-height: 1.5; }
+
+    /* email fallback */
+    .au-email {
+      margin: 36px auto 0; max-width: 720px; padding: 28px 30px; border-radius: 16px;
+      background: var(--stone); border-left: 4px solid var(--royal);
+    }
+    @media (max-width: 540px) { .au-email { padding: 22px 18px; } }
+    .au-email h3 { text-transform: none; letter-spacing: 0; font-size: 1.2rem; margin-bottom: 8px; }
+    .au-email p { color: var(--gray-600); margin: 0 0 16px; line-height: 1.55; }
+    .au-email .btn { align-self: flex-start; }
+
+    .au-section-head { text-align: center; max-width: 60ch; margin: 0 auto 28px; }
+    .au-section-head .kicker {
+      font-family: var(--font-display); letter-spacing: 0.22em; text-transform: uppercase;
+      font-size: 0.78rem; color: var(--royal); margin-bottom: 10px;
+    }
+    .au-section-head h2 { margin-bottom: 10px; }
+    .au-section-head p { color: var(--gray-600); }
+  </style>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "name": "Site Leak Audit",
+    "serviceType": "Website conversion audit",
+    "provider": { "@type": "Person", "name": "Brian Kennedy Jr, M.Ed" },
+    "areaServed": "US",
+    "url": "https://ballkingdom.com/audit.html",
+    "description": "A fixed-price website review that identifies broken buyer paths, trust gaps, and mobile friction, with prioritized fixes to improve inquiries.",
+    "offers": { "@type": "Offer", "price": "99", "priceCurrency": "USD" }
+  }
+  </script>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" role="navigation" aria-label="Main">
+  <div class="nav-inner">
+    <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
+      <span class="monogram">BK</span>
+      <span class="wordmark">
+        <span>The Ballers Kingdom</span>
+        <span class="est">EST 2019</span>
+      </span>
+    </a>
+    <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
+    <div class="nav-links">
+      <a href="soccer.html">Training</a>
+      <a href="ee-venture.html">EE Venture</a>
+      <a href="readiness.html">Readiness</a>
+      <a href="growth.html">Inner Game</a>
+      <a href="audit.html">Site Audit</a>
+      <a href="about.html">About</a>
+      <a href="contact.html">Book Consulting</a>
+      <a href="https://ballers-kingdom-platform.replit.app/" target="_blank" rel="noopener" class="nav-cta">Open App</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="tool-hero">
+  <div class="container-tight">
+    <div class="kicker">Site Leak Audit · Business Development</div>
+    <h1>Your website is leaking customers. We'll show you where.</h1>
+    <p>Most small-business sites quietly lose ready-to-buy visitors — a buried "request work" button, a missing phone number, a slow mobile page, a trust gap. The Site Leak Audit is a blunt, fixed-price review that finds the leaks and hands you the few fixes most likely to lift inquiries.</p>
+    <p class="disclaimer">A practical conversion-path review — not a redesign pitch, an agency retainer, or a guarantee of specific results.</p>
+  </div>
+</header>
+
+<!-- TOOL / OFFER -->
+<section class="tool-section">
+  <div class="container">
+    <div class="au-wrap">
+
+      <!-- BUY CARD -->
+      <div class="au-buy">
+        <div class="au-price"><sup>$</sup>99</div>
+        <div class="au-price-sub">Fixed price · One website · No retainer</div>
+        <div class="au-buy-btns">
+          <a href="https://www.paypal.com/invoice/p/#45GE9DRL7K5PQTCJ" target="_blank" rel="noopener" class="btn au-btn-pay">Pay $99 with PayPal →</a>
+        </div>
+        <div class="au-trust">
+          <span><strong>48-hour</strong> first-pass report</span>
+          <span><strong>Secure</strong> PayPal checkout</span>
+          <span><strong>Real human</strong> review</span>
+        </div>
+      </div>
+
+      <!-- HOW IT WORKS -->
+      <div class="au-section-head">
+        <div class="kicker">How it works</div>
+        <h2>Three steps. Forty-eight hours.</h2>
+        <p>Pay, send your URL, and get a blunt report you can actually act on — no jargon, no upsell maze.</p>
+      </div>
+      <div class="au-steps">
+        <div class="au-step">
+          <div class="au-step-num">1</div>
+          <h3>Pay $99</h3>
+          <p>Secure the audit through the PayPal invoice. One flat price for one website.</p>
+        </div>
+        <div class="au-step">
+          <div class="au-step-num">2</div>
+          <h3>Send your URL</h3>
+          <p>Email your website address and a sentence on what you sell. We confirm and start the review.</p>
+        </div>
+        <div class="au-step">
+          <div class="au-step-num">3</div>
+          <h3>Get the report</h3>
+          <p>Within 48 hours you receive a prioritized leak report with the fastest fixes to win back inquiries.</p>
+        </div>
+      </div>
+
+      <!-- WHAT YOU GET -->
+      <div class="au-section-head" style="margin-top:48px;">
+        <div class="kicker">What you get</div>
+        <h2>A blunt report, not a sales deck.</h2>
+        <p>Four focused sections that tell you exactly what's costing you customers and what to fix first.</p>
+      </div>
+      <div class="au-includes">
+        <div class="au-card">
+          <span class="au-card-num">01</span>
+          <h3>The broken buyer path</h3>
+          <p>We trace the exact steps a real visitor takes to contact or buy from you — and flag every place they stall, hesitate, or give up.</p>
+        </div>
+        <div class="au-card">
+          <span class="au-card-num">02</span>
+          <h3>Trust &amp; credibility gaps</h3>
+          <p>Missing reviews, dated badges, unclear claims, no contact info — the signals that make a new visitor quietly doubt you.</p>
+        </div>
+        <div class="au-card">
+          <span class="au-card-num">03</span>
+          <h3>Mobile clarity check</h3>
+          <p>Most local-service traffic is on a phone. We review the first screen on mobile: can a hurried visitor call, book, or request work in one tap?</p>
+        </div>
+        <div class="au-card">
+          <span class="au-card-num">04</span>
+          <h3>The three fastest fixes</h3>
+          <p>Not a 40-page audit nobody reads. A short, ranked list of the changes most likely to move inquiries — starting with what you can do this week.</p>
+        </div>
+      </div>
+
+      <!-- COMMON LEAKS -->
+      <div class="au-section-head" style="margin-top:48px;">
+        <div class="kicker">Sound familiar?</div>
+        <h2>The leaks we find most often.</h2>
+        <p>If two or more of these describe your site, you're almost certainly losing inquiries you never see.</p>
+      </div>
+      <ul class="au-leaks">
+        <li><strong>The buyer path is buried.</strong> Important "request work" or "book" steps hide in text links and side modules instead of a clear first-screen action.</li>
+        <li><strong>The contact path is unclear.</strong> "Call us today" with no visible number, or "email us directly" with no address actually on the page.</li>
+        <li><strong>Mobile is an afterthought.</strong> Small maps, tiny review badges, and tap targets that make a phone visitor work too hard.</li>
+        <li><strong>Trust signals are missing or dated.</strong> No recent reviews, no clear service area, no reason to choose you over the next tab.</li>
+        <li><strong>Too many choices, no next step.</strong> The page says everything and asks for nothing — so the visitor leaves.</li>
+      </ul>
+
+      <!-- EMAIL FALLBACK / INTAKE -->
+      <div class="au-email">
+        <h3>Already paid, or have a question first?</h3>
+        <p>After paying, email your website URL and one line about what you sell so we can start the review. Prefer to ask a question or pay another way? Reach out and we'll sort it out.</p>
+        <a href="mailto:bkctbk@gmail.com?subject=Site%20Leak%20Audit%20%E2%80%94%20My%20website&amp;body=Hi%20Brian%2C%0A%0AHere%20is%20my%20website%20URL%3A%20%0A%0AWhat%20I%20sell%2Fmy%20main%20goal%3A%20%0A%0APayPal%20name%20or%20transaction%20(if%20already%20paid)%3A%20%0A%0AThanks!" class="btn btn-primary">Email bkctbk@gmail.com →</a>
+      </div>
+
+      <p class="rs-disclaimer-foot" style="margin-top:30px;">
+        The Site Leak Audit is an educational conversion-path review. It is not legal, financial, or marketing-performance advice, and no specific increase in inquiries, sales, or rankings is guaranteed. Payment is processed securely by PayPal.
+      </p>
+
+    </div>
+  </div>
+</section>
+
+<!-- AUTHORITY / ECOSYSTEM -->
+<section class="section-dark">
+  <div class="container-tight" style="text-align:center;">
+    <div class="kicker" style="color: var(--royal-light); font-family: var(--font-display); letter-spacing: 0.22em; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 12px;">Built by an operator, not an agency</div>
+    <h2>Reviewed by a real business builder.</h2>
+    <p style="color:#CBD5E1; max-width: 60ch; margin: 14px auto 0;">
+      Brian Kennedy Jr, M.Ed builds and advises businesses every day as Entrepreneur Ecosystem Executive Director at <strong style="color:#fff;">AmPac Business Capital</strong> — helping deploy <strong style="color:#fff;">$1B+ in loans</strong> and support <strong style="color:#fff;">1,500+ businesses</strong>. The Site Leak Audit applies that same buyer-first lens to your website.
+    </p>
+    <a href="contact.html" class="btn btn-ghost" style="margin-top:24px;">Need more than an audit? Book consulting →</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="logo" style="color: var(--cream);">
+          <span class="monogram">BK</span>
+          <span class="wordmark">
+            <span>The Ballers Kingdom</span>
+            <span class="est">EST 2019</span>
+          </span>
+        </div>
+        <p>Tech-forward training platform, multi-dimensional development consulting, and member app. Inland Empire, California.</p>
+      </div>
+      <div>
+        <h4>Tools</h4>
+        <a href="audit.html">Site Leak Audit</a>
+        <a href="readiness.html">Business Readiness Scorecard</a>
+        <a href="growth.html">Inner Game</a>
+        <a href="soccer.html">Training Hub</a>
+      </div>
+      <div>
+        <h4>About</h4>
+        <a href="about.html">Meet Brian</a>
+        <a href="contact.html">Book Consulting</a>
+      </div>
+      <div>
+        <h4>Get in touch</h4>
+        <a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a>
+        <a href="mailto:bkctbk@gmail.com">bkctbk@gmail.com</a>
+        <a href="https://linktr.ee/TheBallersKingdom" target="_blank" rel="noopener">Linktree</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>© <span id="year">2026</span> The Ballers Kingdom. All rights reserved.</div>
+      <div>A program of the AmPac Entrepreneur Ecosystem.</div>
+    </div>
+  </div>
+</footer>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script src="assets/js/main.js"></script>
+</body>
+</html>
