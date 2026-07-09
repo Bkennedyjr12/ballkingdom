@@ -129,6 +129,60 @@ function overviewCards(guide) {
     </section>`;
 }
 
+function classHubMarkup(guide) {
+  const hub = guide.classHub;
+  if (!hub) return '';
+  return `
+    <section class="hi-class-hub" id="class-hub">
+      <div class="hi-class-copy">
+        <span class="hi-kicker">${escapeHtml(hub.status)}</span>
+        <h2>${escapeHtml(hub.program)}</h2>
+        <p>${escapeHtml(hub.primaryGoal)}</p>
+        <div class="hi-campus-card">
+          <strong>${escapeHtml(hub.campusName)}</strong>
+          <span>${escapeHtml(hub.campusAddress)}</span>
+          <em>${escapeHtml(hub.noClassNotice)}</em>
+        </div>
+        <div class="hi-action-row">
+          ${(hub.quickLinks || []).map((link) => `<a class="hi-action" href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`).join('')}
+        </div>
+      </div>
+      <div class="hi-schedule-card">
+        <h3>Class Schedule</h3>
+        <div class="hi-schedule-list">
+          ${(hub.classDates || []).map((item) => `
+            <div class="hi-schedule-item">
+              <span>${escapeHtml(item.label)}</span>
+              <strong>${escapeHtml(item.date)}</strong>
+              <em>${escapeHtml(item.time)}</em>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="hi-class-workflow">
+        <h3>During Class Capture Flow</h3>
+        ${list(hub.duringClassWorkflow)}
+      </div>
+      <div class="hi-class-detail-grid">
+        <div class="hi-block">
+          <h4>Daily Prep Checklist</h4>
+          ${list(hub.dailyPrepChecklist)}
+        </div>
+        <div class="hi-block">
+          <h4>Photo Capture Standard</h4>
+          ${list(hub.photoCaptureStandard)}
+        </div>
+        <div class="hi-block hi-report">
+          <h4>Report Formula</h4>
+          ${list(hub.reportFormula)}
+        </div>
+        <div class="hi-block hi-note">
+          <h4>Exam Memory Hooks</h4>
+          ${list(hub.examMemoryHooks)}
+        </div>
+      </div>
+    </section>`;
+}
+
 function clientScript() {
   return `
     (() => {
@@ -208,10 +262,12 @@ async function main() {
       <div class="hi-layout">
         <aside class="hi-rail" aria-label="Chapter navigation">
           <div class="hi-rail-title">Chapter Navigation</div>
+          <a class="hi-chapter-link" href="#class-hub">Class Hub</a>
           <a class="hi-chapter-link" href="#field-system">Field System</a>
           ${guide.chapters.map((chapter) => `<a class="hi-chapter-link" href="#${escapeHtml(chapter.id)}">${escapeHtml(chapter.title)}</a>`).join('')}
         </aside>
         <div>
+          ${classHubMarkup(guide)}
           ${overviewCards(guide)}
           ${guide.chapters.map((chapter, index) => chapterMarkup(chapter, index, figures)).join('')}
           <section class="hi-gallery" id="figures">

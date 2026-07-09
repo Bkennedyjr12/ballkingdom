@@ -4,6 +4,18 @@ Static ingestion and publishing system for the BallKingdom Home Inspection Guide
 
 ## Quick Start
 
+Live class page:
+
+```text
+https://ballkingdom.com/home-inspection-guide/
+```
+
+Latest polished PDF:
+
+```text
+https://ballkingdom.com/home-inspection-guide/public/assets/guide.pdf
+```
+
 Drop page images into:
 
 ```bash
@@ -49,6 +61,8 @@ npm run hi:add -- ~/Downloads/inspection-pages --no-pdf
 ```
 
 Supported input formats: JPG, JPEG, PNG, WebP, TIFF, and HEIC if the local image stack can decode it.
+
+Public safety rule: keep personal mailing addresses, phone numbers, client addresses, license plates, faces, and private documents out of the public guide unless they are intentionally redacted.
 
 ## Commands
 

@@ -1,0 +1,60 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//BallKingdom//Home Inspection Guide//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:professional-home-inspector-seminar-20260711@ballkingdom.com
+DTSTAMP:20260709T120000Z
+DTSTART:20260711T160000Z
+DTEND:20260712T000000Z
+SUMMARY:Professional Home Inspector Seminar - Class 1
+LOCATION:Orange Annex\, 1224 E Katella Ave Suite 99\, Orange\, CA 92867
+DESCRIPTION:Professional Home Inspector Seminar for Brian. Use https://ballkingdom.com/home-inspection-guide/ for the study guide and PDF.
+END:VEVENT
+BEGIN:VEVENT
+UID:professional-home-inspector-seminar-20260712@ballkingdom.com
+DTSTAMP:20260709T120000Z
+DTSTART:20260712T160000Z
+DTEND:20260713T000000Z
+SUMMARY:Professional Home Inspector Seminar - Class 2
+LOCATION:Orange Annex\, 1224 E Katella Ave Suite 99\, Orange\, CA 92867
+DESCRIPTION:Professional Home Inspector Seminar for Brian. Use https://ballkingdom.com/home-inspection-guide/ for the study guide and PDF.
+END:VEVENT
+BEGIN:VEVENT
+UID:professional-home-inspector-seminar-20260718@ballkingdom.com
+DTSTAMP:20260709T120000Z
+DTSTART:20260718T160000Z
+DTEND:20260719T000000Z
+SUMMARY:Professional Home Inspector Seminar - Class 3
+LOCATION:Orange Annex\, 1224 E Katella Ave Suite 99\, Orange\, CA 92867
+DESCRIPTION:Professional Home Inspector Seminar for Brian. Use https://ballkingdom.com/home-inspection-guide/ for the study guide and PDF.
+END:VEVENT
+BEGIN:VEVENT
+UID:professional-home-inspector-seminar-20260719@ballkingdom.com
+DTSTAMP:20260709T120000Z
+DTSTART:20260719T160000Z
+DTEND:20260720T000000Z
+SUMMARY:Professional Home Inspector Seminar - Class 4
+LOCATION:Orange Annex\, 1224 E Katella Ave Suite 99\, Orange\, CA 92867
+DESCRIPTION:Professional Home Inspector Seminar for Brian. Use https://ballkingdom.com/home-inspection-guide/ for the study guide and PDF.
+END:VEVENT
+BEGIN:VEVENT
+UID:professional-home-inspector-seminar-20260801@ballkingdom.com
+DTSTAMP:20260709T120000Z
+DTSTART:20260801T160000Z
+DTEND:20260802T000000Z
+SUMMARY:Professional Home Inspector Seminar - Class 5
+LOCATION:Orange Annex\, 1224 E Katella Ave Suite 99\, Orange\, CA 92867
+DESCRIPTION:Professional Home Inspector Seminar for Brian. Use https://ballkingdom.com/home-inspection-guide/ for the study guide and PDF.
+END:VEVENT
+BEGIN:VEVENT
+UID:professional-home-inspector-seminar-20260802@ballkingdom.com
+DTSTAMP:20260709T120000Z
+DTSTART:20260802T160000Z
+DTEND:20260803T000000Z
+SUMMARY:Professional Home Inspector Seminar - Class 6
+LOCATION:Orange Annex\, 1224 E Katella Ave Suite 99\, Orange\, CA 92867
+DESCRIPTION:Professional Home Inspector Seminar for Brian. Use https://ballkingdom.com/home-inspection-guide/ for the study guide and PDF.
+END:VEVENT
+END:VCALENDAR

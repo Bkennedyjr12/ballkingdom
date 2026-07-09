@@ -2,6 +2,95 @@
   "title": "Home Inspection Guide",
   "subtitle": "A field-ready study tool for visual inspection, report writing, and exam prep.",
   "updatedAt": "2026-07-09",
+  "classHub": {
+    "program": "Professional Home Inspector Seminar",
+    "status": "Enrolled",
+    "campusName": "Orange Annex",
+    "campusAddress": "1224 E Katella Ave Suite 99, Orange, CA 92867",
+    "noClassNotice": "No classes scheduled on July 25 and July 26, 2026.",
+    "primaryGoal": "Use this page during class to capture photos, organize field notes, study inspection systems, and keep the latest PDF guide one click away.",
+    "classDates": [
+      {
+        "label": "Class 1",
+        "date": "Saturday, July 11, 2026",
+        "time": "9:00am - 5:00pm"
+      },
+      {
+        "label": "Class 2",
+        "date": "Sunday, July 12, 2026",
+        "time": "9:00am - 5:00pm"
+      },
+      {
+        "label": "Class 3",
+        "date": "Saturday, July 18, 2026",
+        "time": "9:00am - 5:00pm"
+      },
+      {
+        "label": "Class 4",
+        "date": "Sunday, July 19, 2026",
+        "time": "9:00am - 5:00pm"
+      },
+      {
+        "label": "Class 5",
+        "date": "Saturday, August 1, 2026",
+        "time": "9:00am - 5:00pm"
+      },
+      {
+        "label": "Class 6",
+        "date": "Sunday, August 2, 2026",
+        "time": "9:00am - 5:00pm"
+      }
+    ],
+    "duringClassWorkflow": [
+      "Take a photo of any textbook page, whiteboard diagram, or field example that should become part of the guide.",
+      "Add it from the terminal with npm run hi:add -- /path/to/photo-or-folder.",
+      "Review new crops in the figure gallery and update captions or topic tags in image-manifest.json.",
+      "Run npm run hi:all to refresh the live webpage and the downloadable PDF.",
+      "Commit and push so GitHub Pages publishes the latest version to ballkingdom.com."
+    ],
+    "dailyPrepChecklist": [
+      "Bring seminar materials, notebook, charged laptop, phone charger, and a water bottle.",
+      "Before class starts, open ballkingdom.com/home-inspection-guide/ and download the latest PDF for offline use.",
+      "Capture textbook diagrams or instructor examples immediately, then add them with hi:add after class.",
+      "At lunch or after class, tag new figures by system: roof, electrical, plumbing, HVAC, foundation, attic, exterior, interior, or environmental.",
+      "End each class day by writing five report comments in your own words from what you learned."
+    ],
+    "photoCaptureStandard": [
+      "Take one wide context photo, one medium location photo, and one close-up defect photo for every important condition.",
+      "Keep the camera square to textbook pages so the cropper can detect clean rectangular regions.",
+      "Avoid glare, fingers, shadows, and angled page folds when photographing curriculum pages.",
+      "For field examples, include a reference object only when it helps show scale and does not create privacy concerns.",
+      "Do not publish client addresses, license plates, faces, or private documents in the public guide."
+    ],
+    "reportFormula": [
+      "Location: where the condition was observed.",
+      "Condition: the visible fact, written without guessing.",
+      "Implication: why the condition matters to safety, moisture, structure, performance, or cost.",
+      "Recommendation: who should evaluate or repair it and when urgency matters.",
+      "Limitation: what could not be inspected and why, when access or safety restricted the inspection."
+    ],
+    "examMemoryHooks": [
+      "Water is the storyline: grade, roof drainage, flashing, penetrations, attic stains, foundation moisture, and interior stains connect together.",
+      "Electrical questions usually test safety: covers, clearances, grounding, bonding, overcurrent protection, GFCI/AFCI, and improper modifications.",
+      "HVAC questions often test operation limits, combustion safety, venting, condensate, filters, and when to recommend a specialist.",
+      "Foundation questions focus on movement pattern, crack direction, displacement, moisture evidence, and when engineering evaluation is needed.",
+      "Environmental questions require careful wording: visible suspect material is not laboratory confirmation."
+    ],
+    "quickLinks": [
+      {
+        "label": "Download latest guide PDF",
+        "href": "public/assets/guide.pdf"
+      },
+      {
+        "label": "Download class calendar",
+        "href": "public/assets/professional-home-inspector-seminar.ics"
+      },
+      {
+        "label": "Open campus in Maps",
+        "href": "https://maps.google.com/?q=1224%20E%20Katella%20Ave%20Suite%2099%2C%20Orange%2C%20CA%2092867"
+      }
+    ]
+  },
   "studyMethod": [
     {
       "title": "See the system",
