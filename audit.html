@@ -132,6 +132,231 @@
     }
     .au-section-head h2 { margin-bottom: 10px; }
     .au-section-head p { color: var(--gray-600); }
+
+    .au-hero-actions {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+    .au-hero-actions .btn {
+      padding: 13px 22px;
+      font-size: 0.86rem;
+    }
+    .au-hero-proof {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      max-width: 720px;
+      margin: 28px auto 0;
+    }
+    .au-hero-proof div {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.05);
+      padding: 14px;
+    }
+    .au-hero-proof strong {
+      display: block;
+      color: var(--white);
+      font-family: var(--font-display);
+      font-size: 1.22rem;
+      line-height: 1;
+    }
+    .au-hero-proof span {
+      display: block;
+      color: #9CA3AF;
+      font-size: 0.8rem;
+      line-height: 1.35;
+      margin-top: 7px;
+    }
+    @media (max-width: 620px) {
+      .au-hero-proof { grid-template-columns: 1fr; }
+    }
+
+    /* leak math calculator */
+    .au-calculator {
+      margin: 0 auto 34px;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--black);
+      color: var(--white);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(59, 91, 165, 0.55);
+    }
+    .au-calc-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 22px;
+      align-items: end;
+      padding: 30px 32px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background:
+        linear-gradient(135deg, rgba(27, 58, 142, 0.4), rgba(11, 18, 32, 0.2)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 54px);
+    }
+    .au-calc-head h2 {
+      color: var(--white);
+      margin: 8px 0 8px;
+      font-size: clamp(2rem, 4.6vw, 3.4rem);
+    }
+    .au-calc-head p {
+      color: #CBD5E1;
+      margin: 0;
+      max-width: 58ch;
+    }
+    .au-calc-badge {
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: right;
+      min-width: 170px;
+      background: rgba(255,255,255,0.08);
+    }
+    .au-calc-badge strong {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      line-height: 1;
+      color: var(--white);
+    }
+    .au-calc-badge span {
+      color: #9CA3AF;
+      font-size: 0.8rem;
+    }
+    .au-calc-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 0.82fr);
+      gap: 0;
+    }
+    .au-calc-inputs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      padding: 28px 32px;
+      background: #0F172A;
+    }
+    .au-field {
+      display: grid;
+      gap: 7px;
+    }
+    .au-field label {
+      font-family: var(--font-display);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #CBD5E1;
+      font-size: 0.74rem;
+    }
+    .au-field input {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      color: var(--white);
+      font: 700 1.12rem var(--font-body);
+      padding: 13px 12px;
+    }
+    .au-field input:focus {
+      outline: 3px solid rgba(59, 91, 165, 0.45);
+      border-color: var(--royal-light);
+    }
+    .au-field small {
+      color: #8A93A6;
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+    .au-calc-results {
+      display: grid;
+      gap: 12px;
+      padding: 28px;
+      background: var(--white);
+      color: var(--ink);
+    }
+    .au-result-main {
+      padding: 20px;
+      border-radius: 14px;
+      background: var(--royal);
+      color: var(--white);
+    }
+    .au-result-main span,
+    .au-result-card span {
+      display: block;
+      font-family: var(--font-display);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 0.72rem;
+    }
+    .au-result-main strong {
+      display: block;
+      font-family: var(--font-display);
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      line-height: 1;
+      margin-top: 7px;
+    }
+    .au-result-main em {
+      display: block;
+      color: rgba(255,255,255,0.76);
+      font-style: normal;
+      font-size: 0.88rem;
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+    .au-result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .au-result-card {
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 15px;
+      background: var(--stone);
+    }
+    .au-result-card span {
+      color: var(--gray-400);
+    }
+    .au-result-card strong {
+      display: block;
+      color: var(--black);
+      font-family: var(--font-display);
+      font-size: 1.55rem;
+      line-height: 1;
+      margin-top: 7px;
+    }
+    .au-calc-note {
+      margin: 2px 0 0;
+      color: var(--gray-600);
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+    .au-calc-cta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 2px;
+    }
+    .au-calc-cta .btn {
+      padding: 12px 18px;
+      font-size: 0.84rem;
+    }
+    .au-calc-cta span {
+      color: var(--gray-400);
+      font-size: 0.84rem;
+    }
+    @media (max-width: 820px) {
+      .au-calc-head,
+      .au-calc-body { grid-template-columns: 1fr; }
+      .au-calc-badge { text-align: left; }
+    }
+    @media (max-width: 560px) {
+      .au-calc-head,
+      .au-calc-inputs,
+      .au-calc-results { padding: 22px 18px; }
+      .au-calc-inputs,
+      .au-result-grid { grid-template-columns: 1fr; }
+    }
   </style>
 
   <script type="application/ld+json">
@@ -182,6 +407,15 @@
     <h1>Your website is leaking customers. We'll show you where.</h1>
     <p>Most small-business sites quietly lose ready-to-buy visitors — a buried "request work" button, a missing phone number, a slow mobile page, a trust gap. The Site Leak Audit is a blunt, fixed-price review that finds the leaks and hands you the few fixes most likely to lift inquiries.</p>
     <p class="disclaimer">A practical conversion-path review — not a redesign pitch, an agency retainer, or a guarantee of specific results.</p>
+    <div class="au-hero-actions">
+      <a href="#leak-math" class="btn btn-primary">Estimate your leak →</a>
+      <a href="https://www.paypal.com/invoice/p/#45GE9DRL7K5PQTCJ" target="_blank" rel="noopener" class="btn btn-ghost">Buy the $99 audit</a>
+    </div>
+    <div class="au-hero-proof" aria-label="Why the audit math matters">
+      <div><strong>1 missed job</strong><span>can cost more than the entire audit.</span></div>
+      <div><strong>48 hours</strong><span>to get a prioritized leak report.</span></div>
+      <div><strong>$99 flat</strong><span>no retainer, redesign pitch, or upsell maze.</span></div>
+    </div>
   </div>
 </header>
 
@@ -189,6 +423,85 @@
 <section class="tool-section">
   <div class="container">
     <div class="au-wrap">
+
+      <!-- LEAK MATH -->
+      <section class="au-calculator" id="leak-math" aria-labelledby="leak-math-title">
+        <div class="au-calc-head">
+          <div>
+            <div class="kicker">Leak math calculator</div>
+            <h2 id="leak-math-title">Put a number on the missed inquiries.</h2>
+            <p>Use conservative estimates to see what a weak buyer path may be costing every month. This is not a guarantee; it is a decision tool for sizing the problem.</p>
+          </div>
+          <div class="au-calc-badge">
+            <strong>$99</strong>
+            <span>fixed audit price</span>
+          </div>
+        </div>
+        <div class="au-calc-body">
+          <div class="au-calc-inputs">
+            <div class="au-field">
+              <label for="au-visitors">Monthly site visitors</label>
+              <input id="au-visitors" type="number" min="0" step="50" value="600" inputmode="numeric">
+              <small>Use Analytics traffic or your best estimate.</small>
+            </div>
+            <div class="au-field">
+              <label for="au-current-rate">Current inquiry rate %</label>
+              <input id="au-current-rate" type="number" min="0" max="100" step="0.1" value="1.0" inputmode="decimal">
+              <small>Most sites underperform when the next step is unclear.</small>
+            </div>
+            <div class="au-field">
+              <label for="au-target-rate">Clean path target %</label>
+              <input id="au-target-rate" type="number" min="0" max="100" step="0.1" value="3.0" inputmode="decimal">
+              <small>A modest target after fixing calls-to-action and trust gaps.</small>
+            </div>
+            <div class="au-field">
+              <label for="au-close-rate">Lead close rate %</label>
+              <input id="au-close-rate" type="number" min="0" max="100" step="1" value="30" inputmode="decimal">
+              <small>How many inquiries typically become paid customers.</small>
+            </div>
+            <div class="au-field">
+              <label for="au-customer-value">Average customer value $</label>
+              <input id="au-customer-value" type="number" min="0" step="50" value="1200" inputmode="numeric">
+              <small>One job, project, enrollment, or first purchase value.</small>
+            </div>
+            <div class="au-field">
+              <label for="au-response-rate">Follow-up capture %</label>
+              <input id="au-response-rate" type="number" min="0" max="100" step="5" value="80" inputmode="decimal">
+              <small>Accounts for missed calls, slow replies, and unqualified leads.</small>
+            </div>
+          </div>
+          <div class="au-calc-results" aria-live="polite">
+            <div class="au-result-main">
+              <span>Estimated monthly leak</span>
+              <strong id="au-monthly-loss">$3,456</strong>
+              <em id="au-loss-copy">That is the revenue path your site may be failing to capture from existing traffic.</em>
+            </div>
+            <div class="au-result-grid">
+              <div class="au-result-card">
+                <span>Missed inquiries</span>
+                <strong id="au-missed-leads">10</strong>
+              </div>
+              <div class="au-result-card">
+                <span>Annualized leak</span>
+                <strong id="au-annual-loss">$41k</strong>
+              </div>
+              <div class="au-result-card">
+                <span>Audit cost</span>
+                <strong>$99</strong>
+              </div>
+              <div class="au-result-card">
+                <span>Leak vs audit</span>
+                <strong id="au-multiple">35x</strong>
+              </div>
+            </div>
+            <p class="au-calc-note">The audit does not promise revenue. It shows where your buyer path, trust signals, and mobile calls-to-action may be blocking inquiries you already paid to attract.</p>
+            <div class="au-calc-cta">
+              <a href="https://www.paypal.com/invoice/p/#45GE9DRL7K5PQTCJ" target="_blank" rel="noopener" class="btn btn-primary">Run the $99 audit →</a>
+              <span id="au-payback-copy">One recovered customer could pay for the audit many times over.</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- BUY CARD -->
       <div class="au-buy">
@@ -338,7 +651,67 @@
   </div>
 </footer>
 
-<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  (() => {
+    const fields = {
+      visitors: document.getElementById('au-visitors'),
+      currentRate: document.getElementById('au-current-rate'),
+      targetRate: document.getElementById('au-target-rate'),
+      closeRate: document.getElementById('au-close-rate'),
+      customerValue: document.getElementById('au-customer-value'),
+      responseRate: document.getElementById('au-response-rate')
+    };
+    const output = {
+      monthlyLoss: document.getElementById('au-monthly-loss'),
+      missedLeads: document.getElementById('au-missed-leads'),
+      annualLoss: document.getElementById('au-annual-loss'),
+      multiple: document.getElementById('au-multiple'),
+      lossCopy: document.getElementById('au-loss-copy'),
+      paybackCopy: document.getElementById('au-payback-copy')
+    };
+    const money = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0
+    });
+    const compactMoney = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      notation: 'compact',
+      maximumFractionDigits: 1
+    });
+    const num = (field) => Math.max(0, Number.parseFloat(field?.value || '0') || 0);
+
+    function updateLeakMath() {
+      const visitors = num(fields.visitors);
+      const currentRate = num(fields.currentRate) / 100;
+      const targetRate = Math.max(currentRate, num(fields.targetRate) / 100);
+      const closeRate = num(fields.closeRate) / 100;
+      const value = num(fields.customerValue);
+      const capture = num(fields.responseRate) / 100;
+      const missedLeads = Math.max(0, visitors * (targetRate - currentRate));
+      const monthlyLeak = missedLeads * closeRate * capture * value;
+      const annualLeak = monthlyLeak * 12;
+      const auditMultiple = monthlyLeak > 0 ? Math.round(monthlyLeak / 99) : 0;
+
+      output.monthlyLoss.textContent = money.format(monthlyLeak);
+      output.missedLeads.textContent = missedLeads.toFixed(missedLeads >= 10 ? 0 : 1);
+      output.annualLoss.textContent = compactMoney.format(annualLeak);
+      output.multiple.textContent = auditMultiple > 0 ? `${auditMultiple}x` : '0x';
+      output.lossCopy.textContent = monthlyLeak > 0
+        ? `That is the revenue path your site may be failing to capture from existing traffic.`
+        : `If your current inquiry rate already matches your target, the leak starts in trust, follow-up, offer clarity, or traffic quality.`;
+      output.paybackCopy.textContent = auditMultiple >= 1
+        ? `${money.format(monthlyLeak)} in estimated monthly leakage makes a $99 diagnostic an easier business decision.`
+        : `The audit is most useful when the problem is unclear and the next fix needs to be prioritized.`;
+    }
+
+    Object.values(fields).forEach((field) => field?.addEventListener('input', updateLeakMath));
+    updateLeakMath();
+  })();
+</script>
 <script src="assets/js/main.js"></script>
 </body>
 </html>
