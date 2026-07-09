@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "generatedAt": "2026-07-09T05:06:54.064Z",
+  "sourceCount": 0,
+  "figures": [
+    {
+      "id": "figure-field-board-placeholder",
+      "filename": "field-board-placeholder.webp",
+      "assetPath": "public/assets/figures/field-board-placeholder.webp",
+      "topicTag": "overview",
+      "sourcePageReference": "Generated placeholder",
+      "caption": "Inspection field board placeholder",
+      "altText": "A stylized inspection guide board placeholder graphic.",
+      "confidence": 0.99,
+      "needsReview": false,
+      "crop": null,
+      "originalPath": null
+    }
+  ]
+}

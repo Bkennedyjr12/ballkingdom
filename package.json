@@ -1,0 +1,18 @@
+{
+  "name": "ballkingdom-static-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "hi:ingest": "node home-inspection-guide/scripts/ingest-images.mjs",
+    "hi:add": "node home-inspection-guide/scripts/add-thread-images.mjs",
+    "hi:build": "node home-inspection-guide/scripts/build-guide.mjs",
+    "hi:pdf": "node home-inspection-guide/scripts/build-pdf.mjs",
+    "hi:dev": "python3 -m http.server 4173",
+    "hi:all": "npm run hi:ingest && npm run hi:build && npm run hi:pdf"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.45.0",
+    "sharp": "^0.33.4"
+  }
+}

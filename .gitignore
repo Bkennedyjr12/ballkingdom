@@ -1,3 +1,7 @@
 
 # gstack browse runtime
 .gstack/
+
+# Node tooling for the Home Inspection Guide pipeline
+node_modules/
+npm-debug.log*

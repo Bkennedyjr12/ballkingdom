@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home Inspection Guide | The Ballers Kingdom</title>
+  <meta name="description" content="A searchable home inspection study guide with cropped reference figures, checklists, report comments, exam tips, and field notes.">
+  <link rel="canonical" href="https://ballkingdom.com/home-inspection-guide/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+  <style>:root {
+  --hi-black: #0b1220;
+  --hi-ink: #1a1f2e;
+  --hi-royal: #1b3a8e;
+  --hi-royal-dark: #14306f;
+  --hi-royal-soft: #e9eefb;
+  --hi-line: #d9dee8;
+  --hi-muted: #5f6878;
+  --hi-paper: #ffffff;
+  --hi-stone: #f3f4f6;
+  --hi-warn: #b45309;
+  --hi-ok: #0f766e;
+  --hi-radius: 6px;
+  --hi-shadow: 0 14px 36px rgba(11, 18, 32, 0.12);
+  --hi-display: 'Oswald', 'Impact', 'Arial Narrow Bold', sans-serif;
+  --hi-body: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --hi-serif: 'Playfair Display', Georgia, serif;
+}
+
+* { box-sizing: border-box; }
+
+body.hi-body {
+  margin: 0;
+  font-family: var(--hi-body);
+  color: var(--hi-ink);
+  background: var(--hi-paper);
+  line-height: 1.6;
+}
+
+.hi-shell a { color: var(--hi-royal); }
+
+.hi-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(11, 18, 32, 0.96);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hi-nav-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+}
+
+.hi-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  text-decoration: none;
+  font-family: var(--hi-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hi-mark {
+  width: 36px;
+  height: 36px;
+  border: 2px solid white;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--hi-serif);
+  letter-spacing: 0;
+}
+
+.hi-nav-actions {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  font-family: var(--hi-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.hi-nav-actions a {
+  color: rgba(255, 255, 255, 0.84);
+  text-decoration: none;
+}
+
+.hi-nav-actions .hi-pill-link {
+  background: var(--hi-royal);
+  color: white;
+  padding: 9px 14px;
+  border-radius: 4px;
+}
+
+.hi-hero {
+  background:
+    linear-gradient(135deg, rgba(11, 18, 32, 0.96), rgba(20, 48, 111, 0.92)),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 80px);
+  color: white;
+}
+
+.hi-hero-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 72px 24px 34px;
+}
+
+.hi-kicker {
+  font-family: var(--hi-display);
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+
+.hi-hero h1,
+.hi-section-title,
+.hi-card h2,
+.hi-card h3,
+.hi-chapter-link,
+.hi-stat strong,
+.hi-topic-title {
+  font-family: var(--hi-display);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.hi-hero h1 {
+  margin: 18px 0 18px;
+  max-width: 12ch;
+  font-size: clamp(3rem, 8vw, 6.4rem);
+  line-height: 0.95;
+  color: white;
+}
+
+.hi-hero h1 span { color: #8fb1ff; }
+
+.hi-hero-copy {
+  max-width: 760px;
+  color: #dbe4f0;
+  font-size: clamp(1.06rem, 1.7vw, 1.28rem);
+}
+
+.hi-dashboard {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 40px;
+}
+
+.hi-stat {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 18px;
+  border-radius: var(--hi-radius);
+}
+
+.hi-stat strong {
+  display: block;
+  color: white;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.hi-stat span {
+  display: block;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  margin-top: 8px;
+}
+
+.hi-main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 34px 24px 84px;
+}
+
+.hi-search-panel {
+  position: sticky;
+  top: 64px;
+  z-index: 10;
+  background: var(--hi-paper);
+  border: 1px solid var(--hi-line);
+  border-radius: var(--hi-radius);
+  box-shadow: var(--hi-shadow);
+  padding: 18px;
+  margin-bottom: 30px;
+}
+
+.hi-search-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.hi-search {
+  width: 100%;
+  border: 1px solid var(--hi-line);
+  border-radius: 4px;
+  padding: 14px 14px;
+  font: 600 1rem var(--hi-body);
+}
+
+.hi-search:focus {
+  outline: 3px solid rgba(27, 58, 142, 0.2);
+  border-color: var(--hi-royal);
+}
+
+.hi-count {
+  color: var(--hi-muted);
+  font-family: var(--hi-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.hi-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 28px;
+}
+
+.hi-rail {
+  align-self: start;
+  position: sticky;
+  top: 168px;
+  border-left: 3px solid var(--hi-royal);
+  padding-left: 14px;
+}
+
+.hi-rail-title {
+  font-family: var(--hi-display);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.78rem;
+  color: var(--hi-muted);
+  margin-bottom: 12px;
+}
+
+.hi-chapter-link {
+  display: block;
+  color: var(--hi-black);
+  text-decoration: none;
+  padding: 8px 0;
+  font-size: 0.96rem;
+}
+
+.hi-chapter-link:hover { color: var(--hi-royal); }
+
+.hi-chapter {
+  padding: 28px 0 46px;
+  border-bottom: 1px solid var(--hi-line);
+}
+
+.hi-chapter-header {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 24px;
+}
+
+.hi-chapter-number {
+  background: var(--hi-black);
+  color: white;
+  border-radius: var(--hi-radius);
+  padding: 14px;
+  font-family: var(--hi-display);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  text-align: center;
+}
+
+.hi-chapter-header h2 {
+  margin: 0 0 8px;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1;
+  font-family: var(--hi-display);
+  text-transform: uppercase;
+}
+
+.hi-chapter-header p { margin: 0; color: var(--hi-muted); max-width: 70ch; }
+
+.hi-section-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.hi-topic {
+  border: 1px solid var(--hi-line);
+  border-radius: var(--hi-radius);
+  background: white;
+  overflow: hidden;
+}
+
+.hi-topic-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+  gap: 0;
+}
+
+.hi-topic-copy { padding: 24px; }
+
+.hi-topic-title {
+  margin: 0 0 10px;
+  color: var(--hi-black);
+  font-size: 1.55rem;
+}
+
+.hi-topic-body { color: var(--hi-muted); margin-bottom: 18px; }
+
+.hi-blocks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hi-block {
+  background: var(--hi-stone);
+  border: 1px solid var(--hi-line);
+  border-radius: var(--hi-radius);
+  padding: 16px;
+}
+
+.hi-block h4 {
+  margin: 0 0 10px;
+  font-family: var(--hi-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.hi-block p {
+  margin: 0;
+  color: var(--hi-muted);
+}
+
+.hi-wide-blocks {
+  margin-bottom: 14px;
+}
+
+.hi-block ul { margin: 0; padding-left: 18px; color: var(--hi-muted); }
+
+.hi-block li + li { margin-top: 6px; }
+
+.hi-report {
+  border-left: 4px solid var(--hi-royal);
+  background: var(--hi-royal-soft);
+}
+
+.hi-note {
+  border-left: 4px solid var(--hi-ok);
+  background: #ecfdf5;
+}
+
+.hi-figure-column {
+  background: #f8fafc;
+  border-left: 1px solid var(--hi-line);
+  padding: 18px;
+}
+
+.hi-figure-card {
+  background: white;
+  border: 1px solid var(--hi-line);
+  border-radius: var(--hi-radius);
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(11, 18, 32, 0.08);
+}
+
+.hi-figure-card + .hi-figure-card { margin-top: 14px; }
+
+.hi-figure-card img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  background: var(--hi-stone);
+}
+
+.hi-figure-meta { padding: 14px; }
+
+.hi-figure-tag {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--hi-royal);
+  font: 700 0.72rem var(--hi-display);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+.hi-figure-meta h4 {
+  margin: 0 0 6px;
+  color: var(--hi-black);
+}
+
+.hi-figure-meta p { margin: 0; color: var(--hi-muted); font-size: 0.92rem; }
+
+.hi-confidence {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--hi-muted);
+  font-size: 0.78rem;
+}
+
+.hi-review {
+  color: var(--hi-warn);
+  font-weight: 700;
+}
+
+.hi-gallery {
+  padding-top: 50px;
+}
+
+.hi-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.hi-empty {
+  padding: 22px;
+  border: 1px dashed var(--hi-line);
+  border-radius: var(--hi-radius);
+  background: var(--hi-stone);
+  color: var(--hi-muted);
+}
+
+.hi-footer {
+  background: var(--hi-black);
+  color: #cbd5e1;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.hi-footer a { color: white; }
+
+[data-filter-item].is-hidden { display: none; }
+
+@media (prefers-color-scheme: dark) {
+  body.hi-body {
+    background: #0b1220;
+    color: #e5e7eb;
+  }
+  .hi-main,
+  .hi-search-panel,
+  .hi-topic,
+  .hi-figure-card {
+    background: #101827;
+    color: #e5e7eb;
+  }
+  .hi-chapter-header h2,
+  .hi-topic-title,
+  .hi-chapter-link,
+  .hi-figure-meta h4 {
+    color: white;
+  }
+  .hi-block,
+  .hi-figure-column,
+  .hi-empty {
+    background: #111c2d;
+  }
+}
+
+@media (max-width: 920px) {
+  .hi-layout { grid-template-columns: 1fr; }
+  .hi-rail { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
+  .hi-rail-title { grid-column: 1 / -1; }
+  .hi-topic-main { grid-template-columns: 1fr; }
+  .hi-figure-column { border-left: 0; border-top: 1px solid var(--hi-line); }
+  .hi-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hi-dashboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .hi-nav-inner,
+  .hi-nav-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .hi-hero-inner { padding-top: 44px; }
+  .hi-search-row { grid-template-columns: 1fr; }
+  .hi-chapter-header { grid-template-columns: 1fr; }
+  .hi-chapter-number { width: 112px; }
+  .hi-blocks,
+  .hi-gallery-grid,
+  .hi-dashboard,
+  .hi-rail {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .hi-nav,
+  .hi-search-panel,
+  .hi-rail,
+  .hi-footer {
+    display: none;
+  }
+  body.hi-body {
+    background: white;
+    color: #111827;
+  }
+  .hi-hero {
+    background: white;
+    color: #111827;
+    border-bottom: 2px solid #111827;
+  }
+  .hi-hero h1,
+  .hi-hero h1 span {
+    color: #111827;
+  }
+  .hi-hero-copy,
+  .hi-kicker {
+    color: #374151;
+  }
+  .hi-main {
+    padding: 20px 0;
+  }
+  .hi-layout {
+    display: block;
+  }
+  .hi-chapter,
+  .hi-topic {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .hi-topic-main {
+    grid-template-columns: 1.15fr 0.85fr;
+  }
+  .hi-block {
+    background: white;
+  }
+}
+</style>
+</head>
+<body class="hi-body">
+  <div class="hi-shell">
+    <nav class="hi-nav" aria-label="Home Inspection Guide">
+      <div class="hi-nav-inner">
+        <a class="hi-logo" href="../index.html"><span class="hi-mark">BK</span><span>The Ballers Kingdom</span></a>
+        <div class="hi-nav-actions">
+          <a href="#chapters">Chapters</a>
+          <a href="#figures">Figures</a>
+          <a class="hi-pill-link" href="public/assets/guide.pdf">Download PDF</a>
+        </div>
+      </div>
+    </nav>
+    <header class="hi-hero">
+      <div class="hi-hero-inner">
+        <div class="hi-kicker">BallKingdom Study Systems</div>
+        <h1>Home Inspection <span>Guide</span></h1>
+        <p class="hi-hero-copy">A field-ready study tool for visual inspection, report writing, and exam prep.</p>
+        <div class="hi-dashboard">
+          <div class="hi-stat"><strong>15</strong><span>Chapters</span></div>
+          <div class="hi-stat"><strong>15</strong><span>Study topics</span></div>
+          <div class="hi-stat"><strong>1</strong><span>Cropped figures</span></div>
+          <div class="hi-stat"><strong>0</strong><span>Source pages processed</span></div>
+        </div>
+      </div>
+    </header>
+    <main class="hi-main" id="chapters">
+      <section class="hi-search-panel" aria-label="Search guide">
+        <label for="guide-search" class="hi-kicker">Global search</label>
+        <div class="hi-search-row">
+          <input id="guide-search" class="hi-search" type="search" placeholder="Search drainage, GFCI, roof flashing, report language..." autocomplete="off">
+          <span class="hi-count" data-result-count>All topics</span>
+        </div>
+      </section>
+      <div class="hi-layout">
+        <aside class="hi-rail" aria-label="Chapter navigation">
+          <div class="hi-rail-title">Chapter Navigation</div>
+          <a class="hi-chapter-link" href="#field-system">Field System</a>
+          <a class="hi-chapter-link" href="#introduction">Introduction</a><a class="hi-chapter-link" href="#walk-around">The Walk-Around</a><a class="hi-chapter-link" href="#exteriors">Exteriors</a><a class="hi-chapter-link" href="#roofs">Roofs</a><a class="hi-chapter-link" href="#attics">Attics</a><a class="hi-chapter-link" href="#foundations-basements-crawl-spaces">Foundations, Basements, and Crawl Spaces</a><a class="hi-chapter-link" href="#electrical-systems">Electrical Systems</a><a class="hi-chapter-link" href="#plumbing">Plumbing</a><a class="hi-chapter-link" href="#heating-cooling-systems">Heating and Cooling Systems</a><a class="hi-chapter-link" href="#chimneys-fireplaces">Chimneys and Fireplaces</a><a class="hi-chapter-link" href="#interiors">Interiors</a><a class="hi-chapter-link" href="#doors-windows">Doors and Windows</a><a class="hi-chapter-link" href="#kitchens-bathrooms-laundry">Kitchens, Bathrooms, and Laundry</a><a class="hi-chapter-link" href="#attached-structures">Attached Structures</a><a class="hi-chapter-link" href="#environmental-concerns">Environmental Concerns</a>
+        </aside>
+        <div>
+          
+    <section class="hi-chapter" id="field-system">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">FS</div>
+        <div>
+          <h2>Field System</h2>
+          <p>A repeatable operating rhythm for studying, inspecting, and writing reports with confidence.</p>
+        </div>
+      </header>
+      <div class="hi-blocks hi-wide-blocks">
+        
+          <div class="hi-block">
+            <h4>See the system</h4>
+            <p>Start with the building system, not the defect name. Ask what the component is supposed to do, what failure would look like, and what other systems would be affected if it fails.</p>
+          </div>
+          <div class="hi-block">
+            <h4>Document the condition</h4>
+            <p>Write observable facts first: location, material, extent, and evidence. Avoid guessing hidden causes unless the evidence is strong enough to support the statement.</p>
+          </div>
+          <div class="hi-block">
+            <h4>Explain the implication</h4>
+            <p>Clients need to know why the condition matters. Connect the defect to safety, water intrusion, energy loss, structural movement, equipment failure, or further evaluation.</p>
+          </div>
+          <div class="hi-block">
+            <h4>Recommend the next step</h4>
+            <p>End with a clear action: monitor, repair, replace, correct, evaluate, or test. Name the appropriate qualified professional when the condition is outside a basic visual inspection.</p>
+          </div>
+      </div>
+      <div class="hi-blocks hi-wide-blocks">
+        <div class="hi-block hi-report">
+          <h4>Inspection Sequence</h4>
+          <ul><li>Confirm scope, weather, utilities, access limitations, and client concerns.</li><li>Walk the site perimeter and document drainage, grade, vegetation, hardscape, and exterior safety.</li><li>Inspect roof drainage, visible roof coverings, penetrations, and flashing from the safest available vantage point.</li><li>Move through exterior walls, openings, attached structures, and garages before entering interior rooms.</li><li>Inspect interior rooms from top to bottom: ceilings, walls, floors, windows, doors, stairs, and moisture clues.</li><li>Operate fixtures and normal controls where safe, then observe plumbing, electrical, HVAC, attic, crawlspace, and basement conditions.</li><li>Reconcile photos with notes before leaving so report comments match locations and evidence.</li></ul>
+        </div>
+        <div class="hi-block hi-note">
+          <h4>Report Principles</h4>
+          <ul><li>Use location-specific language: front-left bedroom ceiling, rear deck ledger, main electrical panel.</li><li>Separate limitation language from defect language so the client understands what was not inspected and what was actually deficient.</li><li>Avoid alarmist wording. Use direct, professional language tied to risk and recommended action.</li><li>Do not identify environmental materials by certainty unless laboratory testing or specialized evaluation confirms them.</li><li>When a condition may affect safety, habitability, or major cost, recommend evaluation before the inspection contingency or closing deadline where applicable.</li></ul>
+        </div>
+      </div>
+    </section>
+          
+    <article class="hi-chapter" id="introduction" data-filter-item data-search-text="Introduction How to think like an inspector: observe, document, explain risk, and recommend the right next step.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">01</div>
+        <div>
+          <h2>Introduction</h2>
+          <p>How to think like an inspector: observe, document, explain risk, and recommend the right next step.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="inspection-mindset" data-filter-item data-search-text="Inspection Mindset A good inspection is organized, visual, and defensible. Work from broad site conditions toward individual systems, separate facts from opinions, and write comments that explain implication and recommended action. Confirm client scope before the walkthrough. Photograph conditions before touching or moving anything. Use consistent direction labels: front, rear, left, and right from the street. The inspection was visual and limited to readily accessible components at the time of inspection. Further evaluation by a qualified contractor is recommended where hidden conditions or specialized testing may be required. Inspection standards describe what must be observed, not a guarantee that every concealed defect will be found. Brian&#039;s Field Note: Keep your photo sequence in the same order as your report sections. It saves time and reduces missed comments. overview reporting safety">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Inspection Mindset</h3>
+          <p class="hi-topic-body">A good inspection is organized, visual, and defensible. Work from broad site conditions toward individual systems, separate facts from opinions, and write comments that explain implication and recommended action.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Confirm client scope before the walkthrough.</li><li>Photograph conditions before touching or moving anything.</li><li>Use consistent direction labels: front, rear, left, and right from the street.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>The inspection was visual and limited to readily accessible components at the time of inspection.</li><li>Further evaluation by a qualified contractor is recommended where hidden conditions or specialized testing may be required.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Inspection standards describe what must be observed, not a guarantee that every concealed defect will be found.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Keep your photo sequence in the same order as your report sections. It saves time and reduces missed comments.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="walk-around" data-filter-item data-search-text="The Walk-Around A disciplined exterior loop that establishes drainage, grade, access, safety, and major visual defects.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">02</div>
+        <div>
+          <h2>The Walk-Around</h2>
+          <p>A disciplined exterior loop that establishes drainage, grade, access, safety, and major visual defects.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="drainage-grading" data-filter-item data-search-text="Drainage and Grading Site drainage should move water away from the structure. Watch for negative slope, settled backfill, blocked drains, high soil at siding, and evidence of ponding near foundations. Look for a visible slope away from foundation walls. Check downspout discharge locations. Note hardscape that traps water against the structure. Grading appears to slope toward the foundation in one or more areas. This can increase the risk of moisture intrusion and should be corrected to direct water away from the building. Water management is often tested as a cause-and-effect concept: poor grading can lead to foundation moisture, wood decay, and settlement indicators. Brian&#039;s Field Note: Take one wide context photo before close-ups so the client can see exactly where the condition sits on the property. drainage grading foundation">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Drainage and Grading</h3>
+          <p class="hi-topic-body">Site drainage should move water away from the structure. Watch for negative slope, settled backfill, blocked drains, high soil at siding, and evidence of ponding near foundations.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Look for a visible slope away from foundation walls.</li><li>Check downspout discharge locations.</li><li>Note hardscape that traps water against the structure.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Grading appears to slope toward the foundation in one or more areas. This can increase the risk of moisture intrusion and should be corrected to direct water away from the building.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Water management is often tested as a cause-and-effect concept: poor grading can lead to foundation moisture, wood decay, and settlement indicators.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Take one wide context photo before close-ups so the client can see exactly where the condition sits on the property.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="exteriors" data-filter-item data-search-text="Exteriors Wall cladding, trim, decks, stairs, railings, penetrations, and exterior safety conditions.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">03</div>
+        <div>
+          <h2>Exteriors</h2>
+          <p>Wall cladding, trim, decks, stairs, railings, penetrations, and exterior safety conditions.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="wall-coverings-trim" data-filter-item data-search-text="Wall Coverings and Trim Exterior wall systems should shed water, resist decay, and remain properly clear of soil and roof surfaces. Inspect joints, flashing transitions, penetrations, paint failure, and material-specific distress. Check siding clearance at soil and roof lines. Inspect trim ends and lower corners for decay. Look for open penetrations around utilities. Exterior trim shows deterioration consistent with moisture exposure. Repair or replacement by a qualified contractor is recommended. Know the difference between cosmetic weathering and conditions that can allow water entry. Brian&#039;s Field Note: When you see one failed caulk joint, scan nearby similar joints. Patterns matter. siding flashing exterior">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Wall Coverings and Trim</h3>
+          <p class="hi-topic-body">Exterior wall systems should shed water, resist decay, and remain properly clear of soil and roof surfaces. Inspect joints, flashing transitions, penetrations, paint failure, and material-specific distress.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Check siding clearance at soil and roof lines.</li><li>Inspect trim ends and lower corners for decay.</li><li>Look for open penetrations around utilities.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Exterior trim shows deterioration consistent with moisture exposure. Repair or replacement by a qualified contractor is recommended.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Know the difference between cosmetic weathering and conditions that can allow water entry.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: When you see one failed caulk joint, scan nearby similar joints. Patterns matter.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="roofs" data-filter-item data-search-text="Roofs Roof coverings, drainage, penetrations, flashing, slope, and visible installation concerns.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">04</div>
+        <div>
+          <h2>Roofs</h2>
+          <p>Roof coverings, drainage, penetrations, flashing, slope, and visible installation concerns.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="roof-coverings-flashing" data-filter-item data-search-text="Roof Coverings and Flashing Roof inspections focus on water-shedding performance. Document damaged coverings, improper flashing, missing kickout flashing, exposed fasteners, debris, ponding, and aging indicators. Identify roof-covering type and approximate condition. Inspect valleys, sidewalls, chimneys, and pipe penetrations. Check gutters and discharge for blockage or overflow clues. Roof covering damage was observed. Repair by a qualified roofing contractor is recommended to reduce the risk of leakage. Flashing defects are often more important than the roof surface itself because transitions are common leak points. Brian&#039;s Field Note: If you cannot safely walk a roof, say how it was inspected: ground, ladder edge, window, drone, or binoculars. roof flashing gutter">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Roof Coverings and Flashing</h3>
+          <p class="hi-topic-body">Roof inspections focus on water-shedding performance. Document damaged coverings, improper flashing, missing kickout flashing, exposed fasteners, debris, ponding, and aging indicators.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Identify roof-covering type and approximate condition.</li><li>Inspect valleys, sidewalls, chimneys, and pipe penetrations.</li><li>Check gutters and discharge for blockage or overflow clues.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Roof covering damage was observed. Repair by a qualified roofing contractor is recommended to reduce the risk of leakage.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Flashing defects are often more important than the roof surface itself because transitions are common leak points.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: If you cannot safely walk a roof, say how it was inspected: ground, ladder edge, window, drone, or binoculars.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="attics" data-filter-item data-search-text="Attics Structure, ventilation, insulation, moisture evidence, exhaust terminations, and access limitations.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">05</div>
+        <div>
+          <h2>Attics</h2>
+          <p>Structure, ventilation, insulation, moisture evidence, exhaust terminations, and access limitations.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="attic-moisture-ventilation" data-filter-item data-search-text="Moisture and Ventilation Attics reveal roof leaks, condensation, blocked ventilation, poor insulation, and unsafe exhaust routing. Look for staining, microbial-like growth, compressed insulation, and bath fans ending in the attic. Confirm bathroom and dryer exhausts terminate outdoors. Look for daylight at roof penetrations and eaves. Measure or estimate insulation depth where visible. Ventilation or exhaust conditions in the attic may contribute to elevated moisture. Correction by a qualified contractor is recommended. Ventilation questions often connect intake, exhaust, insulation placement, and condensation. Brian&#039;s Field Note: Do not overstate growth. Describe what you see and recommend evaluation when needed. attic ventilation insulation">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Moisture and Ventilation</h3>
+          <p class="hi-topic-body">Attics reveal roof leaks, condensation, blocked ventilation, poor insulation, and unsafe exhaust routing. Look for staining, microbial-like growth, compressed insulation, and bath fans ending in the attic.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Confirm bathroom and dryer exhausts terminate outdoors.</li><li>Look for daylight at roof penetrations and eaves.</li><li>Measure or estimate insulation depth where visible.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Ventilation or exhaust conditions in the attic may contribute to elevated moisture. Correction by a qualified contractor is recommended.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Ventilation questions often connect intake, exhaust, insulation placement, and condensation.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Do not overstate growth. Describe what you see and recommend evaluation when needed.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="foundations-basements-crawl-spaces" data-filter-item data-search-text="Foundations, Basements, and Crawl Spaces Foundation movement, moisture intrusion, crawlspace safety, structure, ventilation, and access limits.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">06</div>
+        <div>
+          <h2>Foundations, Basements, and Crawl Spaces</h2>
+          <p>Foundation movement, moisture intrusion, crawlspace safety, structure, ventilation, and access limits.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="foundation-movement-moisture" data-filter-item data-search-text="Movement and Moisture Inspect foundations for cracking, displacement, bowing, settlement indicators, efflorescence, staining, and water entry. In crawlspaces, prioritize safety, structure, moisture, and pest evidence. Document crack width, direction, and displacement. Check for moisture stains and efflorescence. Look for wood-to-soil contact and inadequate clearance. Foundation cracking/displacement was observed. Evaluation by a qualified foundation specialist or structural engineer is recommended. Horizontal cracks and displacement usually carry higher concern than minor shrinkage cracks. Brian&#039;s Field Note: Photograph a ruler or reference object next to notable cracks when practical. foundation crawlspace basement">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Movement and Moisture</h3>
+          <p class="hi-topic-body">Inspect foundations for cracking, displacement, bowing, settlement indicators, efflorescence, staining, and water entry. In crawlspaces, prioritize safety, structure, moisture, and pest evidence.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Document crack width, direction, and displacement.</li><li>Check for moisture stains and efflorescence.</li><li>Look for wood-to-soil contact and inadequate clearance.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Foundation cracking/displacement was observed. Evaluation by a qualified foundation specialist or structural engineer is recommended.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Horizontal cracks and displacement usually carry higher concern than minor shrinkage cracks.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Photograph a ruler or reference object next to notable cracks when practical.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="electrical-systems" data-filter-item data-search-text="Electrical Systems Service equipment, panels, grounding, bonding, branch circuits, receptacles, and safety devices.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">07</div>
+        <div>
+          <h2>Electrical Systems</h2>
+          <p>Service equipment, panels, grounding, bonding, branch circuits, receptacles, and safety devices.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="panel-safety" data-filter-item data-search-text="Panel Safety Electrical inspection is visual and safety-focused. Identify service size where visible, panel condition, missing covers, double taps, incompatible breakers, open knockouts, overheated conductors, GFCI/AFCI protection, and bonding concerns. Do not remove unsafe or blocked panel covers. Check for missing dead fronts or open knockouts. Test accessible GFCI devices where practical. Unsafe or improper electrical conditions were observed in the panel. Evaluation and repair by a licensed electrician is recommended. Safety devices have locations and eras. Know where GFCI protection is commonly expected. Brian&#039;s Field Note: Never reach into a panel. Your report is not worth an injury. electrical panel safety">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Panel Safety</h3>
+          <p class="hi-topic-body">Electrical inspection is visual and safety-focused. Identify service size where visible, panel condition, missing covers, double taps, incompatible breakers, open knockouts, overheated conductors, GFCI/AFCI protection, and bonding concerns.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Do not remove unsafe or blocked panel covers.</li><li>Check for missing dead fronts or open knockouts.</li><li>Test accessible GFCI devices where practical.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Unsafe or improper electrical conditions were observed in the panel. Evaluation and repair by a licensed electrician is recommended.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Safety devices have locations and eras. Know where GFCI protection is commonly expected.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Never reach into a panel. Your report is not worth an injury.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="plumbing" data-filter-item data-search-text="Plumbing Supply, drain, waste, vent, fixtures, water heaters, fuel piping, shutoffs, and visible leaks.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">08</div>
+        <div>
+          <h2>Plumbing</h2>
+          <p>Supply, drain, waste, vent, fixtures, water heaters, fuel piping, shutoffs, and visible leaks.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="water-heaters-drainage" data-filter-item data-search-text="Water Heaters and Drainage Inspect water heaters for installation, venting, TPR valve discharge, corrosion, leaks, seismic restraint where applicable, and age indicators. At fixtures, run water long enough to observe drainage and leaks. Locate the main water shutoff if visible. Check TPR discharge pipe termination. Look below sinks after operating fixtures. The water heater temperature-pressure relief discharge pipe is missing, improper, or not safely terminated. Correction by a qualified plumber is recommended. TPR valves protect against excessive temperature and pressure; the discharge pipe must route safely. Brian&#039;s Field Note: Run adjacent fixtures together when possible. Weak flow or slow drainage may only show under demand. plumbing water-heater leak">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Water Heaters and Drainage</h3>
+          <p class="hi-topic-body">Inspect water heaters for installation, venting, TPR valve discharge, corrosion, leaks, seismic restraint where applicable, and age indicators. At fixtures, run water long enough to observe drainage and leaks.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Locate the main water shutoff if visible.</li><li>Check TPR discharge pipe termination.</li><li>Look below sinks after operating fixtures.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>The water heater temperature-pressure relief discharge pipe is missing, improper, or not safely terminated. Correction by a qualified plumber is recommended.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>TPR valves protect against excessive temperature and pressure; the discharge pipe must route safely.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Run adjacent fixtures together when possible. Weak flow or slow drainage may only show under demand.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="heating-cooling-systems" data-filter-item data-search-text="Heating and Cooling Systems Heating equipment, cooling equipment, distribution, combustion air, condensate, filters, and safety controls.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">09</div>
+        <div>
+          <h2>Heating and Cooling Systems</h2>
+          <p>Heating equipment, cooling equipment, distribution, combustion air, condensate, filters, and safety controls.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="hvac-operation" data-filter-item data-search-text="Operation and Safety Operate HVAC systems using normal controls when conditions allow. Document age, visible condition, air filter condition, condensate management, venting, clearance, and evidence of previous malfunction. Avoid operating cooling equipment in unsafe low-temperature conditions. Check filter access and condition. Inspect condensate drain routing where visible. Heating or cooling equipment showed visible defects or performance concerns. Evaluation by a qualified HVAC contractor is recommended. Know when not to operate equipment. Inspection standards allow limitations for safety and weather conditions. Brian&#039;s Field Note: Record thermostat mode and outdoor temperature when you limit cooling operation. hvac furnace air-conditioning">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Operation and Safety</h3>
+          <p class="hi-topic-body">Operate HVAC systems using normal controls when conditions allow. Document age, visible condition, air filter condition, condensate management, venting, clearance, and evidence of previous malfunction.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Avoid operating cooling equipment in unsafe low-temperature conditions.</li><li>Check filter access and condition.</li><li>Inspect condensate drain routing where visible.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Heating or cooling equipment showed visible defects or performance concerns. Evaluation by a qualified HVAC contractor is recommended.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Know when not to operate equipment. Inspection standards allow limitations for safety and weather conditions.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Record thermostat mode and outdoor temperature when you limit cooling operation.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="chimneys-fireplaces" data-filter-item data-search-text="Chimneys and Fireplaces Firebox, hearth, damper, visible flue, chimney exterior, clearances, and safety limitations.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">10</div>
+        <div>
+          <h2>Chimneys and Fireplaces</h2>
+          <p>Firebox, hearth, damper, visible flue, chimney exterior, clearances, and safety limitations.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="fireplace-conditions" data-filter-item data-search-text="Fireplace Conditions Inspect readily visible fireplace and chimney components for cracking, gaps, missing caps, deteriorated mortar, creosote buildup, inadequate hearth extension, and unsafe modifications. Look for cracks in firebrick and mortar. Check damper operation if accessible. Inspect chimney exterior from safe vantage points. Fireplace or chimney defects were observed. A level-two chimney evaluation by a qualified chimney professional is recommended before use. A home inspection is not a full internal chimney scan; recommend specialized evaluation when visible concerns exist. Brian&#039;s Field Note: Ask whether fireplaces are used, but base the report on visible conditions. chimney fireplace masonry">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Fireplace Conditions</h3>
+          <p class="hi-topic-body">Inspect readily visible fireplace and chimney components for cracking, gaps, missing caps, deteriorated mortar, creosote buildup, inadequate hearth extension, and unsafe modifications.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Look for cracks in firebrick and mortar.</li><li>Check damper operation if accessible.</li><li>Inspect chimney exterior from safe vantage points.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Fireplace or chimney defects were observed. A level-two chimney evaluation by a qualified chimney professional is recommended before use.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>A home inspection is not a full internal chimney scan; recommend specialized evaluation when visible concerns exist.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Ask whether fireplaces are used, but base the report on visible conditions.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="interiors" data-filter-item data-search-text="Interiors Walls, ceilings, floors, stairs, railings, moisture stains, settlement clues, and safety concerns.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">11</div>
+        <div>
+          <h2>Interiors</h2>
+          <p>Walls, ceilings, floors, stairs, railings, moisture stains, settlement clues, and safety concerns.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="interior-surfaces" data-filter-item data-search-text="Interior Surfaces Interior defects often point back to exterior water management, roof leakage, plumbing leaks, or structural movement. Document stains, cracks, uneven floors, loose railings, and unsafe stairs. Scan ceilings below bathrooms and roof penetrations. Check stair handrails and guardrails. Note cracks that align across multiple surfaces. Interior staining was observed. The source could not be confirmed during the visual inspection; further evaluation and repair are recommended. A stain is evidence of moisture history, not proof of an active leak unless verified. Brian&#039;s Field Note: Use a moisture meter as a screening tool, not as a final diagnosis. interior stair moisture">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Interior Surfaces</h3>
+          <p class="hi-topic-body">Interior defects often point back to exterior water management, roof leakage, plumbing leaks, or structural movement. Document stains, cracks, uneven floors, loose railings, and unsafe stairs.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Scan ceilings below bathrooms and roof penetrations.</li><li>Check stair handrails and guardrails.</li><li>Note cracks that align across multiple surfaces.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Interior staining was observed. The source could not be confirmed during the visual inspection; further evaluation and repair are recommended.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>A stain is evidence of moisture history, not proof of an active leak unless verified.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Use a moisture meter as a screening tool, not as a final diagnosis.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="doors-windows" data-filter-item data-search-text="Doors and Windows Operation, safety glazing, egress, seals, flashing clues, hardware, and water entry indicators.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">12</div>
+        <div>
+          <h2>Doors and Windows</h2>
+          <p>Operation, safety glazing, egress, seals, flashing clues, hardware, and water entry indicators.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="window-door-operation" data-filter-item data-search-text="Operation and Water Entry Operate a representative number of doors and windows. Look for failed seals, damaged frames, missing locks, safety glazing concerns, egress limitations, and stains below openings. Check representative operation. Look for fogged insulated glass. Confirm sleeping-room egress conditions where required by scope. One or more windows showed failed seals or impaired operation. Repair or replacement by a qualified contractor is recommended. Egress questions usually focus on sleeping rooms and emergency escape/rescue openings. Brian&#039;s Field Note: Photograph the window and the room context for egress-related comments. window door egress">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Operation and Water Entry</h3>
+          <p class="hi-topic-body">Operate a representative number of doors and windows. Look for failed seals, damaged frames, missing locks, safety glazing concerns, egress limitations, and stains below openings.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Check representative operation.</li><li>Look for fogged insulated glass.</li><li>Confirm sleeping-room egress conditions where required by scope.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>One or more windows showed failed seals or impaired operation. Repair or replacement by a qualified contractor is recommended.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Egress questions usually focus on sleeping rooms and emergency escape/rescue openings.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Photograph the window and the room context for egress-related comments.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="kitchens-bathrooms-laundry" data-filter-item data-search-text="Kitchens, Bathrooms, and Laundry Fixtures, cabinets, ventilation, appliances, water damage, safety devices, and laundry exhaust.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">13</div>
+        <div>
+          <h2>Kitchens, Bathrooms, and Laundry</h2>
+          <p>Fixtures, cabinets, ventilation, appliances, water damage, safety devices, and laundry exhaust.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="wet-room-checks" data-filter-item data-search-text="Wet-Room Checks Kitchens, bathrooms, and laundry areas combine water, electricity, ventilation, and finish materials. Run fixtures, inspect below cabinets, test GFCI where accessible, and verify dryer exhaust routing. Run sinks long enough to inspect drain piping. Check toilet stability and visible leaks. Inspect dryer vent material and termination where visible. Moisture damage or leakage was observed at a wet-area fixture. Repair by a qualified contractor is recommended. Dryer vents should terminate outdoors and use appropriate smooth metal ducting where required. Brian&#039;s Field Note: Open vanity doors before and after running water. Fresh drips are easier to spot. bathroom kitchen laundry">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Wet-Room Checks</h3>
+          <p class="hi-topic-body">Kitchens, bathrooms, and laundry areas combine water, electricity, ventilation, and finish materials. Run fixtures, inspect below cabinets, test GFCI where accessible, and verify dryer exhaust routing.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Run sinks long enough to inspect drain piping.</li><li>Check toilet stability and visible leaks.</li><li>Inspect dryer vent material and termination where visible.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Moisture damage or leakage was observed at a wet-area fixture. Repair by a qualified contractor is recommended.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Dryer vents should terminate outdoors and use appropriate smooth metal ducting where required.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Open vanity doors before and after running water. Fresh drips are easier to spot.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="attached-structures" data-filter-item data-search-text="Attached Structures Garages, decks, balconies, porches, carports, railings, ledger connections, and fire separation.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">14</div>
+        <div>
+          <h2>Attached Structures</h2>
+          <p>Garages, decks, balconies, porches, carports, railings, ledger connections, and fire separation.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="decks-garages" data-filter-item data-search-text="Decks and Garages Attached structures create frequent safety and moisture concerns. Inspect guardrails, handrails, ledger attachment, flashing, stair geometry, garage fire separation, vehicle doors, and openers. Inspect deck ledger attachment and flashing where visible. Check guardrail height and looseness. Test garage auto-reverse features when practical. Deck or guardrail defects were observed that may affect safety. Evaluation and repair by a qualified contractor is recommended. Deck ledger attachment and guardrail stability are high-value safety topics. Brian&#039;s Field Note: Push gently on guardrails. Movement tells a story photos alone may miss. deck garage railing">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Decks and Garages</h3>
+          <p class="hi-topic-body">Attached structures create frequent safety and moisture concerns. Inspect guardrails, handrails, ledger attachment, flashing, stair geometry, garage fire separation, vehicle doors, and openers.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Inspect deck ledger attachment and flashing where visible.</li><li>Check guardrail height and looseness.</li><li>Test garage auto-reverse features when practical.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Deck or guardrail defects were observed that may affect safety. Evaluation and repair by a qualified contractor is recommended.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Deck ledger attachment and guardrail stability are high-value safety topics.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Push gently on guardrails. Movement tells a story photos alone may miss.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+    <article class="hi-chapter" id="environmental-concerns" data-filter-item data-search-text="Environmental Concerns Conditions that may require specialized testing or evaluation beyond a standard visual inspection.">
+      <header class="hi-chapter-header">
+        <div class="hi-chapter-number">15</div>
+        <div>
+          <h2>Environmental Concerns</h2>
+          <p>Conditions that may require specialized testing or evaluation beyond a standard visual inspection.</p>
+        </div>
+      </header>
+      <div class="hi-section-grid">
+        
+    <section class="hi-topic" id="environmental-screening" data-filter-item data-search-text="Screening and Referral Standard home inspections do not confirm environmental hazards unless the inspection agreement includes testing. Document visible suspect conditions and recommend qualified testing or remediation when appropriate. Identify visible suspect materials without confirming composition. Recommend testing for radon, lead, asbestos, or mold when appropriate. Avoid disturbing suspect materials. Suspect environmental conditions or materials were observed. Specialized evaluation/testing is recommended before disturbance or renovation. Use careful wording: visible suspect material is not the same as laboratory confirmation. Brian&#039;s Field Note: Your job is to identify risk and route the client to the right specialist. environmental mold asbestos safety">
+      <div class="hi-topic-main">
+        <div class="hi-topic-copy">
+          <h3 class="hi-topic-title">Screening and Referral</h3>
+          <p class="hi-topic-body">Standard home inspections do not confirm environmental hazards unless the inspection agreement includes testing. Document visible suspect conditions and recommend qualified testing or remediation when appropriate.</p>
+          <div class="hi-blocks">
+            <div class="hi-block">
+              <h4>Checklist</h4>
+              <ul><li>Identify visible suspect materials without confirming composition.</li><li>Recommend testing for radon, lead, asbestos, or mold when appropriate.</li><li>Avoid disturbing suspect materials.</li></ul>
+            </div>
+            <div class="hi-block hi-report">
+              <h4>Report Language</h4>
+              <ul><li>Suspect environmental conditions or materials were observed. Specialized evaluation/testing is recommended before disturbance or renovation.</li></ul>
+            </div>
+            <div class="hi-block">
+              <h4>Exam Tips</h4>
+              <ul><li>Use careful wording: visible suspect material is not the same as laboratory confirmation.</li></ul>
+            </div>
+            <div class="hi-block hi-note">
+              <h4>Brian's Field Notes</h4>
+              <ul><li>Brian&#039;s Field Note: Your job is to identify risk and route the client to the right specialist.</li></ul>
+            </div>
+          </div>
+        </div>
+        <aside class="hi-figure-column" aria-label="Relevant cropped figures">
+          
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure>
+        </aside>
+      </div>
+    </section>
+      </div>
+    </article>
+          <section class="hi-gallery" id="figures">
+            <div class="hi-chapter-header">
+              <div class="hi-chapter-number">FG</div>
+              <div>
+                <h2>Figure Gallery</h2>
+                <p>Cropped images only. Full source scans stay in the audit originals folder and are not rendered in the normal guide.</p>
+              </div>
+            </div>
+            <div class="hi-gallery-grid">
+    <figure class="hi-figure-card" data-filter-item data-search-text="overview Inspection field board placeholder A stylized inspection guide board placeholder graphic. Generated placeholder">
+      <img src="public/assets/figures/field-board-placeholder.webp" alt="A stylized inspection guide board placeholder graphic." loading="lazy">
+      <figcaption class="hi-figure-meta">
+        <span class="hi-figure-tag">overview</span>
+        <h4>Inspection field board placeholder</h4>
+        <p>Generated placeholder</p>
+        <div class="hi-confidence">
+          <span>Confidence 99%</span>
+          <span>Reviewed by pipeline</span>
+        </div>
+      </figcaption>
+    </figure></div>
+          </section>
+        </div>
+      </div>
+    </main>
+    <footer class="hi-footer">
+      <p>Built for The Ballers Kingdom. Update with <code>npm run hi:add -- /path/to/photo.jpg</code> or <code>npm run hi:all</code>.</p>
+    </footer>
+  </div>
+  <script>
+    (() => {
+      const input = document.querySelector('#guide-search');
+      const count = document.querySelector('[data-result-count]');
+      const items = Array.from(document.querySelectorAll('[data-filter-item]'));
+      const sections = items.filter((item) => item.classList.contains('hi-topic'));
+      function applyFilter() {
+        const query = input.value.trim().toLowerCase();
+        let visibleSections = 0;
+        items.forEach((item) => {
+          const haystack = (item.getAttribute('data-search-text') || '').toLowerCase();
+          const match = !query || haystack.includes(query);
+          item.classList.toggle('is-hidden', !match);
+          if (match && item.classList.contains('hi-topic')) visibleSections += 1;
+        });
+        count.textContent = query ? visibleSections + ' matching topic' + (visibleSections === 1 ? '' : 's') : 'All topics';
+      }
+      input?.addEventListener('input', applyFilter);
+    })();
+  </script>
+</body>
+</html>
