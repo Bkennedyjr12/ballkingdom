@@ -121,10 +121,10 @@ p.lead {
 .logo .wordmark { display: flex; flex-direction: column; line-height: 1; }
 .logo .est { font-size: 0.65rem; color: var(--gold); letter-spacing: 0.2em; margin-top: 3px; }
 
-.nav-links { display: flex; gap: 28px; align-items: center; }
+.nav-links { display: flex; gap: clamp(12px, 1.6vw, 24px); align-items: center; }
 .nav-links a {
   color: var(--cream);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   font-weight: 500;
   letter-spacing: 0.02em;
   text-transform: uppercase;
