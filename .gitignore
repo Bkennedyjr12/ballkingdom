@@ -5,3 +5,9 @@
 # Node tooling for the Home Inspection Guide pipeline
 node_modules/
 npm-debug.log*
+
+# Home Inspection Guide local-only course/source material
+home-inspection-guide/input/images/*
+!home-inspection-guide/input/images/.gitkeep
+home-inspection-guide/audit/
+home-inspection-guide/public/assets/originals/

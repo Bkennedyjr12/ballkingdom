@@ -34,10 +34,10 @@ Generated outputs:
 - Route: `https://ballkingdom.com/home-inspection-guide/`
 - PDF: `home-inspection-guide/public/assets/guide.pdf`
 - Cropped figures: `home-inspection-guide/public/assets/figures/`
-- Audit originals: `home-inspection-guide/public/assets/originals/`
+- Audit originals: `home-inspection-guide/audit/originals/` local-only, not deployed
 - Figure manifest: `home-inspection-guide/data/image-manifest.json`
 
-The normal guide never renders full page scans. Originals are retained only for audit/debug.
+The normal guide never renders full page scans. Originals are retained only for local audit/debug and are ignored by Git.
 
 ## Add Photos From Codex or Terminal
 
@@ -60,7 +60,7 @@ npm run hi:add -- ~/Desktop/page-01.jpg ~/Desktop/page-02.jpg
 npm run hi:add -- ~/Downloads/inspection-pages --no-pdf
 ```
 
-Supported input formats: JPG, JPEG, PNG, WebP, TIFF, and HEIC if the local image stack can decode it.
+Supported input formats: JPG, JPEG, PNG, WebP, TIFF, HEIC, and HEIF. HEIC/HEIF files are converted to local JPG copies with `ffmpeg` before cropping because the Node image stack does not reliably decode Apple HEIC files directly.
 
 Public safety rule: keep personal mailing addresses, phone numbers, client addresses, license plates, faces, and private documents out of the public guide unless they are intentionally redacted.
 

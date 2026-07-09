@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { cleanInputName, ensureDirs, imageExtensions, inputDir } from './pipeline-utils.mjs';
+import { cleanInputName, ensureDirs, inputDir, slugify, supportedInputExtensions } from './pipeline-utils.mjs';
 
 function run(command, args) {
   return new Promise((resolve, reject) => {
@@ -16,12 +16,24 @@ function run(command, args) {
 async function collectFiles(targetPath) {
   const stats = await fs.stat(targetPath);
   if (stats.isFile()) {
-    return imageExtensions.has(path.extname(targetPath).toLowerCase()) ? [targetPath] : [];
+    return supportedInputExtensions.has(path.extname(targetPath).toLowerCase()) ? [targetPath] : [];
   }
   if (!stats.isDirectory()) return [];
   const entries = await fs.readdir(targetPath, { withFileTypes: true });
   const nested = await Promise.all(entries.map((entry) => collectFiles(path.join(targetPath, entry.name))));
   return nested.flat();
+}
+
+async function copyInputImage(file) {
+  const ext = path.extname(file).toLowerCase();
+  if (ext === '.heic' || ext === '.heif') {
+    const destination = path.join(inputDir, `${slugify(path.parse(file).name)}.jpg`);
+    await run('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', '-i', file, '-frames:v', '1', destination]);
+    return destination;
+  }
+  const destination = path.join(inputDir, cleanInputName(file));
+  await fs.copyFile(file, destination);
+  return destination;
 }
 
 async function main() {
@@ -41,8 +53,7 @@ async function main() {
   }
 
   for (const file of files) {
-    const destination = path.join(inputDir, cleanInputName(file));
-    await fs.copyFile(file, destination);
+    const destination = await copyInputImage(file);
     console.log(`Added ${file} -> ${destination}`);
   }
 

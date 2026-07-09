@@ -12,33 +12,135 @@ import {
   titleFromSlug
 } from './pipeline-utils.mjs';
 
-function cropCandidates(width, height) {
-  const marginX = Math.round(width * 0.08);
-  const marginY = Math.round(height * 0.07);
-  const contentWidth = width - marginX * 2;
-  const contentHeight = height - marginY * 2;
-  const isTallPage = height > width * 1.15;
-  const candidates = [];
+function overlaps(a, b) {
+  const x1 = Math.max(a.left, b.left);
+  const y1 = Math.max(a.top, b.top);
+  const x2 = Math.min(a.left + a.width, b.left + b.width);
+  const y2 = Math.min(a.top + a.height, b.top + b.height);
+  if (x2 <= x1 || y2 <= y1) return false;
+  const intersection = (x2 - x1) * (y2 - y1);
+  const smaller = Math.min(a.width * a.height, b.width * b.height);
+  return intersection / smaller > 0.35;
+}
 
-  if (isTallPage) {
-    const bandHeight = Math.round(contentHeight * 0.31);
-    candidates.push(
-      { name: 'upper-figure', left: marginX, top: marginY, width: contentWidth, height: bandHeight },
-      { name: 'middle-figure', left: marginX, top: marginY + Math.round(contentHeight * 0.345), width: contentWidth, height: bandHeight },
-      { name: 'lower-figure', left: marginX, top: marginY + Math.round(contentHeight * 0.69), width: contentWidth, height: Math.min(bandHeight, contentHeight - Math.round(contentHeight * 0.69)) }
-    );
-  } else {
-    candidates.push(
-      { name: 'left-figure', left: marginX, top: marginY, width: Math.round(contentWidth * 0.48), height: contentHeight },
-      { name: 'right-figure', left: marginX + Math.round(contentWidth * 0.52), top: marginY, width: Math.round(contentWidth * 0.48), height: contentHeight }
-    );
+async function cropCandidates(imagePath, width, height) {
+  const analysisWidth = 900;
+  const cell = 30;
+  const { data, info } = await sharp(imagePath, { failOn: 'none' })
+    .rotate()
+    .resize({ width: analysisWidth, withoutEnlargement: true })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const cols = Math.floor(info.width / cell);
+  const rows = Math.floor(info.height / cell);
+  const active = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const scores = Array.from({ length: rows }, () => Array(cols).fill(0));
+
+  for (let gy = 0; gy < rows; gy += 1) {
+    for (let gx = 0; gx < cols; gx += 1) {
+      let content = 0;
+      let color = 0;
+      let dark = 0;
+      const total = cell * cell;
+      for (let y = gy * cell; y < (gy + 1) * cell; y += 1) {
+        for (let x = gx * cell; x < (gx + 1) * cell; x += 1) {
+          const offset = (y * info.width + x) * info.channels;
+          const r = data[offset];
+          const g = data[offset + 1];
+          const b = data[offset + 2];
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const avg = (r + g + b) / 3;
+          if (r < 238 || g < 238 || b < 238) content += 1;
+          if (max - min > 28 && avg < 245) color += 1;
+          if (avg < 205) dark += 1;
+        }
+      }
+      const contentRatio = content / total;
+      const colorRatio = color / total;
+      const darkRatio = dark / total;
+      scores[gy][gx] = colorRatio * 4 + darkRatio * 0.2 + contentRatio * 0.1;
+      active[gy][gx] = colorRatio > 0.018;
+    }
   }
 
-  return candidates.filter((candidate) => {
-    const area = candidate.width * candidate.height;
-    const pageArea = width * height;
-    return candidate.width >= 260 && candidate.height >= 180 && area / pageArea < 0.55;
-  });
+  const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const components = [];
+  const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+  for (let gy = 0; gy < rows; gy += 1) {
+    for (let gx = 0; gx < cols; gx += 1) {
+      if (!active[gy][gx] || visited[gy][gx]) continue;
+      const queue = [[gx, gy]];
+      visited[gy][gx] = true;
+      let minX = gx;
+      let maxX = gx;
+      let minY = gy;
+      let maxY = gy;
+      let score = 0;
+      let count = 0;
+      while (queue.length) {
+        const [cx, cy] = queue.shift();
+        minX = Math.min(minX, cx);
+        maxX = Math.max(maxX, cx);
+        minY = Math.min(minY, cy);
+        maxY = Math.max(maxY, cy);
+        score += scores[cy][cx];
+        count += 1;
+        for (const [dx, dy] of neighbors) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+          if (!active[ny][nx] || visited[ny][nx]) continue;
+          visited[ny][nx] = true;
+          queue.push([nx, ny]);
+        }
+      }
+      components.push({ minX, maxX, minY, maxY, score: score / Math.max(count, 1), count });
+    }
+  }
+
+  const scaleX = width / info.width;
+  const scaleY = height / info.height;
+  const pageArea = width * height;
+  const candidates = components
+    .map((component, componentIndex) => {
+      const pad = 18;
+      const left = Math.max(0, Math.round((component.minX * cell - pad) * scaleX));
+      const top = Math.max(0, Math.round((component.minY * cell - pad) * scaleY));
+      const right = Math.min(width, Math.round(((component.maxX + 1) * cell + pad) * scaleX));
+      const bottom = Math.min(height, Math.round(((component.maxY + 1) * cell + pad) * scaleY));
+      return {
+        name: `detected-figure-${componentIndex + 1}`,
+        left,
+        top,
+        width: right - left,
+        height: bottom - top,
+        score: component.score,
+        cells: component.count
+      };
+    })
+    .filter((candidate) => {
+      const area = candidate.width * candidate.height;
+      const aspect = candidate.width / candidate.height;
+      return candidate.width >= 240
+        && candidate.height >= 170
+        && area / pageArea >= 0.006
+        && area / pageArea <= 0.28
+        && aspect >= 0.25
+        && aspect <= 4.5;
+    })
+    .sort((a, b) => (b.score * b.width * b.height) - (a.score * a.width * a.height));
+
+  const selected = [];
+  for (const candidate of candidates) {
+    if (selected.some((existing) => overlaps(existing, candidate))) continue;
+    selected.push(candidate);
+    if (selected.length >= 3) break;
+  }
+  return selected.sort((a, b) => a.top - b.top || a.left - b.left);
 }
 
 export async function createPlaceholderFigure() {
@@ -88,7 +190,7 @@ export async function extractFiguresFromImage(imagePath, index) {
   const height = metadata.height ?? 0;
   if (!width || !height) return [];
 
-  const candidates = cropCandidates(width, height);
+  const candidates = await cropCandidates(imagePath, width, height);
   const topicTag = inferTopicFromText(basename);
   const figures = [];
 
@@ -97,7 +199,7 @@ export async function extractFiguresFromImage(imagePath, index) {
     const figureId = `figure-${String(index + 1).padStart(3, '0')}-${candidateIndex + 1}-${basename}`;
     const filename = `${figureId}.webp`;
     const outputPath = path.join(figuresDir, filename);
-    const confidence = Number((0.62 - candidateIndex * 0.06).toFixed(2));
+    const confidence = Number(Math.min(0.9, Math.max(0.52, 0.58 + candidate.score * 0.22)).toFixed(2));
 
     await sharp(imagePath, { failOn: 'none' })
       .rotate()

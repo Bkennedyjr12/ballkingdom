@@ -8,12 +8,15 @@ export const inputDir = path.join(guideRoot, 'input', 'images');
 export const dataDir = path.join(guideRoot, 'data');
 export const publicDir = path.join(guideRoot, 'public');
 export const assetsDir = path.join(publicDir, 'assets');
-export const originalsDir = path.join(assetsDir, 'originals');
+export const auditDir = path.join(guideRoot, 'audit');
+export const originalsDir = path.join(auditDir, 'originals');
 export const figuresDir = path.join(assetsDir, 'figures');
 export const guidePath = path.join(dataDir, 'guide.json');
 export const manifestPath = path.join(dataDir, 'image-manifest.json');
+export const curationPath = path.join(dataDir, 'figure-curation.json');
 
-export const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.tif', '.tiff', '.heic']);
+export const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.tif', '.tiff']);
+export const supportedInputExtensions = new Set([...imageExtensions, '.heic', '.heif']);
 
 export async function ensureDirs() {
   await fs.mkdir(inputDir, { recursive: true });

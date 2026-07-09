@@ -1,0 +1,260 @@
+{
+  "excludeIds": [
+    "figure-002-1-img-3756",
+    "figure-002-3-img-3756",
+    "figure-003-1-img-3757",
+    "figure-003-3-img-3757",
+    "figure-004-1-img-3758",
+    "figure-004-2-img-3758",
+    "figure-004-3-img-3758",
+    "figure-005-1-img-3759",
+    "figure-006-1-img-3760",
+    "figure-007-2-img-3761",
+    "figure-010-1-img-3764",
+    "figure-010-2-img-3764",
+    "figure-010-3-img-3764",
+    "figure-011-1-img-3765",
+    "figure-011-2-img-3765",
+    "figure-011-3-img-3765",
+    "figure-012-1-img-3766",
+    "figure-012-3-img-3766",
+    "figure-013-1-img-3767",
+    "figure-013-2-img-3767",
+    "figure-013-3-img-3767",
+    "figure-014-1-img-3768",
+    "figure-015-1-img-3769",
+    "figure-015-2-img-3769",
+    "figure-016-1-img-3770",
+    "figure-017-1-img-3771",
+    "figure-018-1-img-3772",
+    "figure-018-3-img-3772",
+    "figure-019-2-img-3773",
+    "figure-020-1-img-3774",
+    "figure-020-3-img-3774",
+    "figure-021-2-img-3775",
+    "figure-021-3-img-3775",
+    "figure-022-1-img-3776",
+    "figure-022-3-img-3776",
+    "figure-023-1-img-3777",
+    "figure-023-2-img-3777",
+    "figure-023-3-img-3777",
+    "figure-024-1-img-3778",
+    "figure-024-2-img-3778",
+    "figure-025-1-img-3779",
+    "figure-028-1-img-3782",
+    "figure-029-1-img-3783",
+    "figure-029-3-img-3783"
+  ],
+  "overrides": {
+    "figure-001-1-img-3755": {
+      "topicTag": "safety",
+      "caption": "Inspector field attire and site-safety awareness",
+      "altText": "A cropped textbook photo of an inspector standing outdoors in protective field clothing."
+    },
+    "figure-001-2-img-3755": {
+      "topicTag": "safety",
+      "caption": "Ladder-position awareness during exterior inspection",
+      "altText": "A cropped textbook photo showing an inspector working from a ladder at an exterior wall."
+    },
+    "figure-001-3-img-3755": {
+      "topicTag": "safety",
+      "caption": "Confined-area and excavation hazard awareness",
+      "altText": "A cropped textbook photo showing workers near an exterior excavation or utility area."
+    },
+    "figure-002-2-img-3756": {
+      "topicTag": "safety",
+      "caption": "Basic home-inspection field tools",
+      "altText": "A cropped textbook image showing common inspection tools including meters, flashlight, level, and measuring tools."
+    },
+    "figure-003-2-img-3757": {
+      "topicTag": "safety",
+      "caption": "Inspector documenting exterior conditions",
+      "altText": "A cropped textbook photo of an inspector taking notes or using a device during an exterior inspection."
+    },
+    "figure-005-2-img-3759": {
+      "topicTag": "drainage",
+      "caption": "Vegetation and grading conditions near the structure",
+      "altText": "A cropped textbook photo of vegetation and ground conditions adjacent to a building."
+    },
+    "figure-005-3-img-3759": {
+      "topicTag": "drainage",
+      "caption": "Site grade and exterior runoff path",
+      "altText": "A cropped textbook photo showing soil grade and a runoff path near an exterior structure."
+    },
+    "figure-006-2-img-3760": {
+      "topicTag": "drainage",
+      "caption": "Drainage detail reference",
+      "altText": "A cropped textbook diagram detail related to drainage and water management."
+    },
+    "figure-006-3-img-3760": {
+      "topicTag": "drainage",
+      "caption": "Retaining wall and drainage concern",
+      "altText": "A cropped textbook photo of an exterior retaining wall or drainage area."
+    },
+    "figure-007-1-img-3761": {
+      "topicTag": "drainage",
+      "caption": "Mulch and soil height near exterior materials",
+      "altText": "A cropped textbook photo showing mulch or soil adjacent to exterior construction materials."
+    },
+    "figure-007-3-img-3761": {
+      "topicTag": "foundation",
+      "caption": "Concrete cracking at exterior flatwork",
+      "altText": "A cropped textbook photo showing cracking in exterior concrete."
+    },
+    "figure-008-1-img-3762": {
+      "topicTag": "drainage",
+      "caption": "Exterior hardscape and wall drainage relationship",
+      "altText": "A cropped textbook photo showing hardscape close to an exterior wall."
+    },
+    "figure-008-2-img-3762": {
+      "topicTag": "drainage",
+      "caption": "Vegetation and moisture risk near exterior wall",
+      "altText": "A cropped textbook photo showing vegetation close to a building exterior."
+    },
+    "figure-008-3-img-3762": {
+      "topicTag": "drainage",
+      "caption": "Concrete and window-well area to monitor",
+      "altText": "A cropped textbook photo showing concrete and exterior opening conditions."
+    },
+    "figure-009-1-img-3763": {
+      "topicTag": "exterior",
+      "caption": "Vegetation contact at exterior wall",
+      "altText": "A cropped textbook photo showing vines or vegetation contacting an exterior surface."
+    },
+    "figure-009-2-img-3763": {
+      "topicTag": "exterior",
+      "caption": "Wall and vegetation clearance concern",
+      "altText": "A cropped textbook photo showing a wall area with nearby vegetation."
+    },
+    "figure-009-3-img-3763": {
+      "topicTag": "exterior",
+      "caption": "Tree clearance and exterior access",
+      "altText": "A cropped textbook photo showing a tree close to an exterior structure."
+    },
+    "figure-012-2-img-3766": {
+      "topicTag": "exterior",
+      "caption": "Wood siding weathering example",
+      "altText": "A cropped textbook photo of weathered wood siding."
+    },
+    "figure-014-2-img-3768": {
+      "topicTag": "exterior",
+      "caption": "Wood cladding deterioration close-up",
+      "altText": "A cropped textbook close-up of deteriorated or weathered wood cladding."
+    },
+    "figure-014-3-img-3768": {
+      "topicTag": "exterior",
+      "caption": "Exterior siding material comparison",
+      "altText": "A cropped textbook image showing exterior siding or wall covering materials."
+    },
+    "figure-015-3-img-3769": {
+      "topicTag": "exterior",
+      "caption": "Masonry and flashing detail at exterior opening",
+      "altText": "A cropped textbook photo showing masonry and flashing near an exterior opening."
+    },
+    "figure-016-2-img-3770": {
+      "topicTag": "window",
+      "caption": "Window exterior condition example",
+      "altText": "A cropped textbook photo of an exterior window and surrounding wall area."
+    },
+    "figure-016-3-img-3770": {
+      "topicTag": "window",
+      "caption": "Masonry detail near window opening",
+      "altText": "A cropped textbook photo showing brickwork and a window opening."
+    },
+    "figure-017-2-img-3771": {
+      "topicTag": "exterior",
+      "caption": "Siding clearance and lower-wall condition",
+      "altText": "A cropped textbook photo of siding near grade or lower wall materials."
+    },
+    "figure-017-3-img-3771": {
+      "topicTag": "exterior",
+      "caption": "Exterior wall trim and joint condition",
+      "altText": "A cropped textbook photo of exterior trim or wall joint conditions."
+    },
+    "figure-018-2-img-3772": {
+      "topicTag": "foundation",
+      "caption": "Concrete crack and exterior movement clue",
+      "altText": "A cropped textbook close-up of a concrete crack."
+    },
+    "figure-019-1-img-3773": {
+      "topicTag": "exterior",
+      "caption": "Exterior post and trim condition",
+      "altText": "A cropped textbook photo showing an exterior post or trim area."
+    },
+    "figure-019-3-img-3773": {
+      "topicTag": "exterior",
+      "caption": "Porch or exterior structural support condition",
+      "altText": "A cropped textbook photo showing exterior porch or support components."
+    },
+    "figure-020-2-img-3774": {
+      "topicTag": "door",
+      "caption": "Door trim and exterior flashing detail",
+      "altText": "A cropped textbook photo showing door trim or nearby wall-covering detail."
+    },
+    "figure-021-1-img-3775": {
+      "topicTag": "deck",
+      "caption": "Deck and railing exterior condition",
+      "altText": "A cropped textbook photo showing deck or railing components."
+    },
+    "figure-022-2-img-3776": {
+      "topicTag": "roof",
+      "caption": "Roof inspection from ladder edge",
+      "altText": "A cropped textbook photo of an inspector evaluating roof conditions from a ladder or roof edge."
+    },
+    "figure-025-2-img-3779": {
+      "topicTag": "exterior",
+      "caption": "Inspector evaluating exterior components",
+      "altText": "A cropped textbook photo of an inspector checking exterior building components."
+    },
+    "figure-025-3-img-3779": {
+      "topicTag": "exterior",
+      "caption": "Exterior inspection documentation example",
+      "altText": "A cropped textbook photo showing an exterior inspection documentation moment."
+    },
+    "figure-026-1-img-3780": {
+      "topicTag": "deck",
+      "caption": "Exterior deck or porch component condition",
+      "altText": "A cropped textbook photo of exterior deck, porch, or railing components."
+    },
+    "figure-026-2-img-3780": {
+      "topicTag": "plumbing",
+      "caption": "Water heater installation example",
+      "altText": "A cropped textbook photo of a water heater and visible piping."
+    },
+    "figure-026-3-img-3780": {
+      "topicTag": "plumbing",
+      "caption": "Plumbing and utility equipment clearance",
+      "altText": "A cropped textbook photo showing plumbing or utility equipment near an exterior or service area."
+    },
+    "figure-027-1-img-3781": {
+      "topicTag": "deck",
+      "caption": "Front porch and railing condition",
+      "altText": "A cropped textbook photo showing a porch and railing system."
+    },
+    "figure-027-2-img-3781": {
+      "topicTag": "electrical",
+      "caption": "Wall switch and electrical fixture reference",
+      "altText": "A cropped textbook photo of a wall switch or electrical control."
+    },
+    "figure-027-3-img-3781": {
+      "topicTag": "plumbing",
+      "caption": "Cabinet plumbing inspection example",
+      "altText": "A cropped textbook photo of an inspector checking plumbing or cabinet conditions."
+    },
+    "figure-028-2-img-3782": {
+      "topicTag": "safety",
+      "caption": "Ladder safety and exterior access",
+      "altText": "A cropped textbook photo showing ladder use at an exterior wall."
+    },
+    "figure-028-3-img-3782": {
+      "topicTag": "safety",
+      "caption": "Field safety around excavation or utility work",
+      "altText": "A cropped textbook photo showing workers near an exterior utility or excavation area."
+    },
+    "figure-029-2-img-3783": {
+      "topicTag": "safety",
+      "caption": "Inspection tool kit reference",
+      "altText": "A cropped textbook image showing common home inspection tools."
+    }
+  }
+}
