@@ -16,7 +16,7 @@ function list(items = []) {
 function figureCard(figure) {
   return `
     <figure class="hi-figure-card" data-filter-item data-search-text="${escapeHtml(`${figure.topicTag} ${figure.caption} ${figure.altText} ${figure.sourcePageReference}`)}">
-      <img src="${escapeHtml(figure.assetPath)}" alt="${escapeHtml(figure.altText)}" loading="lazy">
+      <img src="${escapeHtml(figure.assetPath)}" alt="${escapeHtml(figure.altText)}" loading="eager" decoding="async">
       <figcaption class="hi-figure-meta">
         <span class="hi-figure-tag">${escapeHtml(figure.topicTag)}</span>
         <h4>${escapeHtml(figure.caption)}</h4>
@@ -27,6 +27,18 @@ function figureCard(figure) {
         </div>
       </figcaption>
     </figure>`;
+}
+
+function getAllSections(guide) {
+  return (guide.chapters || []).flatMap((chapter, chapterIndex) => (
+    (chapter.sections || []).map((section, sectionIndex) => ({
+      ...section,
+      chapterId: chapter.id,
+      chapterTitle: chapter.title,
+      chapterNumber: chapterIndex + 1,
+      sectionNumber: sectionIndex + 1
+    }))
+  ));
 }
 
 function figuresForSection(section, figures) {
@@ -94,6 +106,44 @@ function chapterMarkup(chapter, index, figures) {
         ${(chapter.sections || []).map((section) => sectionCard(section, figures)).join('')}
       </div>
     </article>`;
+}
+
+function studyNavigator(guide, figures) {
+  const sections = getAllSections(guide);
+  const topicCounts = figures.reduce((acc, figure) => {
+    acc[figure.topicTag] = (acc[figure.topicTag] || 0) + 1;
+    return acc;
+  }, {});
+  const priorityTopics = ['safety', 'drainage', 'exterior', 'roof', 'foundation', 'electrical', 'plumbing', 'hvac', 'deck'];
+  const topics = priorityTopics.filter((topic) => topicCounts[topic]);
+  return `
+    <section class="hi-study-nav" aria-label="Study navigation">
+      <div class="hi-study-nav-head">
+        <div>
+          <span class="hi-kicker">Study Navigator</span>
+          <h2>Get where you need to go.</h2>
+        </div>
+        <p>Use search for exact terms, section jump for the course flow, and topic filters when you need examples by system.</p>
+      </div>
+      <div class="hi-quick-actions">
+        <a href="#class-hub">Class Hub</a>
+        <a href="#field-system">Field System</a>
+        <a href="#figure-appendix">Figure Appendix</a>
+        <a href="public/assets/guide.pdf">PDF</a>
+      </div>
+      <div class="hi-topic-filters" aria-label="Topic filters">
+        <button type="button" data-topic-filter="">All</button>
+        ${topics.map((topic) => `<button type="button" data-topic-filter="${escapeHtml(topic)}">${escapeHtml(topic)} <span>${topicCounts[topic]}</span></button>`).join('')}
+      </div>
+      <div class="hi-section-index">
+        ${sections.map((section) => `
+          <a class="hi-section-index-card" href="#${escapeHtml(section.id)}">
+            <span>${String(section.chapterNumber).padStart(2, '0')}.${section.sectionNumber}</span>
+            <strong>${escapeHtml(section.title)}</strong>
+            <em>${escapeHtml(section.chapterTitle)}</em>
+          </a>`).join('')}
+      </div>
+    </section>`;
 }
 
 function overviewCards(guide) {
@@ -191,25 +241,74 @@ function classHubMarkup(guide) {
     </section>`;
 }
 
+function railSectionLinks(guide) {
+  return (guide.chapters || []).map((chapter) => `
+    <div class="hi-rail-group">
+      <a class="hi-chapter-link" href="#${escapeHtml(chapter.id)}">${escapeHtml(chapter.title)}</a>
+      ${(chapter.sections || []).map((section) => `<a class="hi-section-link" href="#${escapeHtml(section.id)}">${escapeHtml(section.title)}</a>`).join('')}
+    </div>`).join('');
+}
+
+function figureAppendix(figures) {
+  const grouped = figures.reduce((acc, figure) => {
+    const topic = figure.topicTag || 'overview';
+    if (!acc[topic]) acc[topic] = [];
+    acc[topic].push(figure);
+    return acc;
+  }, {});
+  const topics = Object.keys(grouped).sort();
+  return `
+    <section class="hi-gallery" id="figure-appendix">
+      <div class="hi-chapter-header">
+        <div class="hi-chapter-number">FG</div>
+        <div>
+          <h2>Figure Appendix</h2>
+          <p>Every published cropped figure in this guide. Full source scans stay local-only and are not rendered here.</p>
+        </div>
+      </div>
+      ${topics.map((topic) => `
+        <section class="hi-figure-topic" id="figures-${escapeHtml(topic)}">
+          <header class="hi-figure-topic-head">
+            <h3>${escapeHtml(topic)}</h3>
+            <span>${grouped[topic].length} figure${grouped[topic].length === 1 ? '' : 's'}</span>
+          </header>
+          <div class="hi-gallery-grid">${grouped[topic].map(figureCard).join('')}</div>
+        </section>`).join('')}
+    </section>`;
+}
+
 function clientScript() {
   return `
     (() => {
       const input = document.querySelector('#guide-search');
       const count = document.querySelector('[data-result-count]');
+      const topicButtons = Array.from(document.querySelectorAll('[data-topic-filter]'));
       const items = Array.from(document.querySelectorAll('[data-filter-item]'));
       const sections = items.filter((item) => item.classList.contains('hi-topic'));
+      let activeTopic = '';
       function applyFilter() {
         const query = input.value.trim().toLowerCase();
+        const topicQuery = activeTopic.toLowerCase();
         let visibleSections = 0;
         items.forEach((item) => {
           const haystack = (item.getAttribute('data-search-text') || '').toLowerCase();
-          const match = !query || haystack.includes(query);
+          const queryMatch = !query || haystack.includes(query);
+          const topicMatch = !topicQuery || haystack.includes(topicQuery);
+          const match = queryMatch && topicMatch;
           item.classList.toggle('is-hidden', !match);
           if (match && item.classList.contains('hi-topic')) visibleSections += 1;
         });
-        count.textContent = query ? visibleSections + ' matching topic' + (visibleSections === 1 ? '' : 's') : 'All topics';
+        count.textContent = query || activeTopic ? visibleSections + ' matching topic' + (visibleSections === 1 ? '' : 's') : 'All topics';
       }
       input?.addEventListener('input', applyFilter);
+      topicButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          activeTopic = button.getAttribute('data-topic-filter') || '';
+          topicButtons.forEach((other) => other.classList.toggle('is-active', other === button));
+          applyFilter();
+        });
+      });
+      topicButtons[0]?.classList.add('is-active');
     })();
   `;
 }
@@ -241,7 +340,7 @@ async function main() {
         <a class="hi-logo" href="../index.html"><span class="hi-mark">BK</span><span>The Ballers Kingdom</span></a>
         <div class="hi-nav-actions">
           <a href="#chapters">Chapters</a>
-          <a href="#figures">Figures</a>
+          <a href="#figure-appendix">Figures</a>
           <a class="hi-pill-link" href="public/assets/guide.pdf">Download PDF</a>
         </div>
       </div>
@@ -272,22 +371,14 @@ async function main() {
           <div class="hi-rail-title">Chapter Navigation</div>
           <a class="hi-chapter-link" href="#class-hub">Class Hub</a>
           <a class="hi-chapter-link" href="#field-system">Field System</a>
-          ${guide.chapters.map((chapter) => `<a class="hi-chapter-link" href="#${escapeHtml(chapter.id)}">${escapeHtml(chapter.title)}</a>`).join('')}
+          ${railSectionLinks(guide)}
         </aside>
         <div>
+          ${studyNavigator(guide, figures)}
           ${classHubMarkup(guide)}
           ${overviewCards(guide)}
           ${guide.chapters.map((chapter, index) => chapterMarkup(chapter, index, figures)).join('')}
-          <section class="hi-gallery" id="figures">
-            <div class="hi-chapter-header">
-              <div class="hi-chapter-number">FG</div>
-              <div>
-                <h2>Figure Gallery</h2>
-                <p>Cropped images only. Full source scans stay in the audit originals folder and are not rendered in the normal guide.</p>
-              </div>
-            </div>
-            <div class="hi-gallery-grid">${figures.map(figureCard).join('')}</div>
-          </section>
+          ${figureAppendix(figures)}
         </div>
       </div>
     </main>
