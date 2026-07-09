@@ -89,6 +89,20 @@
         "label": "Open campus in Maps",
         "href": "https://maps.google.com/?q=1224%20E%20Katella%20Ave%20Suite%2099%2C%20Orange%2C%20CA%2092867"
       }
+    ],
+    "referenceBinderWorkflow": [
+      "Use Code Check figures as quick visual memory hooks, then confirm the full rule language from the course material or current adopted code before making a real-world conclusion.",
+      "Translate each checklist item into inspection language: condition observed, implication, and recommended qualified follow-up.",
+      "For report-binder examples, study the structure of the comment more than the exact wording so the final report remains your own professional work.",
+      "When a figure covers dimensions, clearances, alarms, venting, or equipment spacing, add it to the matching system section and write one exam-style takeaway."
+    ],
+    "referenceBinderTopics": [
+      "Smoke and carbon monoxide alarm placement",
+      "Trap arms, vents, water and sewer separation",
+      "Expansion tanks and water-heater safety details",
+      "Flex duct support, direct vent terminations, and HVAC working space",
+      "Photovoltaic labeling and electrical conduit wet-location fittings",
+      "Framing, notching, boring, stairs, doors, decks, and roof access references"
     ]
   },
   "studyMethod": [
@@ -135,11 +149,26 @@
           "id": "inspection-mindset",
           "title": "Inspection Mindset",
           "body": "A good inspection is organized, visual, and defensible. Work from broad site conditions toward individual systems, separate facts from opinions, and write comments that explain implication and recommended action.",
-          "figureTags": ["overview", "reporting", "safety"],
-          "checklist": ["Confirm client scope before the walkthrough.", "Photograph conditions before touching or moving anything.", "Use consistent direction labels: front, rear, left, and right from the street."],
-          "reportLanguage": ["The inspection was visual and limited to readily accessible components at the time of inspection.", "Further evaluation by a qualified contractor is recommended where hidden conditions or specialized testing may be required."],
-          "examTips": ["Inspection standards describe what must be observed, not a guarantee that every concealed defect will be found."],
-          "fieldNotes": ["Brian's Field Note: Keep your photo sequence in the same order as your report sections. It saves time and reduces missed comments."]
+          "figureTags": [
+            "overview",
+            "reporting",
+            "safety"
+          ],
+          "checklist": [
+            "Confirm client scope before the walkthrough.",
+            "Photograph conditions before touching or moving anything.",
+            "Use consistent direction labels: front, rear, left, and right from the street."
+          ],
+          "reportLanguage": [
+            "The inspection was visual and limited to readily accessible components at the time of inspection.",
+            "Further evaluation by a qualified contractor is recommended where hidden conditions or specialized testing may be required."
+          ],
+          "examTips": [
+            "Inspection standards describe what must be observed, not a guarantee that every concealed defect will be found."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Keep your photo sequence in the same order as your report sections. It saves time and reduces missed comments."
+          ]
         }
       ]
     },
@@ -152,11 +181,25 @@
           "id": "drainage-grading",
           "title": "Drainage and Grading",
           "body": "Site drainage should move water away from the structure. Watch for negative slope, settled backfill, blocked drains, high soil at siding, and evidence of ponding near foundations.",
-          "figureTags": ["drainage", "grading", "foundation"],
-          "checklist": ["Look for a visible slope away from foundation walls.", "Check downspout discharge locations.", "Note hardscape that traps water against the structure."],
-          "reportLanguage": ["Grading appears to slope toward the foundation in one or more areas. This can increase the risk of moisture intrusion and should be corrected to direct water away from the building."],
-          "examTips": ["Water management is often tested as a cause-and-effect concept: poor grading can lead to foundation moisture, wood decay, and settlement indicators."],
-          "fieldNotes": ["Brian's Field Note: Take one wide context photo before close-ups so the client can see exactly where the condition sits on the property."]
+          "figureTags": [
+            "drainage",
+            "grading",
+            "foundation"
+          ],
+          "checklist": [
+            "Look for a visible slope away from foundation walls.",
+            "Check downspout discharge locations.",
+            "Note hardscape that traps water against the structure."
+          ],
+          "reportLanguage": [
+            "Grading appears to slope toward the foundation in one or more areas. This can increase the risk of moisture intrusion and should be corrected to direct water away from the building."
+          ],
+          "examTips": [
+            "Water management is often tested as a cause-and-effect concept: poor grading can lead to foundation moisture, wood decay, and settlement indicators."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Take one wide context photo before close-ups so the client can see exactly where the condition sits on the property."
+          ]
         }
       ]
     },
@@ -169,11 +212,25 @@
           "id": "wall-coverings-trim",
           "title": "Wall Coverings and Trim",
           "body": "Exterior wall systems should shed water, resist decay, and remain properly clear of soil and roof surfaces. Inspect joints, flashing transitions, penetrations, paint failure, and material-specific distress.",
-          "figureTags": ["siding", "flashing", "exterior"],
-          "checklist": ["Check siding clearance at soil and roof lines.", "Inspect trim ends and lower corners for decay.", "Look for open penetrations around utilities."],
-          "reportLanguage": ["Exterior trim shows deterioration consistent with moisture exposure. Repair or replacement by a qualified contractor is recommended."],
-          "examTips": ["Know the difference between cosmetic weathering and conditions that can allow water entry."],
-          "fieldNotes": ["Brian's Field Note: When you see one failed caulk joint, scan nearby similar joints. Patterns matter."]
+          "figureTags": [
+            "siding",
+            "flashing",
+            "exterior"
+          ],
+          "checklist": [
+            "Check siding clearance at soil and roof lines.",
+            "Inspect trim ends and lower corners for decay.",
+            "Look for open penetrations around utilities."
+          ],
+          "reportLanguage": [
+            "Exterior trim shows deterioration consistent with moisture exposure. Repair or replacement by a qualified contractor is recommended."
+          ],
+          "examTips": [
+            "Know the difference between cosmetic weathering and conditions that can allow water entry."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: When you see one failed caulk joint, scan nearby similar joints. Patterns matter."
+          ]
         }
       ]
     },
@@ -186,11 +243,25 @@
           "id": "roof-coverings-flashing",
           "title": "Roof Coverings and Flashing",
           "body": "Roof inspections focus on water-shedding performance. Document damaged coverings, improper flashing, missing kickout flashing, exposed fasteners, debris, ponding, and aging indicators.",
-          "figureTags": ["roof", "flashing", "gutter"],
-          "checklist": ["Identify roof-covering type and approximate condition.", "Inspect valleys, sidewalls, chimneys, and pipe penetrations.", "Check gutters and discharge for blockage or overflow clues."],
-          "reportLanguage": ["Roof covering damage was observed. Repair by a qualified roofing contractor is recommended to reduce the risk of leakage."],
-          "examTips": ["Flashing defects are often more important than the roof surface itself because transitions are common leak points."],
-          "fieldNotes": ["Brian's Field Note: If you cannot safely walk a roof, say how it was inspected: ground, ladder edge, window, drone, or binoculars."]
+          "figureTags": [
+            "roof",
+            "flashing",
+            "gutter"
+          ],
+          "checklist": [
+            "Identify roof-covering type and approximate condition.",
+            "Inspect valleys, sidewalls, chimneys, and pipe penetrations.",
+            "Check gutters and discharge for blockage or overflow clues."
+          ],
+          "reportLanguage": [
+            "Roof covering damage was observed. Repair by a qualified roofing contractor is recommended to reduce the risk of leakage."
+          ],
+          "examTips": [
+            "Flashing defects are often more important than the roof surface itself because transitions are common leak points."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: If you cannot safely walk a roof, say how it was inspected: ground, ladder edge, window, drone, or binoculars."
+          ]
         }
       ]
     },
@@ -203,11 +274,25 @@
           "id": "attic-moisture-ventilation",
           "title": "Moisture and Ventilation",
           "body": "Attics reveal roof leaks, condensation, blocked ventilation, poor insulation, and unsafe exhaust routing. Look for staining, microbial-like growth, compressed insulation, and bath fans ending in the attic.",
-          "figureTags": ["attic", "ventilation", "insulation"],
-          "checklist": ["Confirm bathroom and dryer exhausts terminate outdoors.", "Look for daylight at roof penetrations and eaves.", "Measure or estimate insulation depth where visible."],
-          "reportLanguage": ["Ventilation or exhaust conditions in the attic may contribute to elevated moisture. Correction by a qualified contractor is recommended."],
-          "examTips": ["Ventilation questions often connect intake, exhaust, insulation placement, and condensation."],
-          "fieldNotes": ["Brian's Field Note: Do not overstate growth. Describe what you see and recommend evaluation when needed."]
+          "figureTags": [
+            "attic",
+            "ventilation",
+            "insulation"
+          ],
+          "checklist": [
+            "Confirm bathroom and dryer exhausts terminate outdoors.",
+            "Look for daylight at roof penetrations and eaves.",
+            "Measure or estimate insulation depth where visible."
+          ],
+          "reportLanguage": [
+            "Ventilation or exhaust conditions in the attic may contribute to elevated moisture. Correction by a qualified contractor is recommended."
+          ],
+          "examTips": [
+            "Ventilation questions often connect intake, exhaust, insulation placement, and condensation."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Do not overstate growth. Describe what you see and recommend evaluation when needed."
+          ]
         }
       ]
     },
@@ -220,11 +305,25 @@
           "id": "foundation-movement-moisture",
           "title": "Movement and Moisture",
           "body": "Inspect foundations for cracking, displacement, bowing, settlement indicators, efflorescence, staining, and water entry. In crawlspaces, prioritize safety, structure, moisture, and pest evidence.",
-          "figureTags": ["foundation", "crawlspace", "basement"],
-          "checklist": ["Document crack width, direction, and displacement.", "Check for moisture stains and efflorescence.", "Look for wood-to-soil contact and inadequate clearance."],
-          "reportLanguage": ["Foundation cracking/displacement was observed. Evaluation by a qualified foundation specialist or structural engineer is recommended."],
-          "examTips": ["Horizontal cracks and displacement usually carry higher concern than minor shrinkage cracks."],
-          "fieldNotes": ["Brian's Field Note: Photograph a ruler or reference object next to notable cracks when practical."]
+          "figureTags": [
+            "foundation",
+            "crawlspace",
+            "basement"
+          ],
+          "checklist": [
+            "Document crack width, direction, and displacement.",
+            "Check for moisture stains and efflorescence.",
+            "Look for wood-to-soil contact and inadequate clearance."
+          ],
+          "reportLanguage": [
+            "Foundation cracking/displacement was observed. Evaluation by a qualified foundation specialist or structural engineer is recommended."
+          ],
+          "examTips": [
+            "Horizontal cracks and displacement usually carry higher concern than minor shrinkage cracks."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Photograph a ruler or reference object next to notable cracks when practical."
+          ]
         }
       ]
     },
@@ -237,11 +336,25 @@
           "id": "panel-safety",
           "title": "Panel Safety",
           "body": "Electrical inspection is visual and safety-focused. Identify service size where visible, panel condition, missing covers, double taps, incompatible breakers, open knockouts, overheated conductors, GFCI/AFCI protection, and bonding concerns.",
-          "figureTags": ["electrical", "panel", "safety"],
-          "checklist": ["Do not remove unsafe or blocked panel covers.", "Check for missing dead fronts or open knockouts.", "Test accessible GFCI devices where practical."],
-          "reportLanguage": ["Unsafe or improper electrical conditions were observed in the panel. Evaluation and repair by a licensed electrician is recommended."],
-          "examTips": ["Safety devices have locations and eras. Know where GFCI protection is commonly expected."],
-          "fieldNotes": ["Brian's Field Note: Never reach into a panel. Your report is not worth an injury."]
+          "figureTags": [
+            "electrical",
+            "panel",
+            "safety"
+          ],
+          "checklist": [
+            "Do not remove unsafe or blocked panel covers.",
+            "Check for missing dead fronts or open knockouts.",
+            "Test accessible GFCI devices where practical."
+          ],
+          "reportLanguage": [
+            "Unsafe or improper electrical conditions were observed in the panel. Evaluation and repair by a licensed electrician is recommended."
+          ],
+          "examTips": [
+            "Safety devices have locations and eras. Know where GFCI protection is commonly expected."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Never reach into a panel. Your report is not worth an injury."
+          ]
         }
       ]
     },
@@ -254,11 +367,25 @@
           "id": "water-heaters-drainage",
           "title": "Water Heaters and Drainage",
           "body": "Inspect water heaters for installation, venting, TPR valve discharge, corrosion, leaks, seismic restraint where applicable, and age indicators. At fixtures, run water long enough to observe drainage and leaks.",
-          "figureTags": ["plumbing", "water-heater", "leak"],
-          "checklist": ["Locate the main water shutoff if visible.", "Check TPR discharge pipe termination.", "Look below sinks after operating fixtures."],
-          "reportLanguage": ["The water heater temperature-pressure relief discharge pipe is missing, improper, or not safely terminated. Correction by a qualified plumber is recommended."],
-          "examTips": ["TPR valves protect against excessive temperature and pressure; the discharge pipe must route safely."],
-          "fieldNotes": ["Brian's Field Note: Run adjacent fixtures together when possible. Weak flow or slow drainage may only show under demand."]
+          "figureTags": [
+            "plumbing",
+            "water-heater",
+            "leak"
+          ],
+          "checklist": [
+            "Locate the main water shutoff if visible.",
+            "Check TPR discharge pipe termination.",
+            "Look below sinks after operating fixtures."
+          ],
+          "reportLanguage": [
+            "The water heater temperature-pressure relief discharge pipe is missing, improper, or not safely terminated. Correction by a qualified plumber is recommended."
+          ],
+          "examTips": [
+            "TPR valves protect against excessive temperature and pressure; the discharge pipe must route safely."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Run adjacent fixtures together when possible. Weak flow or slow drainage may only show under demand."
+          ]
         }
       ]
     },
@@ -271,11 +398,25 @@
           "id": "hvac-operation",
           "title": "Operation and Safety",
           "body": "Operate HVAC systems using normal controls when conditions allow. Document age, visible condition, air filter condition, condensate management, venting, clearance, and evidence of previous malfunction.",
-          "figureTags": ["hvac", "furnace", "air-conditioning"],
-          "checklist": ["Avoid operating cooling equipment in unsafe low-temperature conditions.", "Check filter access and condition.", "Inspect condensate drain routing where visible."],
-          "reportLanguage": ["Heating or cooling equipment showed visible defects or performance concerns. Evaluation by a qualified HVAC contractor is recommended."],
-          "examTips": ["Know when not to operate equipment. Inspection standards allow limitations for safety and weather conditions."],
-          "fieldNotes": ["Brian's Field Note: Record thermostat mode and outdoor temperature when you limit cooling operation."]
+          "figureTags": [
+            "hvac",
+            "furnace",
+            "air-conditioning"
+          ],
+          "checklist": [
+            "Avoid operating cooling equipment in unsafe low-temperature conditions.",
+            "Check filter access and condition.",
+            "Inspect condensate drain routing where visible."
+          ],
+          "reportLanguage": [
+            "Heating or cooling equipment showed visible defects or performance concerns. Evaluation by a qualified HVAC contractor is recommended."
+          ],
+          "examTips": [
+            "Know when not to operate equipment. Inspection standards allow limitations for safety and weather conditions."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Record thermostat mode and outdoor temperature when you limit cooling operation."
+          ]
         }
       ]
     },
@@ -288,11 +429,25 @@
           "id": "fireplace-conditions",
           "title": "Fireplace Conditions",
           "body": "Inspect readily visible fireplace and chimney components for cracking, gaps, missing caps, deteriorated mortar, creosote buildup, inadequate hearth extension, and unsafe modifications.",
-          "figureTags": ["chimney", "fireplace", "masonry"],
-          "checklist": ["Look for cracks in firebrick and mortar.", "Check damper operation if accessible.", "Inspect chimney exterior from safe vantage points."],
-          "reportLanguage": ["Fireplace or chimney defects were observed. A level-two chimney evaluation by a qualified chimney professional is recommended before use."],
-          "examTips": ["A home inspection is not a full internal chimney scan; recommend specialized evaluation when visible concerns exist."],
-          "fieldNotes": ["Brian's Field Note: Ask whether fireplaces are used, but base the report on visible conditions."]
+          "figureTags": [
+            "chimney",
+            "fireplace",
+            "masonry"
+          ],
+          "checklist": [
+            "Look for cracks in firebrick and mortar.",
+            "Check damper operation if accessible.",
+            "Inspect chimney exterior from safe vantage points."
+          ],
+          "reportLanguage": [
+            "Fireplace or chimney defects were observed. A level-two chimney evaluation by a qualified chimney professional is recommended before use."
+          ],
+          "examTips": [
+            "A home inspection is not a full internal chimney scan; recommend specialized evaluation when visible concerns exist."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Ask whether fireplaces are used, but base the report on visible conditions."
+          ]
         }
       ]
     },
@@ -305,11 +460,25 @@
           "id": "interior-surfaces",
           "title": "Interior Surfaces",
           "body": "Interior defects often point back to exterior water management, roof leakage, plumbing leaks, or structural movement. Document stains, cracks, uneven floors, loose railings, and unsafe stairs.",
-          "figureTags": ["interior", "stair", "moisture"],
-          "checklist": ["Scan ceilings below bathrooms and roof penetrations.", "Check stair handrails and guardrails.", "Note cracks that align across multiple surfaces."],
-          "reportLanguage": ["Interior staining was observed. The source could not be confirmed during the visual inspection; further evaluation and repair are recommended."],
-          "examTips": ["A stain is evidence of moisture history, not proof of an active leak unless verified."],
-          "fieldNotes": ["Brian's Field Note: Use a moisture meter as a screening tool, not as a final diagnosis."]
+          "figureTags": [
+            "interior",
+            "stair",
+            "moisture"
+          ],
+          "checklist": [
+            "Scan ceilings below bathrooms and roof penetrations.",
+            "Check stair handrails and guardrails.",
+            "Note cracks that align across multiple surfaces."
+          ],
+          "reportLanguage": [
+            "Interior staining was observed. The source could not be confirmed during the visual inspection; further evaluation and repair are recommended."
+          ],
+          "examTips": [
+            "A stain is evidence of moisture history, not proof of an active leak unless verified."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Use a moisture meter as a screening tool, not as a final diagnosis."
+          ]
         }
       ]
     },
@@ -322,11 +491,25 @@
           "id": "window-door-operation",
           "title": "Operation and Water Entry",
           "body": "Operate a representative number of doors and windows. Look for failed seals, damaged frames, missing locks, safety glazing concerns, egress limitations, and stains below openings.",
-          "figureTags": ["window", "door", "egress"],
-          "checklist": ["Check representative operation.", "Look for fogged insulated glass.", "Confirm sleeping-room egress conditions where required by scope."],
-          "reportLanguage": ["One or more windows showed failed seals or impaired operation. Repair or replacement by a qualified contractor is recommended."],
-          "examTips": ["Egress questions usually focus on sleeping rooms and emergency escape/rescue openings."],
-          "fieldNotes": ["Brian's Field Note: Photograph the window and the room context for egress-related comments."]
+          "figureTags": [
+            "window",
+            "door",
+            "egress"
+          ],
+          "checklist": [
+            "Check representative operation.",
+            "Look for fogged insulated glass.",
+            "Confirm sleeping-room egress conditions where required by scope."
+          ],
+          "reportLanguage": [
+            "One or more windows showed failed seals or impaired operation. Repair or replacement by a qualified contractor is recommended."
+          ],
+          "examTips": [
+            "Egress questions usually focus on sleeping rooms and emergency escape/rescue openings."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Photograph the window and the room context for egress-related comments."
+          ]
         }
       ]
     },
@@ -339,11 +522,25 @@
           "id": "wet-room-checks",
           "title": "Wet-Room Checks",
           "body": "Kitchens, bathrooms, and laundry areas combine water, electricity, ventilation, and finish materials. Run fixtures, inspect below cabinets, test GFCI where accessible, and verify dryer exhaust routing.",
-          "figureTags": ["bathroom", "kitchen", "laundry"],
-          "checklist": ["Run sinks long enough to inspect drain piping.", "Check toilet stability and visible leaks.", "Inspect dryer vent material and termination where visible."],
-          "reportLanguage": ["Moisture damage or leakage was observed at a wet-area fixture. Repair by a qualified contractor is recommended."],
-          "examTips": ["Dryer vents should terminate outdoors and use appropriate smooth metal ducting where required."],
-          "fieldNotes": ["Brian's Field Note: Open vanity doors before and after running water. Fresh drips are easier to spot."]
+          "figureTags": [
+            "bathroom",
+            "kitchen",
+            "laundry"
+          ],
+          "checklist": [
+            "Run sinks long enough to inspect drain piping.",
+            "Check toilet stability and visible leaks.",
+            "Inspect dryer vent material and termination where visible."
+          ],
+          "reportLanguage": [
+            "Moisture damage or leakage was observed at a wet-area fixture. Repair by a qualified contractor is recommended."
+          ],
+          "examTips": [
+            "Dryer vents should terminate outdoors and use appropriate smooth metal ducting where required."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Open vanity doors before and after running water. Fresh drips are easier to spot."
+          ]
         }
       ]
     },
@@ -356,11 +553,25 @@
           "id": "decks-garages",
           "title": "Decks and Garages",
           "body": "Attached structures create frequent safety and moisture concerns. Inspect guardrails, handrails, ledger attachment, flashing, stair geometry, garage fire separation, vehicle doors, and openers.",
-          "figureTags": ["deck", "garage", "railing"],
-          "checklist": ["Inspect deck ledger attachment and flashing where visible.", "Check guardrail height and looseness.", "Test garage auto-reverse features when practical."],
-          "reportLanguage": ["Deck or guardrail defects were observed that may affect safety. Evaluation and repair by a qualified contractor is recommended."],
-          "examTips": ["Deck ledger attachment and guardrail stability are high-value safety topics."],
-          "fieldNotes": ["Brian's Field Note: Push gently on guardrails. Movement tells a story photos alone may miss."]
+          "figureTags": [
+            "deck",
+            "garage",
+            "railing"
+          ],
+          "checklist": [
+            "Inspect deck ledger attachment and flashing where visible.",
+            "Check guardrail height and looseness.",
+            "Test garage auto-reverse features when practical."
+          ],
+          "reportLanguage": [
+            "Deck or guardrail defects were observed that may affect safety. Evaluation and repair by a qualified contractor is recommended."
+          ],
+          "examTips": [
+            "Deck ledger attachment and guardrail stability are high-value safety topics."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Push gently on guardrails. Movement tells a story photos alone may miss."
+          ]
         }
       ]
     },
@@ -373,11 +584,26 @@
           "id": "environmental-screening",
           "title": "Screening and Referral",
           "body": "Standard home inspections do not confirm environmental hazards unless the inspection agreement includes testing. Document visible suspect conditions and recommend qualified testing or remediation when appropriate.",
-          "figureTags": ["environmental", "mold", "asbestos", "safety"],
-          "checklist": ["Identify visible suspect materials without confirming composition.", "Recommend testing for radon, lead, asbestos, or mold when appropriate.", "Avoid disturbing suspect materials."],
-          "reportLanguage": ["Suspect environmental conditions or materials were observed. Specialized evaluation/testing is recommended before disturbance or renovation."],
-          "examTips": ["Use careful wording: visible suspect material is not the same as laboratory confirmation."],
-          "fieldNotes": ["Brian's Field Note: Your job is to identify risk and route the client to the right specialist."]
+          "figureTags": [
+            "environmental",
+            "mold",
+            "asbestos",
+            "safety"
+          ],
+          "checklist": [
+            "Identify visible suspect materials without confirming composition.",
+            "Recommend testing for radon, lead, asbestos, or mold when appropriate.",
+            "Avoid disturbing suspect materials."
+          ],
+          "reportLanguage": [
+            "Suspect environmental conditions or materials were observed. Specialized evaluation/testing is recommended before disturbance or renovation."
+          ],
+          "examTips": [
+            "Use careful wording: visible suspect material is not the same as laboratory confirmation."
+          ],
+          "fieldNotes": [
+            "Brian's Field Note: Your job is to identify risk and route the client to the right specialist."
+          ]
         }
       ]
     }

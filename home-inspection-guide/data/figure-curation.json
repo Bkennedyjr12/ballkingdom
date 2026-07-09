@@ -43,7 +43,14 @@
     "figure-025-1-img-3779",
     "figure-028-1-img-3782",
     "figure-029-1-img-3783",
-    "figure-029-3-img-3783"
+    "figure-029-3-img-3783",
+    "figure-030-1-img-3864",
+    "figure-033-1-img-3867",
+    "figure-049-1-img-3883",
+    "figure-049-2-img-3883",
+    "figure-050-1-img-3884",
+    "figure-050-2-img-3884",
+    "figure-050-3-img-3884"
   ],
   "overrides": {
     "figure-001-1-img-3755": {
@@ -255,6 +262,101 @@
       "topicTag": "safety",
       "caption": "Inspection tool kit reference",
       "altText": "A cropped textbook image showing common home inspection tools."
+    },
+    "figure-032-1-img-3866": {
+      "topicTag": "foundation",
+      "caption": "Wood bearing and framing reference figure",
+      "altText": "A cropped Code Check-style diagram showing wood bearing and framing requirements."
+    },
+    "figure-033-2-img-3867": {
+      "topicTag": "foundation",
+      "caption": "Joist notching and boring limits table",
+      "altText": "A cropped Code Check-style table showing joist notching and boring limits."
+    },
+    "figure-035-1-img-3869": {
+      "topicTag": "electrical",
+      "caption": "Photovoltaic equipment identification checklist",
+      "altText": "A cropped Code Check-style checklist for photovoltaic panel and module identification."
+    },
+    "figure-035-2-img-3869": {
+      "topicTag": "electrical",
+      "caption": "Smoke and carbon monoxide alarm placement figure",
+      "altText": "A cropped Code Check-style diagram showing smoke alarm and carbon monoxide alarm placement."
+    },
+    "figure-036-1-img-3870": {
+      "topicTag": "roof",
+      "caption": "Collar tie and rafter framing size reference",
+      "altText": "A cropped Code Check-style figure for rafter or collar tie framing size requirements."
+    },
+    "figure-037-1-img-3871": {
+      "topicTag": "door",
+      "caption": "Stair, door, and garage door reference block",
+      "altText": "A cropped Code Check-style reference block for stair, door, and garage door requirements."
+    },
+    "figure-038-1-img-3872": {
+      "topicTag": "electrical",
+      "caption": "Smoke alarm location diagram",
+      "altText": "A cropped Code Check-style diagram showing smoke alarm and carbon monoxide alarm locations near bedrooms."
+    },
+    "figure-038-2-img-3872": {
+      "topicTag": "safety",
+      "caption": "Carbon monoxide alarm requirements reference",
+      "altText": "A cropped Code Check-style reference for carbon monoxide alarm requirements."
+    },
+    "figure-038-3-img-3872": {
+      "topicTag": "plumbing",
+      "caption": "Water and sewer separation reference",
+      "altText": "A cropped Code Check-style plumbing reference for water and sewer separation."
+    },
+    "figure-039-1-img-3873": {
+      "topicTag": "plumbing",
+      "caption": "Common vent diagram",
+      "altText": "A cropped Code Check-style plumbing diagram showing a common vent."
+    },
+    "figure-039-2-img-3873": {
+      "topicTag": "plumbing",
+      "caption": "Trap arm and vent slope diagram",
+      "altText": "A cropped Code Check-style diagram showing trap arm and vent slope requirements."
+    },
+    "figure-041-1-img-3875": {
+      "topicTag": "plumbing",
+      "caption": "Expansion tank and water-heater safety reference",
+      "altText": "A cropped Code Check-style figure showing expansion tank and water heater safety details."
+    },
+    "figure-042-1-img-3876": {
+      "topicTag": "hvac",
+      "caption": "Flex duct support spacing reference",
+      "altText": "A cropped Code Check-style HVAC reference for flexible duct support and sag limits."
+    },
+    "figure-042-2-img-3876": {
+      "topicTag": "hvac",
+      "caption": "Direct vent termination clearance figure",
+      "altText": "A cropped Code Check-style figure showing direct vent termination clearance at overhangs."
+    },
+    "figure-043-1-img-3877": {
+      "topicTag": "hvac",
+      "caption": "Clothes dryer exhaust transition duct reference",
+      "altText": "A cropped Code Check-style diagram showing clothes dryer exhaust transition duct requirements."
+    },
+    "figure-043-2-img-3877": {
+      "topicTag": "hvac",
+      "caption": "Gas appliance vent clearance from building openings",
+      "altText": "A cropped Code Check-style table showing vent clearances from building openings."
+    },
+    "figure-043-3-img-3877": {
+      "topicTag": "hvac",
+      "caption": "Outdoor equipment working-space reference",
+      "altText": "A cropped Code Check-style reference for HVAC outdoor equipment working space."
+    },
+    "figure-045-1-img-3879": {
+      "topicTag": "hvac",
+      "caption": "Service clearance working-space diagram",
+      "altText": "A cropped Code Check-style diagram showing equipment service clearance dimensions."
+    },
+    "figure-045-2-img-3879": {
+      "topicTag": "electrical",
+      "caption": "EMT conduit wet-location fitting figure",
+      "altText": "A cropped Code Check-style electrical diagram showing EMT conduit and raintight wet-location fittings."
     }
   }
 }

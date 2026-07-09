@@ -179,6 +179,14 @@ function classHubMarkup(guide) {
           <h4>Exam Memory Hooks</h4>
           ${list(hub.examMemoryHooks)}
         </div>
+        <div class="hi-block hi-report">
+          <h4>Code Check + Report Binder Workflow</h4>
+          ${list(hub.referenceBinderWorkflow)}
+        </div>
+        <div class="hi-block">
+          <h4>Binder Topics Wired In</h4>
+          ${list(hub.referenceBinderTopics)}
+        </div>
       </div>
     </section>`;
 }
