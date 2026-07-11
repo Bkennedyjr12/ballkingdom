@@ -78,6 +78,10 @@
     ],
     "quickLinks": [
       {
+        "label": "Open Class Companion",
+        "href": "https://companion.ballkingdom.com/"
+      },
+      {
         "label": "Download latest guide PDF",
         "href": "public/assets/guide.pdf"
       },
