@@ -1,6 +1,7 @@
 
 # gstack browse runtime
 .gstack/
+.worktrees/
 
 # Node tooling for the Home Inspection Guide pipeline
 node_modules/
