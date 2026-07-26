@@ -10,3 +10,19 @@
 - No rendered media, frame asset, provider authorization, credential, generation request, or upload receipt is included.
 
 **Deferred gates:** user animatic approval, paid scene generation, frame audit, final technical/perceptual QA, and explicit upload authorization.
+# Hybrid review-cut QA — 2026-07-26
+
+The two Veo-only passes are quarantined: generated wardrobe marks failed the
+no-logo gate. The local hybrid review master instead uses the clean approved
+Brian coach anchor and licensed Pexels player/field cutaways listed in
+`stock_footage_manifest.md`.
+
+- Runtime: 45.000 seconds.
+- Delivery: H.264, 1280×720, 24 fps, AAC audio, playable/decoded successfully.
+- Copy: all readable copy is post-composited; CTA is `BUILD YOUR KINGDOM` and
+  `ballkingdom.com`.
+- Frame review: checked 00:01, 00:05, 00:11, 00:19, 00:27, 00:35, and 00:42.
+  The player excerpts are cropped to avoid the source jersey number; no third-
+  party marks survive in the selected review frames.
+- Status: ready for explicit unlisted-review upload authorization only; no
+  YouTube action has been performed.
