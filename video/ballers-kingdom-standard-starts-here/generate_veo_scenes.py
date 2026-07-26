@@ -18,7 +18,7 @@ from typing import Any
 PROJECT_ID = "the-ballers-kingdom"
 LOCATION = "us-central1"
 MODEL_ID = "veo-3.1-generate-001"
-APPROVED_REFERENCE_RELPATH = Path("assets/img/brian_smile.jpg")
+APPROVED_REFERENCE_RELPATH = Path("assets/img/brian_coach_clean_anchor_v2.png")
 NEGATIVE_PROMPT = (
     "readable text, letters, words, numbers, generated logo, watermark, badge, "
     "jersey lettering, branded clothing, wrong age, childlike proportions, adult athlete, "
@@ -40,7 +40,9 @@ def scene_prompts() -> OrderedDict[str, str]:
         "realistic skin texture, coherent field geography, regulation soccer-ball scale, and "
         "documentary cinema look. The recurring original male athlete is age 17, with an "
         "age-appropriate athletic build and the same plain dark unmarked training kit. "
-        "The recurring teammate is also 17. Natural eye lines, physically credible motion, "
+        "The recurring teammate is also 17. Every visible shirt, shorts, socks, shoes, jacket, "
+        "and training cone is entirely plain and unbranded: no swoosh-like symbols, stripes, "
+        "manufacturer marks, badges, numbers, lettering, or sportswear designs. Natural eye lines, physically credible motion, "
         "alive background training, no speech, no captions, no readable language, no logos. "
     )
     return OrderedDict(

@@ -76,7 +76,7 @@ assert generation_contract == {
     "person_generation": "allow_all",
     "input_mode": "image-to-video-starting-frame",
     "reference_images_field": False,
-    "approved_reference_relpath": "assets/img/brian_smile.jpg",
+    "approved_reference_relpath": "assets/img/brian_coach_clean_anchor_v2.png",
     "regeneration": "refused",
 }
 generator_source = generator.read_text(encoding="utf-8")

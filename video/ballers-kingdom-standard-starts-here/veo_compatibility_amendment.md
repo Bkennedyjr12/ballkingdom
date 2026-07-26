@@ -11,7 +11,7 @@ one-take rule.
   generated audio disabled.
 - The provider footage runs 00:00–00:40. A separate 5-second post-composited CTA
   runs 00:40–00:45, preserving the 45-second master runtime.
-- Use `assets/img/brian_smile.jpg` only as the image-to-video starting frame for
+- Use `assets/img/brian_coach_clean_anchor_v2.png` only as the image-to-video starting frame for
   all five scenes. It is an authorized identity anchor for adult Brian, not a
   multi-image reference request, wardrobe source, voice source, or endorsement.
 - Brian wears the same plain black unmarked training jacket and black athletic
@@ -25,6 +25,11 @@ one-take rule.
   before each submission and refuses regeneration.
 - Any wrong age, likeness or wardrobe drift, anatomy/hands/ball defect, false
   mark, empty staging, dead eyes, or continuity failure blocks assembly.
+
+The first approved pass failed visual QA and is quarantined locally. This second,
+user-approved pass uses a clean identity-preserving coach anchor and strengthens
+the plain-unbranded wardrobe constraint. It has a separate local ledger and remains
+subject to the same block-on-defect rule.
 
 The final CTA is built only in post with verified copy:
 
