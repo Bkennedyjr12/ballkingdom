@@ -22,6 +22,7 @@ ffmpeg -hide_banner -y \
   -loop 1 -framerate 24 -t 8 -i "$frames_dir/scene-4.png" \
   -loop 1 -framerate 24 -t 7 -i "$frames_dir/scene-5.png" \
   -f lavfi -i "aevalsrc=0.035*sin(2*PI*55*t)+0.018*sin(2*PI*110*t)+0.012*sin(2*PI*440*t)*pow(sin(2*PI*1.5*t)\,8):s=48000:d=42" \
+  -f lavfi -i "anoisesrc=color=pink:amplitude=0.12:seed=4137:r=48000:d=42" \
   -filter_complex "
     [0:v]zoompan=z='min(zoom+0.00022,1.04)':d=1:s=1280x720:fps=24,trim=duration=8,setpts=PTS-STARTPTS[s1];
     [1:v]zoompan=z='min(zoom+0.00022,1.04)':d=1:s=1280x720:fps=24,trim=duration=8,setpts=PTS-STARTPTS[s2];
@@ -29,7 +30,9 @@ ffmpeg -hide_banner -y \
     [3:v]zoompan=z='min(zoom+0.00022,1.04)':d=1:s=1280x720:fps=24,trim=duration=8,setpts=PTS-STARTPTS[s4];
     [4:v]zoompan=z='min(zoom+0.00022,1.04)':d=1:s=1280x720:fps=24,trim=duration=7,setpts=PTS-STARTPTS[s5];
     [s1][s2][s3][s4][s5]concat=n=5:v=1:a=0,format=yuv420p[v];
-    [5:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=0.80,afade=t=out:st=41.2:d=0.8[a]
+    [5:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=6[pulse];
+    [6:a]highpass=f=180,lowpass=f=3200,aformat=sample_rates=48000:channel_layouts=stereo,volume=0.22[air];
+    [pulse][air]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.89,afade=t=out:st=41.2:d=0.8[a]
   " \
   -map '[v]' -map '[a]' \
   -c:v libx264 -pix_fmt yuv420p -r 24 -movflags +faststart \
