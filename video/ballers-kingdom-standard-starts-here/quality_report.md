@@ -34,3 +34,11 @@ football aerial. It was replaced locally with soccer-only licensed footage:
 Pexels 6077711, 6084027, and 7187047. Fresh frame review at 00:01, 00:05,
 00:11, 00:19, 00:27, 00:35, and 00:42 confirmed soccer imagery only. The
 replacement retains the 45.000-second H.264/AAC, 1280×720, 24 fps delivery.
+
+## Narrated replacement
+
+The prior review upload had only a quiet ambient bed. The replacement uses the
+non-cloned Ballers Cloud Text-to-Speech voice `en-US-Neural2-D`, driven by
+`narration_contract.json`. That same contract drives the displayed copy.
+Narration-window mean levels measured at 00:00, 00:08, 00:16, 00:24, and 00:32
+range from -18.9 to -21.4 dB; the CTA tail intentionally falls to -38.2 dB.
