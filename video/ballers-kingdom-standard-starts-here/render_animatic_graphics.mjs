@@ -50,7 +50,7 @@ function person(x, y, scale = 1, options = {}) {
 function ball(x, y, r = 15) {
   return `<g><circle cx="${x}" cy="${y}" r="${r}" fill="${c.cream}" stroke="${c.ink}" stroke-width="3"/><path d="M${x-r*.55} ${y-r*.25}L${x} ${y-r*.55}L${x+r*.55} ${y-r*.15}L${x+r*.25} ${y+r*.55}L${x-r*.5} ${y+r*.42}Z" fill="${c.ink}" opacity=".5"/></g>`;
 }
-function base(content, narration) {
+function base(content, narration, cameraNote) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
     <defs>
       <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="${c.dusk}"/><stop offset=".58" stop-color="#5E6357"/><stop offset="1" stop-color="${c.haze}"/></linearGradient>
@@ -69,6 +69,8 @@ function base(content, narration) {
     <path d="M0 620 C380 575 844 600 1280 676" fill="none" stroke="${c.cream}" stroke-opacity=".13" stroke-width="3"/>
     <rect x="62" y="30" width="450" height="42" rx="21" fill="${c.ink}" fill-opacity=".76" stroke="${c.cream}" stroke-opacity=".36"/>
     ${text('LOCAL REVIEW ANIMATIC • NOT PUBLIC MASTER', 287, 58, 16, { letterSpacing: 1.2 })}
+    <rect x="754" y="30" width="464" height="42" rx="21" fill="${c.ink}" fill-opacity=".76" stroke="${c.gold}" stroke-opacity=".55"/>
+    ${text(cameraNote, 986, 58, 15, { fill: c.gold, letterSpacing: .55 })}
     ${content}
     <rect x="0" y="622" width="1280" height="98" fill="${c.ink}" fill-opacity=".81"/>
     ${text(narration, 640, 680, 30, { fill: c.white, weight: 700 })}
@@ -84,7 +86,7 @@ const scenes = [
     ${person(930, 505, .68, { kit: '#4D5640', direction: -1 })}
     ${ball(574, 505, 17)}
     <path d="M570 478 C520 438 485 430 458 438" fill="none" stroke="${c.gold}" stroke-width="4" stroke-dasharray="8 10"/>
-  `, contract.scenes[0].narration),
+  `, contract.scenes[0].narration, 'CAMERA • 35MM • LOW GIMBAL FOLLOW'),
   base(`
     <path d="M226 494 C430 430 647 438 1034 514" fill="none" stroke="${c.cream}" stroke-opacity=".28" stroke-width="4"/>
     ${person(462, 535, 1.28, { coach: true, direction: 1 })}
@@ -93,7 +95,7 @@ const scenes = [
     <path d="M620 490 C675 452 700 434 742 430" fill="none" stroke="${c.gold}" stroke-width="5" stroke-linecap="round"/>
     <path d="M726 415 l21 15 -25 11" fill="${c.gold}"/>
     <circle cx="488" cy="332" r="10" fill="${c.gold}" opacity=".85"/><path d="M488 342 V382" stroke="${c.gold}" stroke-width="4"/>
-  `, contract.scenes[1].narration),
+  `, contract.scenes[1].narration, 'CAMERA • 85MM • SHOULDER CLOSE PUSH'),
   base(`
     <path d="M170 520 C410 438 634 484 902 432 C1045 404 1120 410 1190 438" fill="none" stroke="${c.cream}" stroke-opacity=".36" stroke-width="4"/>
     ${person(358, 542, .95, { kit: '#3D4D59', direction: 1 })}
@@ -103,7 +105,7 @@ const scenes = [
     ${ball(674, 519, 14)}
     <path d="M674 490 C731 456 799 456 855 480" fill="none" stroke="${c.gold}" stroke-width="5" stroke-dasharray="9 10"/>
     ${person(1030, 466, .46, { coach: true })}${person(1110, 470, .42, { kit: '#484E49' })}
-  `, contract.scenes[2].narration),
+  `, contract.scenes[2].narration, 'CAMERA • 50MM • LATERAL TRACK'),
   base(`
     <path d="M94 488 L1195 438" stroke="${c.cream}" stroke-opacity=".22" stroke-width="4"/>
     <path d="M898 340 H1064 V490 H898 Z" fill="none" stroke="${c.cream}" stroke-opacity=".34" stroke-width="4"/>
@@ -113,7 +115,7 @@ const scenes = [
     ${ball(755, 526, 14)}
     <path d="M665 447 C700 420 750 414 794 432" fill="none" stroke="${c.gold}" stroke-width="4" stroke-dasharray="6 10"/>
     ${person(1086, 476, .52, { kit: '#394B3E', direction: -1 })}${person(1150, 480, .47, { kit: '#4C5242' })}
-  `, contract.scenes[3].narration),
+  `, contract.scenes[3].narration, 'CAMERA • 50MM • QUIET TRIPOD SETTLE'),
   base(`
     <path d="M116 530 C370 452 612 477 875 455 C1036 441 1138 465 1210 496" fill="none" stroke="${c.cream}" stroke-opacity=".34" stroke-width="4"/>
     ${person(370, 537, 1.06, { coach: true })}
@@ -123,7 +125,7 @@ const scenes = [
     <rect x="185" y="168" width="910" height="228" rx="18" fill="${c.ink}" fill-opacity=".79" stroke="${c.gold}" stroke-width="2"/>
     ${text('BUILD YOUR KINGDOM', 640, 262, 54, { fill: c.gold, letterSpacing: 1.8 })}
     ${text('ballkingdom.com', 640, 324, 31, { fill: c.white, weight: 600 })}
-  `, contract.scenes[4].narration),
+  `, contract.scenes[4].narration, 'CAMERA • 35MM • SLOW DOLLY-BACK / HOLD'),
 ];
 
 await Promise.all(scenes.map((scene, i) => sharp(Buffer.from(scene)).png().toFile(path.join(output, `scene-${i + 1}.png`))));

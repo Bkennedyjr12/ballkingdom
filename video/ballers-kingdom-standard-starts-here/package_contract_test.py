@@ -2,6 +2,7 @@
 """Validate the locked source-only production contract."""
 
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -28,6 +29,23 @@ assert contract["text_policy"] == "post-composite-only"
 assert contract["generation_policy"]["text_free_generation"] is True
 assert contract["generation_policy"]["voice_clone"] == "prohibited"
 assert contract["generation_policy"]["paid_generation_gate"] == "approved animatic required"
+
+renderer = package_dir / "render_animatic.sh"
+timing = json.loads(subprocess.run(
+    ["bash", str(renderer), "--print-timing"], check=True, text=True, capture_output=True
+).stdout)
+assert timing == {
+    "runtime_seconds": 45,
+    "final_end_seconds": 45,
+    "schedule": [
+        {"id": scene_id, "start_seconds": start, "duration_seconds": duration}
+        for scene_id, start, duration in expected_schedule
+    ],
+}
+renderer_source = renderer.read_text(encoding="utf-8")
+assert '"${ffmpeg_inputs[@]}"' in renderer_source
+assert 'trim=duration=$duration_seconds' in renderer_source
+assert 'scene_rows=()' in renderer_source
 
 for path in package_dir.rglob("*"):
     if path.is_file() and path.suffix in {".md", ".json", ".py"}:
