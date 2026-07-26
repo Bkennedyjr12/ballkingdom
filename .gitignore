@@ -12,3 +12,10 @@ home-inspection-guide/input/images/*
 !home-inspection-guide/input/images/.gitkeep
 home-inspection-guide/audit/
 home-inspection-guide/public/assets/originals/
+
+# Ballers Kingdom flagship release review artifacts
+video/ballers-kingdom-flagship/.review-graphics/
+video/ballers-kingdom-flagship/ballers-kingdom-flagship-review.mp4
+video/ballers-kingdom-flagship/ballers-kingdom-flagship-thumb.png
+video/ballers-kingdom-flagship/qa-report.md
+video/ballers-kingdom-flagship/youtube-receipt.json

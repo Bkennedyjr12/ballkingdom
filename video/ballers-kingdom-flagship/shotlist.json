@@ -1,0 +1,7 @@
+[
+  {"scene":1,"duration_seconds":8,"beat":"first touch","camera":"low tracking","interaction":"athlete receives a pass while teammates warm up","text_free":true},
+  {"scene":2,"duration_seconds":8,"beat":"coach correction","camera":"moving medium two-shot","interaction":"original coach demonstrates; athlete retries","text_free":true},
+  {"scene":3,"duration_seconds":11,"beat":"sport-plus-life development","camera":"handheld to stable","interaction":"athlete joins huddle after homework and a family/community exchange","text_free":true},
+  {"scene":4,"duration_seconds":8,"beat":"athlete leadership","camera":"wide steadicam orbit","interaction":"athlete leads teammates through a cone drill","text_free":true},
+  {"scene":5,"duration_seconds":7,"beat":"lasting CTA","camera":"slow pullback","interaction":"group continues a drill beneath post-composited CTA","text_free":true}
+]

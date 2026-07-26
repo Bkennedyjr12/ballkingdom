@@ -1,0 +1,15 @@
+{
+  "topic": "The Ballers Kingdom flagship brand film",
+  "goal": "Show young athletes and families that The Ballers Kingdom develops skill, discipline, character, and opportunity beyond sport",
+  "audience": "Young athletes, parents, coaches, schools, and community partners in the Inland Empire",
+  "length_seconds": 42,
+  "visual_style": "grounded cinematic sports-development film with sunrise field light, authentic training, family/community warmth, and premium navy/cream/green post graphics",
+  "animation_style": "photoreal directed scenes; no generated readable text",
+  "characters": ["youth soccer athlete", "coach", "teammates", "family/community"],
+  "tone": "confident, disciplined, warm, specific, never hypey",
+  "platform": "YouTube",
+  "aspect_ratio": "16:9",
+  "language": "en",
+  "music_style": "licensed original percussion and warm cinematic pulse, no vocals",
+  "output_format": "production-package"
+}
