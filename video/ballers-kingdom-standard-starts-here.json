@@ -1,0 +1,20 @@
+{
+  "topic": "The Standard Starts Here — The Ballers Kingdom photoreal soccer-development film",
+  "goal": "Show an authentic coaching relationship where skill, discipline, confidence, and family support develop the whole athlete",
+  "audience": "Young soccer athletes, families, coaches, schools, and community partners in the Inland Empire",
+  "length_seconds": 45,
+  "visual_style": "photoreal golden-hour Southern California community soccer field; real coaching interaction; cinematic handheld and gimbal camera language; post-composited Ballers Kingdom graphics",
+  "animation_style": "photoreal directed scenes, text-free generation only",
+  "characters": [
+    "Brian Kennedy Jr as adult coach reference",
+    "original teenage soccer athlete",
+    "original teammate",
+    "original guardian"
+  ],
+  "tone": "disciplined, warm, specific, grounded, confident",
+  "platform": "YouTube",
+  "aspect_ratio": "16:9",
+  "language": "en",
+  "music_style": "original restrained cinematic percussion with warm field ambience, no vocals",
+  "output_format": "production-package"
+}

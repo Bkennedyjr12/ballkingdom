@@ -1,0 +1,7 @@
+[
+  {"start_seconds": 0, "end_seconds": 8, "scene": "arrival", "music": "soft restrained pulse", "ambience": ["field air", "ball pass", "warm-up activity"]},
+  {"start_seconds": 8, "end_seconds": 17, "scene": "correction", "music": "restrained pulse", "ambience": ["shoe pivot", "ball touch", "distant drill"]},
+  {"start_seconds": 17, "end_seconds": 26, "scene": "pressure", "music": "slightly raised percussion", "ambience": ["competitive play", "ball strike", "field air"]},
+  {"start_seconds": 26, "end_seconds": 36, "scene": "connection", "music": "reduced pulse", "ambience": ["sideline field air", "distant drill"]},
+  {"start_seconds": 36, "end_seconds": 45, "scene": "invitation", "music": "warm resolving pulse with 1.5-second fade", "ambience": ["active drill", "field air"]}
+]

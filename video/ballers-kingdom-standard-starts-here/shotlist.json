@@ -1,0 +1,53 @@
+[
+  {
+    "scene": 1,
+    "beat": "arrival",
+    "start_seconds": 0,
+    "duration_seconds": 8,
+    "camera": "low gimbal follow from field gate to athlete face",
+    "action": "Brian welcomes the athlete as a teammate rolls in a ball; athlete controls and turns toward the field.",
+    "reaction": "The athlete's attention shifts from Brian to the ball; the teammate continues a natural warm-up.",
+    "text_free": true
+  },
+  {
+    "scene": 2,
+    "beat": "correction",
+    "start_seconds": 8,
+    "duration_seconds": 9,
+    "camera": "handheld medium two-shot with motivated lateral movement",
+    "action": "Brian demonstrates an open-body first touch; athlete watches and repeats it.",
+    "reaction": "Brian gives a quiet nod; teammate resumes a nearby repetition.",
+    "text_free": true
+  },
+  {
+    "scene": 3,
+    "beat": "pressure",
+    "start_seconds": 17,
+    "duration_seconds": 9,
+    "camera": "handheld tracking from closing defender to open space",
+    "action": "Athlete receives under pressure, protects the ball, and breaks free in a small-sided drill.",
+    "reaction": "Teammate reacts to the decision and continues the competitive play.",
+    "text_free": true
+  },
+  {
+    "scene": 4,
+    "beat": "connection",
+    "start_seconds": 26,
+    "duration_seconds": 10,
+    "camera": "gimbal three-person observation that follows athlete back to play",
+    "action": "Brian gives guardian a brief sideline update while athlete listens, then athlete re-enters the drill.",
+    "reaction": "Guardian acknowledges; athlete's posture becomes more confident.",
+    "text_free": true
+  },
+  {
+    "scene": 5,
+    "beat": "invitation",
+    "start_seconds": 36,
+    "duration_seconds": 9,
+    "camera": "slow gimbal pullback into stable warm wide frame",
+    "action": "Brian watches athlete finish a repetition while teammates continue behind them.",
+    "reaction": "Athlete looks toward the next pass; the group keeps the frame alive.",
+    "text_free": true,
+    "post_composite_reserved": "verified title, CTA, and website only"
+  }
+]

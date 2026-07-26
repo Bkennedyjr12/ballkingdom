@@ -1,0 +1,25 @@
+{
+  "title": "The Standard Starts Here",
+  "runtime_seconds": 45,
+  "text_policy": "post-composite-only",
+  "generation_policy": {
+    "text_free_generation": true,
+    "voice_clone": "prohibited",
+    "paid_generation_gate": "approved animatic required",
+    "provider_auth": "not checked in this source-only package",
+    "publish": "not authorized"
+  },
+  "continuity_policy": {
+    "coach_reference": "User-authorized only to keep the adult coach consistent; never use it for a clone, voice, or readable identity marks.",
+    "coach": "Black man in his 30s, short natural hair, neatly trimmed beard, black unmarked training jacket and black athletic pants.",
+    "athlete": "Original male soccer athlete aged 15–17, plain dark unmarked training kit.",
+    "supporting_characters": "Original teammate and original guardian; no likenesses drawn from real people."
+  },
+  "scenes": [
+    {"id": "arrival", "number": 1, "start_seconds": 0, "duration_seconds": 8, "narration": "The standard doesn't start at game time."},
+    {"id": "correction", "number": 2, "start_seconds": 8, "duration_seconds": 9, "narration": "It starts with the rep no one is watching."},
+    {"id": "pressure", "number": 3, "start_seconds": 17, "duration_seconds": 9, "narration": "Skill gives you a chance. Discipline makes you ready."},
+    {"id": "connection", "number": 4, "start_seconds": 26, "duration_seconds": 10, "narration": "Because we're building more than players."},
+    {"id": "invitation", "number": 5, "start_seconds": 36, "duration_seconds": 9, "narration": "The Ballers Kingdom. Build your kingdom."}
+  ]
+}
