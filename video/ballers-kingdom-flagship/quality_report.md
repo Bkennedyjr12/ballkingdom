@@ -6,4 +6,3 @@
 - Prompts prohibit generated readable text, logos, false claims, Brian/real-person likeness, and cloned voice.
 - The ending holds active field action, music, and room tone for seven seconds.
 - No media, credential, OAuth, or rendered artifact is included.
-

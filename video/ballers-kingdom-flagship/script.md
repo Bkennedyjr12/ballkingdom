@@ -9,4 +9,3 @@
 | 00:35–00:42 | The Ballers Kingdom. Build your kingdom. |
 
 Narration must be original voice talent or approved text-led audio; never a cloned voice. All written language is composited in post, never requested from a video model.
-

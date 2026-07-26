@@ -5,4 +5,3 @@
 - 00:16–00:27: Dissolve from notebook close into huddle; cut on the shoulder tap.
 - 00:27–00:35: Cut into the cone placement and follow the athlete leading the repetition.
 - 00:35–00:42: Ease to the wide hold; composite verified end-card graphics over continuing field action and audio.
-

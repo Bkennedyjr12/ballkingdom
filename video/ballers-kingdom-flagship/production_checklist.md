@@ -7,4 +7,3 @@
 - [ ] Verify media/music licenses and narration authorization.
 - [ ] Inspect every rendered scene and perform technical/perceptual QA.
 - [ ] Obtain review approval before public publishing.
-

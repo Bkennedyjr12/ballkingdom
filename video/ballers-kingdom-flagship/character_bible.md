@@ -11,4 +11,3 @@ Original adult coach; distinct from Brian and any known person, practical navy w
 ## Teammates and family/community
 
 Inclusive local youth group and supporting adults, natural reactions and field-appropriate wardrobe. Keep the same athlete, coach, wardrobe, weather, field geography, and time-of-day progression across scenes.
-

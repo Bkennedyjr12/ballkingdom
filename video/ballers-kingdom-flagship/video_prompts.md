@@ -21,4 +21,3 @@ Same athlete places cones, demonstrates a simple passing pattern, and waves team
 ## Scene 5 — Lasting CTA (7s)
 
 Same community field. The full group plays through the drill while the original athlete looks toward the next pass; camera slowly pulls back into warm morning light. Hold the final composition for post-composited verified Ballers Kingdom graphics while training and ambience continue. No generated text or logos.
-

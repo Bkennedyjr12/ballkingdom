@@ -5,4 +5,3 @@
 3. **00:16–00:27 — Sport-plus-life development:** The athlete closes a homework notebook, joins a huddle, and receives a supportive word from a family/community member at the field edge.
 4. **00:27–00:35 — Athlete leadership:** The athlete sets cones, leads a compact drill, and teammates respond with visible focus and encouragement.
 5. **00:35–00:42 — Lasting CTA:** The group continues training in the living field environment while the camera eases back; verified title, logo, and `ballkingdom.com` are added only in post during a held final beat.
-
