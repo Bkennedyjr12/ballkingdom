@@ -1,0 +1,12 @@
+{
+  "voice": "en-US-Neural2-D",
+  "speaking_rate": 0.94,
+  "runtime_seconds": 45,
+  "beats": [
+    {"id": "arrival", "start_seconds": 0, "duration_seconds": 8, "text": "The standard does not start at game time."},
+    {"id": "correction", "start_seconds": 8, "duration_seconds": 8, "text": "It starts with the rep no one is watching."},
+    {"id": "pressure", "start_seconds": 16, "duration_seconds": 8, "text": "Skill gives you a chance. Discipline makes you ready."},
+    {"id": "connection", "start_seconds": 24, "duration_seconds": 8, "text": "We are building more than players."},
+    {"id": "invitation", "start_seconds": 32, "duration_seconds": 8, "text": "The Ballers Kingdom. Build your kingdom."}
+  ]
+}
