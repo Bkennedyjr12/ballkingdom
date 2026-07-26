@@ -126,6 +126,7 @@ function studyNavigator(guide, figures) {
         <p>Use search for exact terms, section jump for the course flow, and topic filters when you need examples by system.</p>
       </div>
       <div class="hi-quick-actions">
+        <a class="hi-companion-link" href="https://companion.ballkingdom.com/" target="_blank" rel="noopener">Class Companion</a>
         <a href="#class-hub">Class Hub</a>
         <a href="#field-system">Field System</a>
         <a href="#figure-appendix">Figure Appendix</a>
@@ -194,7 +195,10 @@ function classHubMarkup(guide) {
           <em>${escapeHtml(hub.noClassNotice)}</em>
         </div>
         <div class="hi-action-row">
-          ${(hub.quickLinks || []).map((link) => `<a class="hi-action" href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`).join('')}
+          ${(hub.quickLinks || []).map((link) => {
+            const isCompanion = link.href === 'https://companion.ballkingdom.com/';
+            return `<a class="hi-action${isCompanion ? ' hi-action-companion' : ''}" href="${escapeHtml(link.href)}"${isCompanion ? ' target="_blank" rel="noopener"' : ''}>${escapeHtml(link.label)}</a>`;
+          }).join('')}
         </div>
       </div>
       <div class="hi-schedule-card">
@@ -341,6 +345,7 @@ async function main() {
         <div class="hi-nav-actions">
           <a href="#chapters">Chapters</a>
           <a href="#figure-appendix">Figures</a>
+          <a class="hi-companion-link" href="https://companion.ballkingdom.com/" target="_blank" rel="noopener">Class Companion</a>
           <a class="hi-pill-link" href="public/assets/guide.pdf">Download PDF</a>
         </div>
       </div>

@@ -92,6 +92,12 @@ body.hi-body {
   border-radius: 4px;
 }
 
+.hi-nav-actions .hi-companion-link {
+  color: white;
+  border-bottom: 2px solid #8fb1ff;
+  padding-block: 9px 7px;
+}
+
 .hi-hero {
   background:
     linear-gradient(135deg, rgba(11, 18, 32, 0.96), rgba(20, 48, 111, 0.92)),
@@ -273,6 +279,14 @@ body.hi-body {
   font: 700 0.78rem var(--hi-display);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.hi-quick-actions .hi-companion-link,
+.hi-action-companion {
+  background: var(--hi-royal);
+  border-color: var(--hi-royal);
+  color: white;
+  font-weight: 700;
 }
 
 .hi-topic-filters button {
