@@ -13,10 +13,13 @@ PACKAGE = Path(__file__).resolve().parent
 CONTRACT = json.loads((PACKAGE / "narration_contract.json").read_text(encoding="utf-8"))
 OUTPUT_DIR = PACKAGE / "narration"
 MASTER = OUTPUT_DIR / "narration.wav"
+QUOTA_PROJECT = "the-ballers-kingdom"
 
 
 def token() -> str:
-    return subprocess.check_output(["gcloud", "auth", "print-access-token"], text=True).strip()
+    return subprocess.check_output(
+        ["gcloud", "auth", "application-default", "print-access-token"], text=True
+    ).strip()
 
 
 def synthesize(text: str, destination: Path) -> None:
@@ -29,7 +32,11 @@ def synthesize(text: str, destination: Path) -> None:
         "https://texttospeech.googleapis.com/v1/text:synthesize",
         data=payload,
         method="POST",
-        headers={"Authorization": f"Bearer {token()}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {token()}",
+            "Content-Type": "application/json",
+            "X-Goog-User-Project": QUOTA_PROJECT,
+        },
     )
     with urllib.request.urlopen(request, timeout=120) as response:
         encoded = json.load(response)["audioContent"]
