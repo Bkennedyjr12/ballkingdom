@@ -26,3 +26,11 @@ Brian coach anchor and licensed Pexels player/field cutaways listed in
   party marks survive in the selected review frames.
 - Status: ready for explicit unlisted-review upload authorization only; no
   YouTube action has been performed.
+
+## Soccer-only replacement
+
+The initially uploaded unlisted cut contained a mistakenly selected American-
+football aerial. It was replaced locally with soccer-only licensed footage:
+Pexels 6077711, 6084027, and 7187047. Fresh frame review at 00:01, 00:05,
+00:11, 00:19, 00:27, 00:35, and 00:42 confirmed soccer imagery only. The
+replacement retains the 45.000-second H.264/AAC, 1280×720, 24 fps delivery.
