@@ -16,6 +16,14 @@
     {"id": "connection", "start_seconds": 26, "duration_seconds": 10},
     {"id": "invitation", "start_seconds": 36, "duration_seconds": 9}
   ],
+  "approved_compatibility_amendment": {
+    "note": "The approved animatic remains the story gate; paid provider timing is amended to five 8-second clips plus a 5-second post CTA.",
+    "provider_scene_durations_seconds": [8, 8, 8, 8, 8],
+    "provider_end_seconds": 40,
+    "post_cta_start_seconds": 40,
+    "post_cta_duration_seconds": 5,
+    "master_duration_seconds": 45
+  },
   "visual_provenance": "Original local SVG boards rasterized with Sharp. No provider generation, external media, Brian reference stills, model likeness footage, logos, or readable marks are used.",
   "audio_provenance": {
     "ownership": "Original deterministic synthesis generated locally at render time; no downloaded, licensed, sampled, or third-party audio is used.",

@@ -15,8 +15,15 @@ print_timing() {
   node -e '
     const contract = require(process.argv[1]);
     const schedule = contract.scenes.map(({ id, start_seconds, duration_seconds }) => ({ id, start_seconds, duration_seconds }));
-    const finalEnd = schedule.at(-1).start_seconds + schedule.at(-1).duration_seconds;
-    process.stdout.write(`${JSON.stringify({ runtime_seconds: contract.runtime_seconds, final_end_seconds: finalEnd, schedule })}\n`);
+    const providerEnd = schedule.at(-1).start_seconds + schedule.at(-1).duration_seconds;
+    const finalEnd = contract.post_composite_cta.start_seconds + contract.post_composite_cta.duration_seconds;
+    process.stdout.write(`${JSON.stringify({
+      runtime_seconds: contract.runtime_seconds,
+      provider_end_seconds: providerEnd,
+      final_end_seconds: finalEnd,
+      schedule,
+      post_composite_cta: contract.post_composite_cta,
+    })}\n`);
   ' "$contract"
 }
 
@@ -39,10 +46,18 @@ done < <(node -e '
     console.log([scene.number, scene.id, scene.start_seconds, scene.duration_seconds].join("|"));
     expectedStart += scene.duration_seconds;
   }
+  if (expectedStart !== contract.post_composite_cta.start_seconds) process.exit(3);
+  console.log([
+    contract.scenes.length + 1,
+    contract.post_composite_cta.id,
+    contract.post_composite_cta.start_seconds,
+    contract.post_composite_cta.duration_seconds
+  ].join("|"));
+  expectedStart += contract.post_composite_cta.duration_seconds;
   if (expectedStart !== contract.runtime_seconds) process.exit(3);
 ' "$contract")
 
-[[ ${#scene_rows[@]} -eq 5 ]] || { echo 'Expected five locked animatic scenes.' >&2; exit 4; }
+[[ ${#scene_rows[@]} -eq 6 ]] || { echo 'Expected five provider scenes and one post CTA.' >&2; exit 4; }
 
 ffmpeg_inputs=()
 video_filters=()
@@ -57,9 +72,12 @@ for scene_index in "${!scene_rows[@]}"; do
     pressure) motion="zoompan=z='min(1+0.00018*on,1.040)':x='(iw-iw/zoom)*(0.18+0.64*on/${duration_seconds}*24)':y='(ih-ih/zoom)*0.50'" ;;
     connection) motion="zoompan=z='min(1+0.00007*on,1.016)':x='(iw-iw/zoom)*0.50':y='(ih-ih/zoom)*0.50'" ;;
     invitation) motion="zoompan=z='max(1.0,1.045-0.00020*on)':x='(iw-iw/zoom)*0.50':y='(ih-ih/zoom)*0.50'" ;;
+    cta) motion="zoompan=z='1.0':x='0':y='0'" ;;
     *) echo "Unknown locked scene: $scene_id" >&2; exit 6 ;;
   esac
-  ffmpeg_inputs+=( -loop 1 -framerate 24 -t "$duration_seconds" -i "$frames_dir/scene-$scene_number.png" )
+  source_frame_number="$scene_number"
+  [[ "$scene_id" == "cta" ]] && source_frame_number=5
+  ffmpeg_inputs+=( -loop 1 -framerate 24 -t "$duration_seconds" -i "$frames_dir/scene-$source_frame_number.png" )
   video_filters+=( "[$scene_index:v]$motion:d=1:s=1280x720:fps=24,trim=duration=$duration_seconds,setpts=PTS-STARTPTS[s$scene_number]" )
   concat_inputs+="[s$scene_number]"
   runtime_seconds=$((runtime_seconds + duration_seconds))

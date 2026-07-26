@@ -6,4 +6,5 @@
 | Correction | Handheld medium two-shot with a slight lateral drift | Brian demonstrates; athlete retries; teammate resumes | No scene text |
 | Pressure | Handheld tracking from pressure to release | Athlete chooses space; teammate reacts and chases | No scene text |
 | Connection | Gimbal three-person observation into a follow | Brian and guardian exchange a brief update; athlete returns to play | No scene text |
-| Invitation | Slow gimbal pullback into a locked wide | Brian observes; athlete completes the rep; group remains active | Add verified title, CTA, and website only in post |
+| Invitation | Slow gimbal pullback into a locked wide | Brian observes; athlete completes the rep; group remains active | No generated scene text |
+| Post CTA | Five-second hold on the invitation geography | Background life continues under the hold | Add verified title, CTA, and website only in post |

@@ -6,7 +6,12 @@
     "text_free_generation": true,
     "voice_clone": "prohibited",
     "paid_generation_gate": "approved animatic required",
-    "provider_auth": "not checked in this source-only package",
+    "provider_auth": "Ballers-only Vertex route required",
+    "provider_model": "veo-3.1-generate-001",
+    "provider_duration_seconds": 8,
+    "provider_take_count_per_scene": 1,
+    "provider_input_mode": "image-to-video starting frame",
+    "generated_audio": false,
     "publish": "not authorized"
   },
   "continuity_policy": {
@@ -17,9 +22,16 @@
   },
   "scenes": [
     {"id": "arrival", "number": 1, "start_seconds": 0, "duration_seconds": 8, "narration": "The standard doesn't start at game time."},
-    {"id": "correction", "number": 2, "start_seconds": 8, "duration_seconds": 9, "narration": "It starts with the rep no one is watching."},
-    {"id": "pressure", "number": 3, "start_seconds": 17, "duration_seconds": 9, "narration": "Skill gives you a chance. Discipline makes you ready."},
-    {"id": "connection", "number": 4, "start_seconds": 26, "duration_seconds": 10, "narration": "Because we're building more than players."},
-    {"id": "invitation", "number": 5, "start_seconds": 36, "duration_seconds": 9, "narration": "The Ballers Kingdom. Build your kingdom."}
-  ]
+    {"id": "correction", "number": 2, "start_seconds": 8, "duration_seconds": 8, "narration": "It starts with the rep no one is watching."},
+    {"id": "pressure", "number": 3, "start_seconds": 16, "duration_seconds": 8, "narration": "Skill gives you a chance. Discipline makes you ready."},
+    {"id": "connection", "number": 4, "start_seconds": 24, "duration_seconds": 8, "narration": "Because we're building more than players."},
+    {"id": "invitation", "number": 5, "start_seconds": 32, "duration_seconds": 8, "narration": "The Ballers Kingdom. Build your kingdom."}
+  ],
+  "post_composite_cta": {
+    "id": "cta",
+    "start_seconds": 40,
+    "duration_seconds": 5,
+    "generated": false,
+    "copy": ["BUILD YOUR KINGDOM", "ballkingdom.com"]
+  }
 }

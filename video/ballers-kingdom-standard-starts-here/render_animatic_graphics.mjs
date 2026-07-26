@@ -13,8 +13,8 @@ if (!output) throw new Error('Usage: render_animatic_graphics.mjs <output-direct
 const packageDir = path.dirname(new URL(import.meta.url).pathname);
 const contract = JSON.parse(await readFile(path.join(packageDir, 'locked_scene_contract.json'), 'utf8'));
 const expectedSchedule = [
-  ['arrival', 0, 8], ['correction', 8, 9], ['pressure', 17, 9],
-  ['connection', 26, 10], ['invitation', 36, 9],
+  ['arrival', 0, 8], ['correction', 8, 8], ['pressure', 16, 8],
+  ['connection', 24, 8], ['invitation', 32, 8],
 ];
 const actualSchedule = contract.scenes.map((scene) => [scene.id, scene.start_seconds, scene.duration_seconds]);
 if (JSON.stringify(actualSchedule) !== JSON.stringify(expectedSchedule)) {
