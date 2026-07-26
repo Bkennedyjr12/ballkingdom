@@ -10,7 +10,20 @@ contract = json.loads((package_dir / "locked_scene_contract.json").read_text(enc
 
 expected_order = ["arrival", "correction", "pressure", "connection", "invitation"]
 assert [scene["id"] for scene in contract["scenes"]] == expected_order
-assert sum(scene["duration_seconds"] for scene in contract["scenes"]) == 45
+expected_schedule = [
+    ("arrival", 0, 8),
+    ("correction", 8, 9),
+    ("pressure", 17, 9),
+    ("connection", 26, 10),
+    ("invitation", 36, 9),
+]
+assert len(contract["scenes"]) == len(expected_schedule)
+assert [
+    (scene["id"], scene["start_seconds"], scene["duration_seconds"])
+    for scene in contract["scenes"]
+] == expected_schedule
+assert contract["scenes"][-1]["start_seconds"] + contract["scenes"][-1]["duration_seconds"] == 45
+assert contract["runtime_seconds"] == 45
 assert contract["text_policy"] == "post-composite-only"
 assert contract["generation_policy"]["text_free_generation"] is True
 assert contract["generation_policy"]["voice_clone"] == "prohibited"

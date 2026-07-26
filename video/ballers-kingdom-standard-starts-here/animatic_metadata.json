@@ -1,0 +1,29 @@
+{
+  "artifact": "standard-starts-here-animatic.mp4",
+  "classification": "LOCAL REVIEW ANIMATIC — NOT A PUBLIC OR FINAL MASTER",
+  "format": {
+    "width": 1280,
+    "height": 720,
+    "fps": 24,
+    "video_codec": "H.264",
+    "audio_codec": "AAC",
+    "duration_seconds": 45
+  },
+  "schedule": [
+    {"id": "arrival", "start_seconds": 0, "duration_seconds": 8},
+    {"id": "correction", "start_seconds": 8, "duration_seconds": 9},
+    {"id": "pressure", "start_seconds": 17, "duration_seconds": 9},
+    {"id": "connection", "start_seconds": 26, "duration_seconds": 10},
+    {"id": "invitation", "start_seconds": 36, "duration_seconds": 9}
+  ],
+  "visual_provenance": "Original local SVG boards rasterized with Sharp. No provider generation, external media, Brian reference stills, model likeness footage, logos, or readable marks are used.",
+  "audio_provenance": {
+    "ownership": "Original deterministic synthesis generated locally at render time; no downloaded, licensed, sampled, or third-party audio is used.",
+    "sources": [
+      "FFmpeg aevalsrc: layered 53 Hz and 106 Hz sine pulse with a low-level 1.5 Hz gated high tone.",
+      "FFmpeg anoisesrc: deterministic pink field-air texture using seed 60126, shaped with high-pass and low-pass filters."
+    ],
+    "voice": "No narration, voice talent, text-to-speech, or voice clone is present.",
+    "ending": "The pulse and field-air bed remain audible through the final CTA, then fade deliberately from 00:43.50 to 00:45.00."
+  }
+}
