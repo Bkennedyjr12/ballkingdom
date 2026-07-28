@@ -8,19 +8,20 @@ package_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$package_dir/../.." && pwd)"
 contract="$package_dir/narration_contract.json"
 shotlist="$package_dir/shotlist.json"
-captions="$package_dir/narration/narration.srt"
 graphics_dir="$package_dir/.review-graphics"
 frames_dir="$package_dir/review-frames"
 master="$package_dir/ecosystem-animatic.mp4"
 thumbnail="$package_dir/ecosystem-animatic-thumb.png"
 anchor="$repo_root/assets/img/brian_coach_clean_anchor_v2.png"
 stock="$repo_root/video/ballers-kingdom-standard-starts-here/stock/pexels-6084027.mp4"
-narration="$package_dir/narration/narration.wav"
+narration_dir="${BALLERS_NARRATION_DIR:-$package_dir/narration}"
+narration="$narration_dir/narration.wav"
+manifest="$narration_dir/authorized-clone-manifest.json"
 
 print_timing() {
   node -e '
     const contract = require(process.argv[1]);
-    process.stdout.write(`${JSON.stringify({ runtime_seconds: contract.runtime_seconds, beats: contract.beats.map(({ id, start_seconds, duration_seconds }) => ({ id, start_seconds, duration_seconds })) })}\n`);
+    process.stdout.write(JSON.stringify({ runtime_seconds: contract.runtime_seconds, beats: contract.beats.map(({ id, start_seconds, duration_seconds }) => ({ id, start_seconds, duration_seconds })) }) + "\n");
   ' "$contract"
 }
 
@@ -32,8 +33,19 @@ fi
 [[ -f "$anchor" ]] || { echo "Missing approved Brian continuity anchor." >&2; exit 2; }
 [[ -f "$stock" ]] || { echo "Missing registered soccer stock." >&2; exit 2; }
 python3 "$package_dir/validate_stock_assets.py"
-python3 "$package_dir/generate_captions.py"
-node "$package_dir/render_graphics.mjs" "$graphics_dir"
+
+has_authorized_narration=0
+if [[ -f "$narration" ]]; then
+  [[ -f "$manifest" ]] || { echo "Narration exists without provenance manifest; refusing to mix it." >&2; exit 2; }
+  python3 "$package_dir/validate_authorized_narration.py" --narration-dir "$narration_dir"
+  python3 "$package_dir/generate_captions.py" --output-dir "$narration_dir" --manifest "$manifest"
+  has_authorized_narration=1
+  echo "Validated authorized local narration master included."
+else
+  python3 "$package_dir/generate_captions.py" --output-dir "$narration_dir"
+  echo "No authorized narration master available; rendering music-only local review animatic without a substitute voice." >&2
+fi
+node "$package_dir/render_graphics.mjs" "$graphics_dir" "$narration_dir"
 
 node -e '
   const contract = require(process.argv[1]);
@@ -44,18 +56,26 @@ node -e '
   if (JSON.stringify(shotlist.map(({ start_seconds, duration_seconds }) => [start_seconds, duration_seconds])) !== JSON.stringify(beats.map(({ start_seconds, duration_seconds }) => [start_seconds, duration_seconds]))) process.exit(4);
 ' "$contract" "$shotlist"
 
-# Brian frames remain an unchanged approved continuity reference. The two stock
-# beats show generic soccer only; no on-screen wording identifies participants.
+# Brian frames remain an unchanged approved continuity reference. The generic
+# soccer cutaways are never identified as Ballers Kingdom people or events.
+# The community input starts twelve seconds later in registered stock so it
+# cannot visibly restart the verified-paths opening.
 input_args=(
   -loop 1 -framerate 24 -t 16 -i "$anchor"
   -loop 1 -framerate 24 -t 18 -i "$anchor"
   -stream_loop -1 -t 22 -i "$stock"
-  -stream_loop -1 -t 8 -i "$stock"
+  -ss 12 -stream_loop -1 -t 8 -i "$stock"
   -loop 1 -framerate 24 -t 6 -i "$anchor"
 )
-graphic_durations=(16 18 22 8 6)
-for index in 0 1 2 3 4; do
-  input_args+=( -loop 1 -framerate 24 -t "${graphic_durations[$index]}" -i "$graphics_dir/beat-$((index + 1)).png" )
+for index in 1 2 3 4 5; do
+  input_args+=( -loop 1 -framerate 24 -t 70 -i "$graphics_dir/chapter-$index.png" )
+done
+mapfile -t cue_times < <(node -e '
+  const cues = require(process.argv[1]);
+  for (const cue of cues) console.log(cue.start_seconds + " " + cue.end_seconds);
+' "$narration_dir/caption-cues.json")
+for index in "${!cue_times[@]}"; do
+  input_args+=( -loop 1 -framerate 24 -t 70 -i "$graphics_dir/cue-$((index + 1)).png" )
 done
 
 video_filters=(
@@ -64,35 +84,40 @@ video_filters=(
   "[2:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,trim=duration=22,setpts=PTS-STARTPTS[base2]"
   "[3:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,trim=duration=8,setpts=PTS-STARTPTS[base3]"
   "[4:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,zoompan=z='max(1.0,1.030-0.00010*on)':d=1:s=1920x1080:fps=24,trim=duration=6,setpts=PTS-STARTPTS[base4]"
+  "[base0][base1][base2][base3][base4]concat=n=5:v=1:a=0,format=yuv420p[base]"
 )
+previous="[base]"
+beat_starts=(0 16 34 56 64)
+beat_ends=(16 34 56 64 70)
 for index in 0 1 2 3 4; do
   graphic_input=$((index + 5))
-  video_filters+=("[$graphic_input:v]scale=1920:1080,format=rgba[graphic$index]")
-  video_filters+=("[base$index][graphic$index]overlay=shortest=1,format=yuv420p[scene$index]")
+  output="[chapter$index]"
+  video_filters+=("[$graphic_input:v]scale=1920:1080,format=rgba$output")
+  next="[chapter_scene$index]"
+  video_filters+=("${previous}${output}overlay=enable='between(t,${beat_starts[$index]},${beat_ends[$index]})':eof_action=pass,format=yuv420p${next}")
+  previous="$next"
 done
-# Homebrew's FFmpeg build does not include the libass subtitles filter. The
-# graphics renderer validates the generated SRT against the locked contract and
-# rasterizes those captions as post-production typography before this assembly.
-video_filters+=("[scene0][scene1][scene2][scene3][scene4]concat=n=5:v=1:a=0,format=yuv420p[video]")
+for index in "${!cue_times[@]}"; do
+  read -r cue_start cue_end <<< "${cue_times[$index]}"
+  graphic_input=$((10 + index))
+  output="[cue$index]"
+  video_filters+=("[$graphic_input:v]scale=1920:1080,format=rgba$output")
+  next="[cue_scene$index]"
+  video_filters+=("${previous}${output}overlay=enable='between(t,$cue_start,$cue_end)':eof_action=pass,format=yuv420p${next}")
+  previous="$next"
+done
+video_filters+=("${previous}format=yuv420p[video]")
 
-# A deterministic non-vocal music/room-tone bed continues through the CTA. A
-# narration master is mixed only when the Task 2 generator has produced and
-# validated it; the render never substitutes another voice or provider.
 music="aevalsrc=0.018*sin(2*PI*55*t)+0.009*sin(2*PI*110*t)+0.004*sin(2*PI*220*t):s=48000:d=70"
 audio_args=( -f lavfi -i "$music" )
-audio_index=10
+audio_index=$((10 + ${#cue_times[@]}))
 audio_filter="[$audio_index:a]aformat=sample_rates=48000:channel_layouts=stereo,afade=t=out:st=68:d=2[bed]"
 audio_map="[bed]"
-if [[ -f "$narration" ]] && ffprobe -v error -show_entries format=format_name,duration -of json "$narration" | node -e '
-  let raw = ""; process.stdin.on("data", chunk => raw += chunk); process.stdin.on("end", () => { const f = JSON.parse(raw).format; process.exit(f.format_name === "wav" && Math.abs(Number(f.duration) - 70) <= 0.01 ? 0 : 1); });
-'; then
+if [[ "$has_authorized_narration" == "1" ]]; then
+  narration_index=$((audio_index + 1))
   audio_args+=( -i "$narration" )
-  narration_index=11
   audio_filter+=";[$narration_index:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=1.18[voice];[bed][voice]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.90[audio]"
   audio_map="[audio]"
-  echo "Validated local authorized narration master included."
-else
-  echo "No validated local narration master available; rendering music-only review animatic without a substitute voice." >&2
 fi
 
 filter_graph="$(IFS=';'; echo "${video_filters[*]}");$audio_filter"

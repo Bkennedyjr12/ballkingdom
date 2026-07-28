@@ -21,7 +21,7 @@ def probe_animatic(path: Path) -> dict[str, object]:
             "-v",
             "error",
             "-show_entries",
-            "format=duration:stream=codec_type,codec_name,width,height,r_frame_rate",
+            "format=duration:stream=codec_type,codec_name,width,height,r_frame_rate,duration",
             "-of",
             "json",
             str(path),
@@ -35,7 +35,9 @@ def probe_animatic(path: Path) -> dict[str, object]:
     audio = next(stream for stream in payload["streams"] if stream["codec_type"] == "audio")
     numerator, denominator = video["r_frame_rate"].split("/", maxsplit=1)
     return {
-        "duration_seconds": round(float(payload["format"]["duration"])),
+        "duration_seconds": float(payload["format"]["duration"]),
+        "video_duration_seconds": float(video["duration"]),
+        "audio_duration_seconds": float(audio["duration"]),
         "width": video["width"],
         "height": video["height"],
         "fps": int(int(numerator) / int(denominator)),
@@ -50,7 +52,12 @@ def main() -> None:
     shotlist = json.loads(SHOTLIST_PATH.read_text(encoding="utf-8"))
     probe = probe_animatic(ANIMATIC_PATH)
 
-    assert probe["duration_seconds"] == 70
+    # FFmpeg reports frame timestamps to six decimals; permit one frame plus a
+    # one-millisecond representation allowance, never rounded whole seconds.
+    frame_tolerance = (1 / 24) + 0.001
+    assert abs(probe["duration_seconds"] - 70) <= frame_tolerance
+    assert abs(probe["video_duration_seconds"] - 70) <= frame_tolerance
+    assert abs(probe["audio_duration_seconds"] - 70) <= frame_tolerance
     assert probe["width"] == 1920 and probe["height"] == 1080
     assert probe["fps"] == 24
     assert probe["video_codec"] == "h264"

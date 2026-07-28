@@ -18,7 +18,6 @@ CONTRACT_PATH = PACKAGE / "narration_contract.json"
 CLAIM_REGISTER_PATH = PACKAGE / "claim_register.json"
 CAPTION_GENERATOR = PACKAGE / "generate_captions.py"
 NARRATION_GENERATOR = PACKAGE / "generate_narration.py"
-CAPTIONS_DIR = PACKAGE / "narration"
 
 
 def narration_module():
@@ -118,47 +117,55 @@ def main() -> None:
     else:
         raise AssertionError("Unsupported claim paraphrase must fail narration-contract validation.")
 
-    subprocess.run([sys.executable, str(CAPTION_GENERATOR)], check=True)
-    srt_captions = parse_srt(CAPTIONS_DIR / "narration.srt")
-    vtt_captions = parse_vtt(CAPTIONS_DIR / "narration.vtt")
-    assert [caption[3] for caption in srt_captions] == [beat["text"] for beat in beats]
-    assert [caption[2] for caption in vtt_captions] == [beat["text"] for beat in beats]
-    assert [caption[0] for caption in srt_captions] == list(range(1, len(beats) + 1))
-    assert len(srt_captions) == len(vtt_captions) == len(beats)
-    assert [
-        (start.replace(",", "."), end.replace(",", "."), text)
-        for _, start, end, text in srt_captions
-    ] == [
-        (caption[0], caption[1], beat["text"])
-        for caption, beat in zip(vtt_captions, beats, strict=True)
-    ]
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        temporary_path = Path(temporary_directory)
+        subprocess.run(
+            [sys.executable, str(CAPTION_GENERATOR), "--output-dir", str(temporary_path)],
+            check=True,
+        )
+        srt_captions = parse_srt(temporary_path / "narration.srt")
+        vtt_captions = parse_vtt(temporary_path / "narration.vtt")
+        expected_phrases = [phrase for beat in beats for phrase in beat["caption_phrases"]]
+        assert [caption[3] for caption in srt_captions] == expected_phrases
+        assert [caption[2] for caption in vtt_captions] == expected_phrases
+        assert [caption[0] for caption in srt_captions] == list(range(1, len(expected_phrases) + 1))
+        assert len(srt_captions) == len(vtt_captions) == len(expected_phrases)
+        assert [
+            (start.replace(",", "."), end.replace(",", "."), text)
+            for _, start, end, text in srt_captions
+        ] == vtt_captions
+        for beat in beats:
+            cue_text = " ".join(beat["caption_phrases"])
+            assert cue_text == beat["text"]
 
-    sample_output = CAPTIONS_DIR / "foundation.wav"
-    sample_output.unlink(missing_ok=True)
-    unauthorized_environment = os.environ | {
-        "BALLERS_AUTHORIZED_BRIAN_VOICE_REFERENCE": str(PACKAGE / "unapproved.wav")
-    }
-    rejected = subprocess.run(
-        [sys.executable, str(NARRATION_GENERATOR), "--sample", "foundation"],
-        env=unauthorized_environment,
-        capture_output=True,
-        text=True,
-    )
-    assert rejected.returncode != 0
-    assert "Refusing non-authorized voice reference." in rejected.stderr
+        unauthorized_environment = os.environ | {
+            "BALLERS_AUTHORIZED_BRIAN_VOICE_REFERENCE": str(PACKAGE / "unapproved.wav")
+        }
+        rejected = subprocess.run(
+            [
+                sys.executable, str(NARRATION_GENERATOR), "--sample", "foundation",
+                "--output-dir", str(temporary_path),
+            ],
+            env=unauthorized_environment,
+            capture_output=True,
+            text=True,
+        )
+        assert rejected.returncode != 0
+        assert "Refusing non-authorized voice reference." in rejected.stderr
 
-    sample_output.write_bytes(b"stale output")
-    try:
+        sample_output = temporary_path / "foundation.wav"
+        sample_output.write_bytes(b"stale output")
         stale_output = subprocess.run(
-            [sys.executable, str(NARRATION_GENERATOR), "--sample", "foundation"],
+            [
+                sys.executable, str(NARRATION_GENERATOR), "--sample", "foundation",
+                "--output-dir", str(temporary_path),
+            ],
             env=os.environ | {"CHATTERBOX_PYTHON": "/usr/bin/true"},
             capture_output=True,
             text=True,
         )
         assert stale_output.returncode != 0
         assert "Refusing to overwrite existing local narration output." in stale_output.stderr
-    finally:
-        sample_output.unlink(missing_ok=True)
 
     narration = narration_module()
     assert hasattr(narration, "validate_wav")
@@ -189,7 +196,7 @@ def main() -> None:
         narration.OUTPUT_DIR = temporary_path
         try:
             try:
-                narration.synthesize(beats[0], temporary_path / "sample.wav")
+                narration.synthesize(beats[0], temporary_path / "sample.wav", temporary_path)
             except RuntimeError as error:
                 assert str(error) == "stop after command capture"
             else:
@@ -220,16 +227,19 @@ def main() -> None:
         else:
             raise AssertionError("Expected an invalid WAV output to be rejected.")
 
-        original_output_dir = narration.OUTPUT_DIR
-        narration.OUTPUT_DIR = temporary_path / "assembled"
-        narration.OUTPUT_DIR.mkdir()
-        try:
-            for beat in beats:
-                write_silent_wav(narration.OUTPUT_DIR / f"{beat['id']}.wav", 1)
-            narration.assemble_master(beats)
-            assert abs(narration.wav_duration_seconds(narration.OUTPUT_DIR / "narration.wav") - 70) <= 0.01
-        finally:
-            narration.OUTPUT_DIR = original_output_dir
+        assembled = temporary_path / "assembled"
+        assembled.mkdir()
+        for beat in beats:
+            write_silent_wav(assembled / f"{beat['id']}.wav", 1)
+        narration.assemble_master(beats, assembled)
+        assert abs(narration.wav_duration_seconds(assembled / "narration.wav") - 70) <= 0.01
+        manifest_path = narration.write_provenance_manifest(beats, assembled)
+        assert manifest_path.is_file()
+        validator = PACKAGE / "validate_authorized_narration.py"
+        subprocess.run(
+            [sys.executable, str(validator), "--narration-dir", str(assembled)],
+            check=True,
+        )
 
     print("narration contract: PASS")
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -86,13 +87,45 @@ def validate_wav(path: Path, max_duration_seconds: int) -> float:
     return duration
 
 
-def synthesize(beat: dict[str, object], destination: Path) -> None:
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def caption_cues(beat: dict[str, object], clip_duration: float) -> list[dict[str, object]]:
+    """Assign readable phrase cues across the actual synthesized speech span."""
+    phrases = beat["caption_phrases"]
+    if " ".join(phrases) != beat["text"]:
+        raise SystemExit(f"Caption phrases do not reconstruct locked copy for {beat['id']}.")
+    weights = [max(1, len(phrase.split())) for phrase in phrases]
+    total_weight = sum(weights)
+    start = float(beat["start_seconds"])
+    elapsed = 0.0
+    cues = []
+    for index, (phrase, weight) in enumerate(zip(phrases, weights, strict=True)):
+        cue_start = start + elapsed
+        elapsed += clip_duration * weight / total_weight
+        cue_end = start + clip_duration if index == len(phrases) - 1 else start + elapsed
+        cues.append(
+            {
+                "text": phrase,
+                "start_seconds": round(cue_start, 3),
+                "end_seconds": round(cue_end, 3),
+            }
+        )
+    return cues
+
+
+def synthesize(beat: dict[str, object], destination: Path, output_dir: Path) -> None:
     if destination.exists():
         raise SystemExit("Refusing to overwrite existing local narration output.")
     reference = authorized_reference()
     if not CHATTERBOX_SCRIPT.is_file():
         raise SystemExit("Authorized local Chatterbox synthesis script is unavailable.")
-    text_path = OUTPUT_DIR / f"{beat['id']}.txt"
+    text_path = output_dir / f"{beat['id']}.txt"
     text_path.write_text(str(beat["text"]) + "\n", encoding="utf-8")
     subprocess.run(
         [
@@ -112,9 +145,9 @@ def synthesize(beat: dict[str, object], destination: Path) -> None:
     validate_wav(destination, max_duration_seconds=int(beat["duration_seconds"]))
 
 
-def assemble_master(beats: list[dict[str, object]]) -> None:
-    clips = [OUTPUT_DIR / f"{beat['id']}.wav" for beat in beats]
-    master = OUTPUT_DIR / "narration.wav"
+def assemble_master(beats: list[dict[str, object]], output_dir: Path) -> None:
+    clips = [output_dir / f"{beat['id']}.wav" for beat in beats]
+    master = output_dir / "narration.wav"
     if master.exists():
         raise SystemExit("Refusing to overwrite existing local narration output.")
     for clip, beat in zip(clips, beats, strict=True):
@@ -139,10 +172,53 @@ def assemble_master(beats: list[dict[str, object]]) -> None:
         raise SystemExit(f"Narration master must be exactly 70 seconds; got {duration:.3f}s.")
 
 
+def write_provenance_manifest(beats: list[dict[str, object]], output_dir: Path) -> Path:
+    reference = authorized_reference()
+    runtime = APPROVED_CHATTERBOX_PYTHON
+    master = output_dir / "narration.wav"
+    manifest = {
+        "schema_version": 1,
+        "voice_lane": AUTHORIZED_LANE,
+        "contract_sha256": sha256_file(CONTRACT_PATH),
+        "authorized_reference": {
+            "id": AUTHORIZED_LANE,
+            "path": str(reference),
+            "sha256": sha256_file(reference),
+        },
+        "runtime": {
+            "executable": str(runtime),
+            "resolved_executable": str(runtime.resolve()),
+            "sha256": sha256_file(runtime),
+        },
+        "synthesis_script": {"path": str(CHATTERBOX_SCRIPT), "sha256": sha256_file(CHATTERBOX_SCRIPT)},
+        "beats": [
+            {
+                "id": beat["id"],
+                "filename": f"{beat['id']}.wav",
+                "duration_seconds": round(wav_duration_seconds(output_dir / f"{beat['id']}.wav"), 3),
+                "sha256": sha256_file(output_dir / f"{beat['id']}.wav"),
+                "caption_cues": caption_cues(
+                    beat, wav_duration_seconds(output_dir / f"{beat['id']}.wav")
+                ),
+            }
+            for beat in beats
+        ],
+        "master": {
+            "filename": master.name,
+            "duration_seconds": round(wav_duration_seconds(master), 3),
+            "sha256": sha256_file(master),
+        },
+    }
+    manifest_path = output_dir / "authorized-clone-manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return manifest_path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sample", metavar="BEAT_ID", help="Generate one local Brian-lane review sample.")
     parser.add_argument("--all", action="store_true", help="Generate the timed local review master.")
+    parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR, help="Local output directory; useful for isolated review/test runs.")
     parser.add_argument("--voice-lane", default=AUTHORIZED_LANE)
     args = parser.parse_args()
     if args.voice_lane != AUTHORIZED_LANE:
@@ -154,20 +230,23 @@ def main() -> None:
     if contract["voice_lane"] != AUTHORIZED_LANE:
         raise SystemExit("Narration contract does not authorize this voice lane.")
     beats = contract["beats"]
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_dir = args.output_dir.expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
     if args.sample:
         matches = [beat for beat in beats if beat["id"] == args.sample]
         if not matches:
             raise SystemExit(f"Unknown beat: {args.sample}")
-        destination = OUTPUT_DIR / f"{args.sample}.wav"
-        synthesize(matches[0], destination)
+        destination = output_dir / f"{args.sample}.wav"
+        synthesize(matches[0], destination, output_dir)
         print(f"Local authorized Brian review sample written: {destination}")
         return
 
     for beat in beats:
-        synthesize(beat, OUTPUT_DIR / f"{beat['id']}.wav")
-    assemble_master(beats)
-    print(f"Local authorized Brian review master written: {OUTPUT_DIR / 'narration.wav'}")
+        synthesize(beat, output_dir / f"{beat['id']}.wav", output_dir)
+    assemble_master(beats, output_dir)
+    manifest_path = write_provenance_manifest(beats, output_dir)
+    print(f"Local authorized Brian review master written: {output_dir / 'narration.wav'}")
+    print(f"Authorized clone provenance manifest written: {manifest_path}")
 
 
 if __name__ == "__main__":
