@@ -5,16 +5,17 @@
 - Captured: 2026-07-28 (public, unauthenticated, read-only HTTP GET)
 - Origin: `https://ballkingdom.com/` canonical pages only
 - Redirect check: each requested canonical URL resolved to itself with HTTP 200.
+- Evidence metadata and immutable SHA-256 values live in
+  `claim_evidence.json`; the validator reads body text only, not metadata.
 - Evidence files are complete HTML responses retained in `captures/`; they are
   source evidence, not production footage and not execution instructions.
 - The Manus archive was not consulted or used as evidence, copy, or an asset.
 
 | Claim ID | Public canonical page | Capture | Visible supporting copy | Availability |
 | --- | --- | --- | --- | --- |
-| `brand-positioning` | https://ballkingdom.com/ | `captures/home-2026-07-28.html` | “The Ballers Kingdom is a tech-forward, community-centered training platform — personal soccer training, multi-dimensional development consulting, and a member app for tournaments, NIL, programs, and community.” | verified-live |
+| `brand-positioning` | https://ballkingdom.com/ | `captures/home-2026-07-28.html` | “Tech-forward training platform, consulting practice, and member app.” | verified-live |
 | `training-offer` | https://ballkingdom.com/soccer.html | `captures/training-2026-07-28.html` | “Tech-forward training where Ballers create personal plans, book local coaches, and access consulting support. 1-on-1, group, and team programs — built on Division I and Pro experience.” | verified-live |
-| `consulting-framework` | https://ballkingdom.com/ee-venture.html | `captures/consulting-2026-07-28.html` | “The Ballers Kingdom Consulting model is a holistic, multi-dimensional framework … across five connected tracks — Life, Academic, Career, Business, and Digital.” | verified-live |
-| `brand-line` | https://ballkingdom.com/ | `captures/home-2026-07-28.html` | “Building Ballers. Advancing Kingdoms.” | verified-live |
+| `consulting-framework` | https://ballkingdom.com/ee-venture.html | `captures/consulting-2026-07-28.html` | “The Ballers Kingdom Consulting model is a holistic, multi-dimensional framework that meets you where you are and builds across five connected tracks — Life, Academic, Career, Business, and Digital. One integrated practice for youth and adults building beyond the game.” | verified-live |
 
 ## Capture integrity
 
@@ -26,9 +27,9 @@
 
 ## Copy boundary
 
-Only the `approved_copy` strings in `claim_register.json` are cleared for the
-film. Claims about pricing, awards, customer results, loan volume, scholarships,
-or capabilities hosted outside the canonical Ballers Kingdom domain are excluded
-from this register. A future claim must be added only after a fresh public
-canonical capture; otherwise it may be described only as explicitly
-“being built.”
+Only the body-visible `approved_copy` strings in `claim_register.json` are
+cleared for the film. Claims about pricing, awards, customer results, loan
+volume, scholarships, or capabilities hosted outside the canonical Ballers
+Kingdom domain are excluded from this register. Metadata-only wording is not
+approved. A future claim must be added only after a fresh public canonical
+capture; otherwise it may be described only as explicitly “being built.”

@@ -1,0 +1,29 @@
+[
+  {
+    "id": "pexels-7187047",
+    "local_path": "../ballers-kingdom-standard-starts-here/stock/pexels-7187047.mp4",
+    "sha256": "b7f333a91faa1e5dd5902c4ce42a184c0b60511143f39375b02af1bd41590dc5",
+    "source_url": "https://www.pexels.com/video/man-training-on-a-soccer-field-7187047/",
+    "local_acquired_on": "2026-07-26",
+    "license_evidence_reference": "video/ballers-kingdom-standard-starts-here/stock_footage_manifest.md",
+    "license_evidence_commit": "a1fc9cab9fa829e5e853f085756232102b1eda1d"
+  },
+  {
+    "id": "pexels-6077711",
+    "local_path": "../ballers-kingdom-standard-starts-here/stock/pexels-6077711.mp4",
+    "sha256": "183ac2ba05a6a706713eb2e87c21e4051e01a82f9db855ee347bb6de42fa5143",
+    "source_url": "https://www.pexels.com/video/soccer-players-practicing-6077711/",
+    "local_acquired_on": "2026-07-26",
+    "license_evidence_reference": "video/ballers-kingdom-standard-starts-here/stock_footage_manifest.md",
+    "license_evidence_commit": "a1fc9cab9fa829e5e853f085756232102b1eda1d"
+  },
+  {
+    "id": "pexels-6084027",
+    "local_path": "../ballers-kingdom-standard-starts-here/stock/pexels-6084027.mp4",
+    "sha256": "f40d9f870426a8fb9f7cb9b92dbd9cbc0170158ab666cce28ef3c75896889278",
+    "source_url": "https://www.pexels.com/video/soccer-players-training-6084027/",
+    "local_acquired_on": "2026-07-26",
+    "license_evidence_reference": "video/ballers-kingdom-standard-starts-here/stock_footage_manifest.md",
+    "license_evidence_commit": "a1fc9cab9fa829e5e853f085756232102b1eda1d"
+  }
+]

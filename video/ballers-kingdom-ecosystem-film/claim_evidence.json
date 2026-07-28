@@ -1,0 +1,29 @@
+[
+  {
+    "id": "brand-positioning",
+    "capture_id": "home-2026-07-28",
+    "capture_path": "captures/home-2026-07-28.html",
+    "canonical_url": "https://ballkingdom.com/",
+    "captured_on": "2026-07-28",
+    "sha256": "f022c67232f5a73208e390b406f28dd3c25e5096227ddd3e79779626be977e83",
+    "supporting_copy": "Tech-forward training platform, consulting practice, and member app."
+  },
+  {
+    "id": "training-offer",
+    "capture_id": "training-2026-07-28",
+    "capture_path": "captures/training-2026-07-28.html",
+    "canonical_url": "https://ballkingdom.com/soccer.html",
+    "captured_on": "2026-07-28",
+    "sha256": "0afe8634224603926e2028f06c49864c661e1535cefcc3c1380297aa7c775355",
+    "supporting_copy": "Tech-forward training where Ballers create personal plans, book local coaches, and access consulting support. 1-on-1, group, and team programs — built on Division I and Pro experience."
+  },
+  {
+    "id": "consulting-framework",
+    "capture_id": "consulting-2026-07-28",
+    "capture_path": "captures/consulting-2026-07-28.html",
+    "canonical_url": "https://ballkingdom.com/ee-venture.html",
+    "captured_on": "2026-07-28",
+    "sha256": "4c7f2ecc291c4c6492256eb13079abb2cb56c2d179019c1e9c08076a5607442e",
+    "supporting_copy": "The Ballers Kingdom Consulting model is a holistic, multi-dimensional framework that meets you where you are and builds across five connected tracks — Life, Academic, Career, Business, and Digital. One integrated practice for youth and adults building beyond the game."
+  }
+]
