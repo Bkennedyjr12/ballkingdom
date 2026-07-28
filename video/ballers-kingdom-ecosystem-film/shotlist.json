@@ -1,0 +1,62 @@
+[
+  {
+    "beat_id": "foundation",
+    "start_seconds": 0,
+    "duration_seconds": 16,
+    "visual_source": "assets/img/brian_coach_clean_anchor_v2.png",
+    "source_type": "approved Brian adult-coach continuity anchor",
+    "lens_and_motion": "50mm-equivalent slow push-in; preserve field geography and keep the adult coach anchor unaltered.",
+    "claim_ids": [],
+    "caption_treatment": "Contract-derived SRT only; centered lower-third, maximum four lines, 42px at 1080p.",
+    "post_graphics": "Chapter label and local-review classification only.",
+    "rejection_condition": "Reject any synthetic alteration of Brian, readable apparel mark, invented affiliation, non-soccer context, or oversized caption."
+  },
+  {
+    "beat_id": "whole-person-promise",
+    "start_seconds": 16,
+    "duration_seconds": 18,
+    "visual_source": "assets/img/brian_coach_clean_anchor_v2.png",
+    "source_type": "approved Brian adult-coach continuity anchor",
+    "lens_and_motion": "85mm-equivalent quiet settle with a restrained right-to-left drift; visual holds room for the approved consulting-framework copy.",
+    "claim_ids": ["consulting-framework"],
+    "caption_treatment": "Contract-derived SRT only; centered lower-third, maximum four lines, 42px at 1080p.",
+    "post_graphics": "Contract-derived chapter label; no simulated product interface or unverified track detail.",
+    "rejection_condition": "Reject a claim not in claim_evidence.json, fake UI/text, a non-soccer use, any participant implication, or captions that obscure Brian's face."
+  },
+  {
+    "beat_id": "verified-paths",
+    "start_seconds": 34,
+    "duration_seconds": 22,
+    "visual_source": "video/ballers-kingdom-standard-starts-here/stock/pexels-6084027.mp4",
+    "source_type": "registered generic soccer stock; not a Ballers Kingdom event, customer, coach, or participant",
+    "lens_and_motion": "Low 35mm-equivalent cone-line crop, lightly stabilized and looped only for animatic timing; no brand closeups.",
+    "claim_ids": ["brand-positioning", "training-offer"],
+    "caption_treatment": "Contract-derived SRT only; centered lower-third, maximum four lines, 42px at 1080p.",
+    "post_graphics": "Contract-derived chapter label only; all product proof remains caption text rather than a fabricated app screen.",
+    "rejection_condition": "Reject third-party branding, logos, readable uniform marks, non-soccer footage, a claim of Ballers participation, fake UI/text, or visible anatomy artifacts."
+  },
+  {
+    "beat_id": "community",
+    "start_seconds": 56,
+    "duration_seconds": 8,
+    "visual_source": "video/ballers-kingdom-standard-starts-here/stock/pexels-6084027.mp4",
+    "source_type": "registered generic soccer stock; not a Ballers Kingdom event, customer, coach, or participant",
+    "lens_and_motion": "Low wide crop along the training cones with a measured lateral move; frame reads as generic soccer practice only.",
+    "claim_ids": [],
+    "caption_treatment": "Contract-derived SRT only; centered lower-third, maximum four lines, 42px at 1080p.",
+    "post_graphics": "Chapter label and local-review classification only.",
+    "rejection_condition": "Reject any third-party brand, non-soccer reading, participant endorsement implication, fake text, or excessive caption scale."
+  },
+  {
+    "beat_id": "cta",
+    "start_seconds": 64,
+    "duration_seconds": 6,
+    "visual_source": "assets/img/brian_coach_clean_anchor_v2.png",
+    "source_type": "approved Brian adult-coach continuity anchor",
+    "lens_and_motion": "50mm-equivalent deliberate hold with no synthetic facial animation; an intentional six-second visual and audio resolution.",
+    "claim_ids": [],
+    "caption_treatment": "Contract-derived SRT only; centered lower-third, maximum two lines, 42px at 1080p.",
+    "post_graphics": "CTA string is read directly from narration_contract.json and composited in post.",
+    "rejection_condition": "Reject a substituted URL, invented offer/booking claim, dead-air tail, synthetic likeness motion, logo, or oversized CTA."
+  }
+]
