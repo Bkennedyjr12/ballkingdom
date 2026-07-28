@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import stat
 import subprocess
 import sys
 import tempfile
@@ -134,6 +133,8 @@ def main() -> None:
         for caption, beat in zip(vtt_captions, beats, strict=True)
     ]
 
+    sample_output = CAPTIONS_DIR / "foundation.wav"
+    sample_output.unlink(missing_ok=True)
     unauthorized_environment = os.environ | {
         "BALLERS_AUTHORIZED_BRIAN_VOICE_REFERENCE": str(PACKAGE / "unapproved.wav")
     }
@@ -145,30 +146,6 @@ def main() -> None:
     )
     assert rejected.returncode != 0
     assert "Refusing non-authorized voice reference." in rejected.stderr
-
-    sample_output = CAPTIONS_DIR / "foundation.wav"
-    sample_output.unlink(missing_ok=True)
-    with tempfile.TemporaryDirectory() as temporary_directory:
-        writer = Path(temporary_directory) / "write-invalid-wav"
-        writer.write_text(
-            "#!/bin/sh\nout=''\nwhile [ \"$#\" -gt 0 ]; do\n"
-            "  if [ \"$1\" = '--out' ]; then out=\"$2\"; shift 2; else shift; fi\ndone\n"
-            "printf 'not-a-wav' > \"$out\"\n",
-            encoding="utf-8",
-        )
-        writer.chmod(writer.stat().st_mode | stat.S_IXUSR)
-        arbitrary_runtime = os.environ | {"CHATTERBOX_PYTHON": str(writer)}
-        try:
-            bypass = subprocess.run(
-                [sys.executable, str(NARRATION_GENERATOR), "--sample", "foundation"],
-                env=arbitrary_runtime,
-                capture_output=True,
-                text=True,
-            )
-            assert bypass.returncode != 0
-            assert not sample_output.exists()
-        finally:
-            sample_output.unlink(missing_ok=True)
 
     sample_output.write_bytes(b"stale output")
     try:
@@ -188,7 +165,39 @@ def main() -> None:
     assert narration.APPROVED_CHATTERBOX_PYTHON == Path(
         "/Users/briankennedyjrm.ed/ai-toolkit/vendor/chatterbox-env/bin/python"
     )
-    assert narration.chatterbox_python() == str(narration.APPROVED_CHATTERBOX_PYTHON.resolve())
+    assert narration.chatterbox_python() == str(narration.APPROVED_CHATTERBOX_PYTHON)
+    original_runtime_override = os.environ.get("CHATTERBOX_PYTHON")
+    os.environ["CHATTERBOX_PYTHON"] = "/usr/bin/false"
+    try:
+        assert narration.chatterbox_python() == str(narration.APPROVED_CHATTERBOX_PYTHON)
+    finally:
+        if original_runtime_override is None:
+            del os.environ["CHATTERBOX_PYTHON"]
+        else:
+            os.environ["CHATTERBOX_PYTHON"] = original_runtime_override
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        temporary_path = Path(temporary_directory)
+        observed_commands: list[list[str]] = []
+
+        def record_synthesis_command(command: list[str], **_: object) -> None:
+            observed_commands.append(command)
+            raise RuntimeError("stop after command capture")
+
+        original_run = narration.subprocess.run
+        original_output_dir = narration.OUTPUT_DIR
+        narration.subprocess.run = record_synthesis_command
+        narration.OUTPUT_DIR = temporary_path
+        try:
+            try:
+                narration.synthesize(beats[0], temporary_path / "sample.wav")
+            except RuntimeError as error:
+                assert str(error) == "stop after command capture"
+            else:
+                raise AssertionError("Expected the synthesis-command capture to stop before execution.")
+        finally:
+            narration.subprocess.run = original_run
+            narration.OUTPUT_DIR = original_output_dir
+        assert observed_commands[0][0] == str(narration.APPROVED_CHATTERBOX_PYTHON)
     with tempfile.TemporaryDirectory() as temporary_directory:
         temporary_path = Path(temporary_directory)
         valid_clip = temporary_path / "valid.wav"

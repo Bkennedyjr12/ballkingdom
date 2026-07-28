@@ -41,7 +41,7 @@ def authorized_reference() -> Path:
 
 
 def chatterbox_python() -> str:
-    executable = APPROVED_CHATTERBOX_PYTHON.resolve()
+    executable = APPROVED_CHATTERBOX_PYTHON
     if not executable.is_file() or not os.access(executable, os.X_OK):
         raise SystemExit(
             "Approved local Chatterbox runtime is unavailable; no fallback, provider, or alternate runtime is allowed."
