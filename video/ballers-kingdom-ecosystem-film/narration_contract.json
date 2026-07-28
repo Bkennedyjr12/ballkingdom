@@ -1,0 +1,47 @@
+{
+  "runtime_seconds": 70,
+  "voice_lane": "authorized-brian-professional-clone",
+  "review_scope": "local-or-unlisted-review-only",
+  "beats": [
+    {
+      "id": "foundation",
+      "start_seconds": 0,
+      "duration_seconds": 16,
+      "chapter": "foundation",
+      "text": "At Ballers Kingdom, the work begins before the whistle. We see the player, the person, and the future they are building. Because real development is more than a single moment on the field.",
+      "visual_claim_ids": []
+    },
+    {
+      "id": "whole-person-promise",
+      "start_seconds": 16,
+      "duration_seconds": 18,
+      "chapter": "whole-person-promise",
+      "text": "That is why our consulting model meets you where you are, then builds across Life, Academic, Career, Business, and Digital. It is one integrated practice for youth and adults building beyond the game.",
+      "visual_claim_ids": ["consulting-framework"]
+    },
+    {
+      "id": "verified-paths",
+      "start_seconds": 34,
+      "duration_seconds": 22,
+      "chapter": "verified-paths",
+      "text": "Start where you are. Build with purpose, honest guidance, and a plan for the life ahead. Ballers can build personal plans, book local coaches, and access consulting support through our tech-forward training platform, consulting practice, and member app. Choose one-on-one, group, or team programs—built on Division I and Pro experience.",
+      "visual_claim_ids": ["brand-positioning", "training-offer"]
+    },
+    {
+      "id": "community",
+      "start_seconds": 56,
+      "duration_seconds": 8,
+      "chapter": "community-and-cta",
+      "text": "No one builds a kingdom alone. Bring your goals and your next step. Build forward, together.",
+      "visual_claim_ids": ["consulting-framework"]
+    },
+    {
+      "id": "cta",
+      "start_seconds": 64,
+      "duration_seconds": 6,
+      "chapter": "community-and-cta",
+      "text": "Choose your path at ballkingdom.com.",
+      "visual_claim_ids": []
+    }
+  ]
+}
