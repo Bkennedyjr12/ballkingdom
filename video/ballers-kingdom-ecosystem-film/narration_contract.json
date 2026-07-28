@@ -2,6 +2,7 @@
   "runtime_seconds": 70,
   "voice_lane": "authorized-brian-professional-clone",
   "review_scope": "local-or-unlisted-review-only",
+  "timing_model": "Each Brian-clone WAV must be non-empty, valid, and no longer than its caption window. Early completion leaves intentional local-review room tone; overrun is rejected so spoken copy cannot overlap the next caption beat.",
   "beats": [
     {
       "id": "foundation",
@@ -24,7 +25,7 @@
       "start_seconds": 34,
       "duration_seconds": 22,
       "chapter": "verified-paths",
-      "text": "Start where you are. Build with purpose, honest guidance, and a plan for the life ahead. Ballers can build personal plans, book local coaches, and access consulting support through our tech-forward training platform, consulting practice, and member app. Choose one-on-one, group, or team programs—built on Division I and Pro experience.",
+      "text": "Start where you are. Build with purpose and a plan for the life ahead. Ballers can build personal plans, book local coaches, and access consulting support through our tech-forward training platform, consulting practice, and member app. Choose one-on-one, group, or team programs—built on Division I and Pro experience.",
       "visual_claim_ids": ["brand-positioning", "training-offer"]
     },
     {

@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +19,9 @@ AUTHORIZED_REFERENCE = Path(
 )
 CHATTERBOX_SCRIPT = Path(
     "/Users/briankennedyjrm.ed/ei-video-handoff/scripts/chatterbox_synth_text.py"
+)
+APPROVED_CHATTERBOX_PYTHON = Path(
+    "/private/tmp/claude-501/-Users-briankennedyjrm-ed/a6f19542-d5ee-4ef5-989b-fc811f28f51c/scratchpad/chatterbox/cbx/bin/python"
 )
 
 
@@ -39,18 +41,54 @@ def authorized_reference() -> Path:
 
 
 def chatterbox_python() -> str:
-    configured = os.environ.get("CHATTERBOX_PYTHON")
-    if not configured:
+    executable = APPROVED_CHATTERBOX_PYTHON.resolve()
+    if not executable.is_file() or not os.access(executable, os.X_OK):
         raise SystemExit(
-            "CHATTERBOX_PYTHON must name the approved local Chatterbox environment; no cloud provider is used."
+            "Approved local Chatterbox runtime is unavailable; no fallback, provider, or alternate runtime is allowed."
         )
-    executable = Path(configured).expanduser()
-    if not executable.is_file():
-        raise SystemExit("CHATTERBOX_PYTHON does not name an executable local Python runtime.")
     return str(executable)
 
 
+def wav_duration_seconds(path: Path) -> float:
+    if not path.is_file() or path.stat().st_size <= 44:
+        raise SystemExit(f"Narration synthesis did not create a non-empty WAV: {path}")
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=format_name,duration",
+            "-of",
+            "json",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    metadata = json.loads(result.stdout)["format"]
+    if metadata["format_name"] != "wav":
+        raise SystemExit(f"Narration synthesis did not create a WAV container: {path}")
+    duration = float(metadata["duration"])
+    if duration <= 0:
+        raise SystemExit(f"Narration synthesis created an empty WAV: {path}")
+    return duration
+
+
+def validate_wav(path: Path, max_duration_seconds: int) -> float:
+    duration = wav_duration_seconds(path)
+    if duration > max_duration_seconds:
+        raise SystemExit(
+            f"Narration clip {path.name} is {duration:.3f}s and exceeds its "
+            f"{max_duration_seconds}-second caption window."
+        )
+    return duration
+
+
 def synthesize(beat: dict[str, object], destination: Path) -> None:
+    if destination.exists():
+        raise SystemExit("Refusing to overwrite existing local narration output.")
     reference = authorized_reference()
     if not CHATTERBOX_SCRIPT.is_file():
         raise SystemExit("Authorized local Chatterbox synthesis script is unavailable.")
@@ -71,14 +109,17 @@ def synthesize(beat: dict[str, object], destination: Path) -> None:
         ],
         check=True,
     )
+    validate_wav(destination, max_duration_seconds=int(beat["duration_seconds"]))
 
 
 def assemble_master(beats: list[dict[str, object]]) -> None:
     clips = [OUTPUT_DIR / f"{beat['id']}.wav" for beat in beats]
-    for clip in clips:
-        if not clip.is_file():
-            raise SystemExit(f"Missing synthesized clip: {clip}")
-    command = ["ffmpeg", "-hide_banner", "-y"]
+    master = OUTPUT_DIR / "narration.wav"
+    if master.exists():
+        raise SystemExit("Refusing to overwrite existing local narration output.")
+    for clip, beat in zip(clips, beats, strict=True):
+        validate_wav(clip, max_duration_seconds=int(beat["duration_seconds"]))
+    command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-n"]
     for clip in clips:
         command.extend(["-i", str(clip)])
     delays = []
@@ -90,9 +131,12 @@ def assemble_master(beats: list[dict[str, object]]) -> None:
     filter_graph = ";".join(delays) + ";" + "".join(inputs)
     filter_graph += f"amix=inputs={len(inputs)}:duration=longest:normalize=0,apad,atrim=duration=70[a]"
     command.extend(
-        ["-filter_complex", filter_graph, "-map", "[a]", "-c:a", "pcm_s16le", str(OUTPUT_DIR / "narration.wav")]
+        ["-filter_complex", filter_graph, "-map", "[a]", "-c:a", "pcm_s16le", str(master)]
     )
     subprocess.run(command, check=True)
+    duration = validate_wav(master, max_duration_seconds=int(load_contract()["runtime_seconds"]))
+    if abs(duration - int(load_contract()["runtime_seconds"])) > 0.01:
+        raise SystemExit(f"Narration master must be exactly 70 seconds; got {duration:.3f}s.")
 
 
 def main() -> None:

@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import subprocess
 import sys
+import tempfile
+import wave
+import importlib.util
 from pathlib import Path
 
 
@@ -15,6 +19,22 @@ CLAIM_REGISTER_PATH = PACKAGE / "claim_register.json"
 CAPTION_GENERATOR = PACKAGE / "generate_captions.py"
 NARRATION_GENERATOR = PACKAGE / "generate_narration.py"
 CAPTIONS_DIR = PACKAGE / "narration"
+
+
+def narration_module():
+    spec = importlib.util.spec_from_file_location("ballers_narration", NARRATION_GENERATOR)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def write_silent_wav(path: Path, seconds: int) -> None:
+    with wave.open(str(path), "wb") as output:
+        output.setnchannels(1)
+        output.setsampwidth(2)
+        output.setframerate(48_000)
+        output.writeframes(b"\x00\x00" * 48_000 * seconds)
 
 
 def parse_srt(path: Path) -> list[tuple[int, str, str, str]]:
@@ -57,6 +77,13 @@ def main() -> None:
     assert [(beat["start_seconds"], beat["duration_seconds"]) for beat in beats] == [
         (0, 16), (16, 18), (34, 22), (56, 8), (64, 6)
     ]
+    assert [(beat["id"], beat["chapter"]) for beat in beats] == [
+        ("foundation", "foundation"),
+        ("whole-person-promise", "whole-person-promise"),
+        ("verified-paths", "verified-paths"),
+        ("community", "community-and-cta"),
+        ("cta", "community-and-cta"),
+    ]
     assert beats[-1]["text"] == "Choose your path at ballkingdom.com."
 
     subprocess.run([sys.executable, str(CAPTION_GENERATOR)], check=True)
@@ -85,6 +112,78 @@ def main() -> None:
     )
     assert rejected.returncode != 0
     assert "Refusing non-authorized voice reference." in rejected.stderr
+
+    sample_output = CAPTIONS_DIR / "foundation.wav"
+    sample_output.unlink(missing_ok=True)
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        writer = Path(temporary_directory) / "write-invalid-wav"
+        writer.write_text(
+            "#!/bin/sh\nout=''\nwhile [ \"$#\" -gt 0 ]; do\n"
+            "  if [ \"$1\" = '--out' ]; then out=\"$2\"; shift 2; else shift; fi\ndone\n"
+            "printf 'not-a-wav' > \"$out\"\n",
+            encoding="utf-8",
+        )
+        writer.chmod(writer.stat().st_mode | stat.S_IXUSR)
+        arbitrary_runtime = os.environ | {"CHATTERBOX_PYTHON": str(writer)}
+        try:
+            bypass = subprocess.run(
+                [sys.executable, str(NARRATION_GENERATOR), "--sample", "foundation"],
+                env=arbitrary_runtime,
+                capture_output=True,
+                text=True,
+            )
+            assert bypass.returncode != 0
+            assert not sample_output.exists()
+        finally:
+            sample_output.unlink(missing_ok=True)
+
+    sample_output.write_bytes(b"stale output")
+    try:
+        stale_output = subprocess.run(
+            [sys.executable, str(NARRATION_GENERATOR), "--sample", "foundation"],
+            env=os.environ | {"CHATTERBOX_PYTHON": "/usr/bin/true"},
+            capture_output=True,
+            text=True,
+        )
+        assert stale_output.returncode != 0
+        assert "Refusing to overwrite existing local narration output." in stale_output.stderr
+    finally:
+        sample_output.unlink(missing_ok=True)
+
+    narration = narration_module()
+    assert hasattr(narration, "validate_wav")
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        temporary_path = Path(temporary_directory)
+        valid_clip = temporary_path / "valid.wav"
+        too_long_clip = temporary_path / "too-long.wav"
+        invalid_clip = temporary_path / "invalid.wav"
+        write_silent_wav(valid_clip, 1)
+        write_silent_wav(too_long_clip, 17)
+        invalid_clip.write_bytes(b"not-a-wav")
+        narration.validate_wav(valid_clip, max_duration_seconds=16)
+        try:
+            narration.validate_wav(too_long_clip, max_duration_seconds=16)
+        except SystemExit as error:
+            assert "exceeds its 16-second caption window" in str(error)
+        else:
+            raise AssertionError("Expected a clip longer than its caption window to be rejected.")
+        try:
+            narration.validate_wav(invalid_clip, max_duration_seconds=16)
+        except SystemExit as error:
+            assert "did not create a non-empty WAV" in str(error)
+        else:
+            raise AssertionError("Expected an invalid WAV output to be rejected.")
+
+        original_output_dir = narration.OUTPUT_DIR
+        narration.OUTPUT_DIR = temporary_path / "assembled"
+        narration.OUTPUT_DIR.mkdir()
+        try:
+            for beat in beats:
+                write_silent_wav(narration.OUTPUT_DIR / f"{beat['id']}.wav", 1)
+            narration.assemble_master(beats)
+            assert abs(narration.wav_duration_seconds(narration.OUTPUT_DIR / "narration.wav") - 70) <= 0.01
+        finally:
+            narration.OUTPUT_DIR = original_output_dir
 
     print("narration contract: PASS")
 
