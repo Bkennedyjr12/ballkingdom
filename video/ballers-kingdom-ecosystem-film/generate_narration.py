@@ -21,7 +21,7 @@ CHATTERBOX_SCRIPT = Path(
     "/Users/briankennedyjrm.ed/ei-video-handoff/scripts/chatterbox_synth_text.py"
 )
 APPROVED_CHATTERBOX_PYTHON = Path(
-    "/private/tmp/claude-501/-Users-briankennedyjrm-ed/a6f19542-d5ee-4ef5-989b-fc811f28f51c/scratchpad/chatterbox/cbx/bin/python"
+    "/Users/briankennedyjrm.ed/ai-toolkit/vendor/chatterbox-env/bin/python"
 )
 
 

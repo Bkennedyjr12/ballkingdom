@@ -185,6 +185,10 @@ def main() -> None:
 
     narration = narration_module()
     assert hasattr(narration, "validate_wav")
+    assert narration.APPROVED_CHATTERBOX_PYTHON == Path(
+        "/Users/briankennedyjrm.ed/ai-toolkit/vendor/chatterbox-env/bin/python"
+    )
+    assert narration.chatterbox_python() == str(narration.APPROVED_CHATTERBOX_PYTHON.resolve())
     with tempfile.TemporaryDirectory() as temporary_directory:
         temporary_path = Path(temporary_directory)
         valid_clip = temporary_path / "valid.wav"
