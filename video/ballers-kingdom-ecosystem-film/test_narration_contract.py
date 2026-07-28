@@ -10,6 +10,7 @@ import sys
 import tempfile
 import wave
 import importlib.util
+from copy import deepcopy
 from pathlib import Path
 
 
@@ -35,6 +36,24 @@ def write_silent_wav(path: Path, seconds: int) -> None:
         output.setsampwidth(2)
         output.setframerate(48_000)
         output.writeframes(b"\x00\x00" * 48_000 * seconds)
+
+
+def validate_spoken_segments(contract: dict[str, object], claims_by_id: dict[str, dict[str, str]]) -> None:
+    for beat in contract["beats"]:
+        assert "spoken_segments" in beat
+        segments = beat["spoken_segments"]
+        assert segments
+        assert beat["text"] == " ".join(segment["text"] for segment in segments)
+        approved_segment_ids = []
+        for segment in segments:
+            if segment["kind"] == "approved-claim":
+                claim_id = segment["claim_id"]
+                assert segment["text"] == claims_by_id[claim_id]["approved_copy"]
+                approved_segment_ids.append(claim_id)
+            else:
+                assert segment["kind"] in {"manifesto", "cta"}
+                assert "claim_id" not in segment
+        assert beat["visual_claim_ids"] == approved_segment_ids
 
 
 def parse_srt(path: Path) -> list[tuple[int, str, str, str]]:
@@ -64,6 +83,7 @@ def main() -> None:
     contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
     claims = json.loads(CLAIM_REGISTER_PATH.read_text(encoding="utf-8"))
     approved_claim_ids = {claim["id"] for claim in claims if claim["availability"] == "verified-live"}
+    claims_by_id = {claim["id"]: claim for claim in claims}
 
     assert contract["runtime_seconds"] == 70
     beats = contract["beats"]
@@ -85,6 +105,19 @@ def main() -> None:
         ("cta", "community-and-cta"),
     ]
     assert beats[-1]["text"] == "Choose your path at ballkingdom.com."
+    validate_spoken_segments(contract, claims_by_id)
+    unsupported_paraphrase = deepcopy(contract)
+    unsupported_beat = unsupported_paraphrase["beats"][2]
+    unsupported_beat["spoken_segments"][2]["text"] = "Unsupported product language."
+    unsupported_beat["text"] = " ".join(
+        segment["text"] for segment in unsupported_beat["spoken_segments"]
+    )
+    try:
+        validate_spoken_segments(unsupported_paraphrase, claims_by_id)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("Unsupported claim paraphrase must fail narration-contract validation.")
 
     subprocess.run([sys.executable, str(CAPTION_GENERATOR)], check=True)
     srt_captions = parse_srt(CAPTIONS_DIR / "narration.srt")
