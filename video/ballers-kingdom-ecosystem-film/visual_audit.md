@@ -12,7 +12,16 @@
 > every per-beat WAV hash/duration, and master hash/duration. The local
 > machine's fresh clone attempt was stopped before its first WAV completed
 > because one sampling step took 74 seconds; no substitute, recovered clip, or
-> fabricated manifest was used. Regenerate and rerender before external review.
+> fabricated manifest was used. The fresh r3 render evidence below closes this
+> local-review gate; it does not authorize external review or distribution.
+
+**Fresh r3 result (2026-07-29):** The authorized manifest gate passed and a
+fresh 70.000-second H.264/AAC local review MP4 was rendered. The master hash is
+c274b08f42c093300b1ed6a50354463567e650139fef9d89fdb0319d8b5c083c; the
+final 64–70s tail measures -22.9 dB mean / -3.0 dB peak. Frame review at 1s,
+35s, and 65s found the approved coach anchor, soccer-only generic stock, and
+the exact CTA card respectively. No upload or external distribution is
+authorized by this result.
 
 ## Source and claim audit
 

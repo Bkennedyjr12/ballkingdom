@@ -2,10 +2,10 @@
 
 ## Status
 
-Round-1 source integrity fixes are complete and tested. Existing local media is
-ignored and the prior voiced MP4 is superseded pending a fresh authorized-clone
-generation and rerender; no upload, cloud generation, credential use, or
-YouTube action occurred.
+Round-1 source integrity fixes are complete and tested. A fresh local,
+manifest-attested authorized-clone master has been rendered into the ignored
+review MP4. No upload, cloud generation, credential use, or YouTube action
+occurred.
 
 ## Commits
 
@@ -26,7 +26,7 @@ YouTube action occurred.
   time, rather than static beat paragraphs.
 - `video/ballers-kingdom-ecosystem-film/render_animatic.sh` validates
   registered stock and narration provenance, offsets the community stock source
-  by 12 seconds to prevent a repeated opening, renders the local 70-second
+  by 4 seconds without looping a seeked H.264 stream, renders the local 70-second
   animatic, and extracts chapter review frames. It has no provider, browser,
   credential, or upload call.
 - `video/ballers-kingdom-ecosystem-film/shotlist.json` maps every locked beat to source, motion/lens, claim IDs, caption treatment, and rejection conditions.
@@ -51,12 +51,37 @@ YouTube action occurred.
 
 ## Concerns / review gate
 
-The attempted fresh local Brian narration generation used only the pinned,
-authorized Chatterbox runtime and authorized reference. It was stopped before
-any WAV completed after a sampling step took 74 seconds; no fallback runtime,
-cloud provider, substitute voice, recovered clip, or fabricated manifest was
-used. The only remaining Task 3 media work is to complete that authorized
-generation, run `BALLERS_NARRATION_DIR=<fresh-output>
-bash video/ballers-kingdom-ecosystem-film/render_animatic.sh`, then execute
-the stream-duration test and record fresh manifest/master hashes, phrase-sync
-perceptual review, representative frames, and final-tail audio QA.
+The fresh r3 generation, provenance validation, render, and QA evidence below
+close the local-review gate. No fallback runtime, cloud provider, substitute
+voice, recovered clip, fabricated manifest, upload, or external distribution
+was used.
+
+## Fresh r3 render evidence — 2026-07-29
+
+- Authorized local narration directory:
+  video/ballers-kingdom-ecosystem-film/narration/r3-authorized/
+- validate_authorized_narration.py passed against its
+  authorized-clone-manifest.json. The manifest attests the locked contract,
+  authorized Brian reference, pinned runtime, synthesis script, all five beat
+  WAV hashes/durations, and assembled master hash.
+- Master SHA-256:
+  c274b08f42c093300b1ed6a50354463567e650139fef9d89fdb0319d8b5c083c;
+  master duration: 70.000s.
+- Beat durations (all inside their locked windows): foundation 10.840s,
+  whole-person-promise 14.560s, verified-paths 21.080s, community 5.800s,
+  CTA 2.560s.
+- Render output:
+  video/ballers-kingdom-ecosystem-film/ecosystem-animatic.mp4 is H.264/AAC,
+  1920×1080, 24fps; container, video stream, and audio stream each probe at
+  70.000s. test_animatic_schedule.py passed.
+- Caption QA: 17 phrase cues exactly reconstruct the locked caption_phrases;
+  every cue is ordered and contained inside its measured spoken window.
+  Opening, verified-paths, and CTA review frames were inspected; the CTA card
+  is visible at 65s, soccer-only imagery is retained, and no third-party brand
+  or fabricated UI/copy was observed.
+- Tail QA (64–70s): -22.9 dB mean / -3.0 dB peak, confirming audible CTA
+  resolution without dead air.
+- Renderer regression fix: a -ss 12 plus -stream_loop -1 community input
+  produced non-monotonic H.264 DTS and failed full compositing. The renderer
+  now takes a non-looped 8s segment at 4s; test_stock_offset_regression.py
+  reproduces the unsafe timestamp warning and guards the safe replacement.

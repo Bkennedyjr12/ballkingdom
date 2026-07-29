@@ -58,20 +58,24 @@ node -e '
 
 # Brian frames remain an unchanged approved continuity reference. The generic
 # soccer cutaways are never identified as Ballers Kingdom people or events.
-# The community input starts twelve seconds later in registered stock so it
-# cannot visibly restart the verified-paths opening.
+# The community input starts four seconds later in registered stock and fits
+# inside the source duration, avoiding an unsafe seek-plus-stream-loop path.
 input_args=(
   -loop 1 -framerate 24 -t 16 -i "$anchor"
   -loop 1 -framerate 24 -t 18 -i "$anchor"
   -stream_loop -1 -t 22 -i "$stock"
-  -ss 12 -stream_loop -1 -t 8 -i "$stock"
+  -ss 4 -t 8 -i "$stock"
   -loop 1 -framerate 24 -t 6 -i "$anchor"
 )
 for index in 1 2 3 4 5; do
   input_args+=( -loop 1 -framerate 24 -t 70 -i "$graphics_dir/chapter-$index.png" )
 done
-mapfile -t cue_times < <(node -e '
-  const cues = require(process.argv[1]);
+cue_times=()
+while IFS= read -r cue_time; do
+  cue_times+=("$cue_time")
+done < <(node -e '
+  const path = require("path");
+  const cues = require(path.resolve(process.argv[1]));
   for (const cue of cues) console.log(cue.start_seconds + " " + cue.end_seconds);
 ' "$narration_dir/caption-cues.json")
 for index in "${!cue_times[@]}"; do

@@ -41,7 +41,7 @@
     "duration_seconds": 8,
     "visual_source": "video/ballers-kingdom-standard-starts-here/stock/pexels-6084027.mp4",
     "source_type": "registered generic soccer stock; not a Ballers Kingdom event, customer, coach, or participant",
-    "lens_and_motion": "Low wide crop along the training cones, beginning 12 seconds into the registered stock to avoid repeating the preceding cutaway opening; frame reads as generic soccer practice only.",
+    "lens_and_motion": "Low wide crop along the training cones, beginning 4 seconds into the registered stock to avoid repeating the preceding cutaway opening without looping a seeked H.264 input; frame reads as generic soccer practice only.",
     "claim_ids": [],
     "caption_treatment": "Manifest-timed sentence/phrase SRT; one cue at a time, centered lower-third, maximum three lines, 42px at 1080p.",
     "post_graphics": "Chapter label and local-review classification only.",
