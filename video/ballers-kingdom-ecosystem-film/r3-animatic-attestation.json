@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "source_animatic": {
+    "path": "ecosystem-animatic.mp4",
+    "sha256": "77d46d5ddb4f7b2ed0a46e869534cd9cb7a756ee672996a24ba4f45af5c8fe30",
+    "width": 1920,
+    "height": 1080,
+    "fps": 24,
+    "duration_seconds": 70.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "r3_provenance": {
+    "manifest_sha256": "89094fb5dcd6968febca9d5f4b1fbf35c32672e3da7fbbae3e31b030a5233939",
+    "narration_master_sha256": "c274b08f42c093300b1ed6a50354463567e650139fef9d89fdb0319d8b5c083c",
+    "phrase_alignment_sha256": "5c7b8a427c885a370342547f335e23bcde28990def3bdf15a1d4f53fcb6afec2",
+    "caption_cues_sha256": "573b9ec5709b46fdb6eaac985cfd628d1f9fd4fb270fa9f73f733ad266a5c257",
+    "contract_sha256": "de87863a5dc063870c722b7dd9620adf17cdd84292648d8e79459357926f7205"
+  }
+}

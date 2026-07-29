@@ -22,6 +22,7 @@ contact_sheet="$output_dir/ballers-kingdom-ecosystem-review-contact-sheet.png"
 # the 70-second r3 narration master, and its manifest digests.
 python3 "$package_dir/validate_authorized_narration.py" --narration-dir "$r3_dir"
 python3 "$package_dir/validate_stock_assets.py"
+python3 "$package_dir/test_master_qa.py" --validate-source
 
 source_probe="$(ffprobe -v error -show_entries stream=codec_type,codec_name,width,height,r_frame_rate:format=duration -of json "$source_animatic")"
 node -e '
