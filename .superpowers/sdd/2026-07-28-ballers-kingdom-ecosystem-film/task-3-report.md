@@ -85,3 +85,16 @@ was used.
   produced non-monotonic H.264 DTS and failed full compositing. The renderer
   now takes a non-looped 8s segment at 4s; test_stock_offset_regression.py
   reproduces the unsafe timestamp warning and guards the safe replacement.
+
+## Audible phrase-boundary evidence — 2026-07-29
+
+- The former word-count cue estimates are no longer used for manifest-backed
+  captions. align_phrase_cues.py validates the r3 WAVs with the local
+  silencedetect method at -35 dB for at least 0.12s, and fails closed unless
+  every retained phrase start/end anchor is an observed silence boundary.
+- The resulting ignored phrase-alignment.json is bound to the r3 master and
+  contract hash, then its SHA-256 is written into authorized-clone-manifest.json.
+  Artifact SHA-256: 5c7b8a427c885a370342547f335e23bcde28990def3bdf15a1d4f53fcb6afec2.
+- generate_captions.py refuses a manifest-backed render if that artifact or
+  its digest/master/contract binding is unavailable. The aligned-caption
+  rerender passed test_animatic_schedule.py with exact 70.000s streams.

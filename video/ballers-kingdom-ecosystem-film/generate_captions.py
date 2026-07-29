@@ -47,17 +47,32 @@ def load_cues(contract: dict[str, object], manifest_path: Path | None) -> list[d
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("contract_sha256") != sha256_file(CONTRACT_PATH):
         raise SystemExit("Caption manifest does not match the locked narration contract.")
+    alignment = manifest.get("phrase_alignment")
+    if not isinstance(alignment, dict):
+        raise SystemExit("Missing audible phrase-alignment artifact; refusing estimated caption timing.")
+    artifact_path = manifest_path.parent / alignment.get("artifact_filename", "")
+    if not artifact_path.is_file() or alignment.get("artifact_sha256") != sha256_file(artifact_path):
+        raise SystemExit("Phrase-alignment artifact is missing or has a digest mismatch.")
+    artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+    if artifact.get("contract_sha256") != sha256_file(CONTRACT_PATH) or artifact.get("master_sha256") != manifest["master"]["sha256"]:
+        raise SystemExit("Phrase-alignment artifact does not attest to this locked master.")
+    aligned_cues = artifact.get("cues")
+    if not isinstance(aligned_cues, list):
+        raise SystemExit("Phrase-alignment artifact has no cues.")
     records = manifest.get("beats", [])
     if [record.get("id") for record in records] != [beat["id"] for beat in beats]:
         raise SystemExit("Caption manifest beat order does not match the locked contract.")
     cues = []
+    offset = 0
     for beat, record in zip(beats, records, strict=True):
         record_cues = record.get("caption_cues")
-        if not isinstance(record_cues, list) or [cue.get("text") for cue in record_cues] != beat["caption_phrases"]:
-            raise SystemExit(f"Caption cues do not match locked phrase copy for {beat['id']}.")
+        beat_cues = aligned_cues[offset:offset + len(beat["caption_phrases"])]
+        offset += len(beat["caption_phrases"])
+        if not isinstance(record_cues, list) or [cue.get("text") for cue in beat_cues] != beat["caption_phrases"]:
+            raise SystemExit(f"Aligned caption cues do not match locked phrase copy for {beat['id']}.")
         previous_end = float(beat["start_seconds"])
         speech_end = float(beat["start_seconds"]) + float(record["duration_seconds"])
-        for cue in record_cues:
+        for cue in beat_cues:
             start, end = float(cue["start_seconds"]), float(cue["end_seconds"])
             if start < previous_end - 0.001 or end <= start or end > speech_end + 0.001:
                 raise SystemExit(f"Caption timing is outside the authorized spoken window for {beat['id']}.")
