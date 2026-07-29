@@ -84,13 +84,20 @@ def token_path() -> Path:
 def build_client(protected_token: Path):
     try:
         from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request
         from googleapiclient.discovery import build
     except ImportError as error:
         raise RuntimeError("Google API client dependencies are unavailable in this Python environment.") from error
 
     credentials = Credentials.from_authorized_user_file(str(protected_token))
-    if not credentials.token or credentials.expired:
-        raise RuntimeError("The protected Ballers OAuth token is absent or expired; obtain a valid session outside this repository.")
+    if not credentials.token:
+        raise RuntimeError("The protected Ballers OAuth token is absent.")
+    if credentials.expired:
+        if not credentials.refresh_token:
+            raise RuntimeError("The protected Ballers OAuth token is expired and cannot be refreshed.")
+        credentials.refresh(Request())
+    if not credentials.valid:
+        raise RuntimeError("The protected Ballers OAuth session is not valid after refresh.")
     return build("youtube", "v3", credentials=credentials, cache_discovery=False)
 
 

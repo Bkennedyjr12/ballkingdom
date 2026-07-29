@@ -23,6 +23,7 @@ def main() -> None:
     assert "channels().list" in source
     assert "thumbnails().set" in source
     assert "sha256" in source.lower()
+    assert "credentials.refresh(Request())" in source
     assert "youtube-receipt.json" in source
     assert ".local/share/ballers-kingdom-youtube-oauth/token.json" in source
     print("upload guard: PASS")
