@@ -1,0 +1,49 @@
+{
+  "hosting": [
+    {
+      "target": "public",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        ".firebaserc",
+        ".git/**",
+        ".firebase/**",
+        ".playwright-cli/**",
+        "**/.*",
+        "**/node_modules/**",
+        "backend/**",
+        "docs/**",
+        "output/**",
+        "video/**",
+        "MIGRATION.md",
+        "README.md",
+        "FOUNDER_BIO.md",
+        "package.json",
+        "package-lock.json",
+        "assets/**/*.bak",
+        "home-inspection-guide/scripts/**",
+        "home-inspection-guide/src/**",
+        "home-inspection-guide/README.md"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "**/*.@(js|css)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "max-age=31536000, immutable"
+            }
+          ]
+        }
+      ],
+      "cleanUrls": true,
+      "trailingSlash": false
+    }
+  ]
+}

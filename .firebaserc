@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "the-ballers-kingdom"
+  },
+  "targets": {
+    "the-ballers-kingdom": {
+      "hosting": {
+        "public": [
+          "ballkingdom-com"
+        ],
+        "inspector": [
+          "the-ballers-kingdom"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

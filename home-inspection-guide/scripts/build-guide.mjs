@@ -334,14 +334,14 @@ async function main() {
   <link rel="canonical" href="https://ballkingdom.com/home-inspection-guide/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
   <style>${css}</style>
 </head>
 <body class="hi-body">
   <div class="hi-shell">
     <nav class="hi-nav" aria-label="Home Inspection Guide">
       <div class="hi-nav-inner">
-        <a class="hi-logo" href="../index.html"><span class="hi-mark">BK</span><span>The Ballers Kingdom</span></a>
+        <a class="hi-logo" href="../index.html"><img src="../assets/img/bk-logo.svg" alt="BK — The Ballers Kingdom" width="36" height="36" style="border-radius:50%;background:#060A10;vertical-align:middle" /><span>The Ballers Kingdom</span><span style="opacity:.7;font-size:.7em;margin-left:6px;vertical-align:middle">EST 2019</span></a>
         <div class="hi-nav-actions">
           <a href="#chapters">Chapters</a>
           <a href="#figure-appendix">Figures</a>
@@ -352,7 +352,7 @@ async function main() {
     </nav>
     <header class="hi-hero">
       <div class="hi-hero-inner">
-        <div class="hi-kicker">BallKingdom Study Systems</div>
+        <div class="hi-kicker">The Ballers Kingdom · Inspection Systems</div>
         <h1>Home Inspection <span>Guide</span></h1>
         <p class="hi-hero-copy">${escapeHtml(guide.subtitle)}</p>
         <div class="hi-dashboard">
@@ -395,7 +395,7 @@ async function main() {
 </body>
 </html>`;
 
-  await fs.writeFile(path.join(guideRoot, 'index.html'), html);
+  await fs.writeFile(path.join(guideRoot, 'index.html'), html.replace(/[ \t]+$/gm, ''));
   console.log(`Built ${path.join(guideRoot, 'index.html')}`);
 }
 

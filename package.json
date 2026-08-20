@@ -6,7 +6,8 @@
   "scripts": {
     "hi:ingest": "node home-inspection-guide/scripts/ingest-images.mjs",
     "hi:add": "node home-inspection-guide/scripts/add-thread-images.mjs",
-    "hi:build": "node home-inspection-guide/scripts/build-guide.mjs",
+    "hi:build": "node home-inspection-guide/scripts/build-guide.mjs && cp home-inspection-guide/index.html home-inspection-guide/full-study-guide.html",
+    "hi:freebie": "node home-inspection-guide/scripts/build-freebie.mjs",
     "hi:verify-companion": "node home-inspection-guide/scripts/verify-companion-link.mjs",
     "hi:pdf": "node home-inspection-guide/scripts/build-pdf.mjs",
     "hi:dev": "python3 -m http.server 4173",
@@ -14,6 +15,7 @@
   },
   "dependencies": {
     "@playwright/test": "^1.45.0",
+    "pdf-lib": "^1.17.1",
     "sharp": "^0.33.4"
   }
 }
