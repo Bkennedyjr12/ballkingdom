@@ -7,44 +7,67 @@
   <meta name="description" content="Book a free 30-minute consultation with Brian Kennedy Jr — personal soccer training or The Ballers Kingdom holistic consulting model across life, academic, career, business, and digital tracks." />
   <link rel="canonical" href="https://ballkingdom.com/contact.html" />
   <meta property="og:title" content="Book Consulting | The Ballers Kingdom" />
-  <meta property="og:description" content="Book a free 30-minute consultation for soccer training or holistic consulting." />
+  <meta property="og:description" content="Book a free 30-minute consultation for training, consulting, or speaking." />
   <meta property="og:image" content="https://ballkingdom.com/assets/img/brian_smile.jpg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="assets/img/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/styles.css" />
 
   <style>
-.contact-hero { padding:78px 0 52px; }
-    .contact-grid, .quick-grid { display:grid; gap:16px; }
-    .contact-grid { grid-template-columns:1.1fr .9fr; margin-top:36px; }
-    .quick-grid { grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:28px; }
-    @media (max-width: 900px) { .contact-grid, .quick-grid { grid-template-columns:1fr; } }
-    .contact-card, .next-card, .quick-card { padding:24px 20px; }
-    .contact-row { display:flex; gap:12px; align-items:flex-start; padding:14px 0; border-top:1px solid rgba(255,255,255,0.06); }
-    .contact-row:first-of-type { border-top:0; }
-    .contact-row .ico { margin-bottom:0; flex-shrink:0; }
-    .contact-row a, .contact-row span { color:var(--ink); }
-    .next-card p, .next-list li { color:var(--ink); }
-    .next-list { list-style:none; margin:0; padding:0; }
-    .next-list li { display:flex; gap:8px; padding:7px 0; font-size:0.9rem; }
-    .next-list li::before { content:'+'; color:var(--royal-glow); font-family:var(--font-display); }
-    .quick-card { text-align:center; }
-    .quick-card a { color:var(--royal-glow); font-family:var(--font-display); font-size:0.76rem; letter-spacing:0.16em; text-transform:uppercase; }
+    .contact-hero { background: linear-gradient(180deg, var(--black) 0%, var(--ink) 100%); color: var(--white); padding: 84px 0 56px; }
+    .contact-hero .kicker { color: var(--gold); }
+    .contact-hero h1 { color: var(--white); font-size: clamp(2.6rem, 6.2vw, 5rem); line-height: 0.98; margin: 14px 0 16px; }
+    .contact-hero .lead { color: #BFC8D6; max-width: 60ch; }
+    .pos-pill { display: inline-block; padding: 8px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(11,18,32,0.55); color: #BFC8D6; font-family: var(--font-display); letter-spacing: 0.14em; font-size: 0.78rem; text-transform: uppercase; }
+
+    .contact-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 36px; margin-top: 48px; }
+    @media (max-width: 900px) { .contact-grid { grid-template-columns: 1fr; } }
+    .contact-card { background: var(--stone); border-radius: 14px; padding: 32px 28px; box-shadow: var(--shadow-md); border: 1px solid var(--gray-200); }
+    .contact-card h2 { margin: 0 0 16px; }
+    .contact-row { display: flex; align-items: center; gap: 14px; padding: 16px 0; border-top: 1px solid var(--gray-200); }
+    .contact-row:first-of-type { border-top: 0; }
+    .contact-row .ico { width: 44px; height: 44px; border-radius: 12px; background: var(--white); color: var(--black); display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; flex-shrink: 0; }
+    .contact-row strong { display: block; color: var(--white); font-family: var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.95rem; margin-bottom: 2px; }
+    .contact-row a, .contact-row span { color: var(--gold); font-size: 0.95rem; text-decoration: none; word-break: break-word; }
+    .contact-row a:hover { color: var(--white); }
+
+    .next-card { background: var(--charcoal); border: 1px solid var(--gray-200); color: var(--white); border-radius: 14px; padding: 36px 32px; box-shadow: var(--shadow-lg); }
+    .next-card h2 { color: var(--white); margin: 0 0 14px; }
+    .next-card p { color: rgba(255,255,255,0.9); margin: 0 0 22px; line-height: 1.55; }
+    .next-card .btn-primary { background: var(--white); color: var(--black); margin-bottom: 12px; display: inline-flex; }
+    .next-card .btn-ghost { color: var(--white); border-color: rgba(255,255,255,0.5); }
+    .next-list { list-style: none; padding: 0; margin: 0; }
+    .next-list li { padding: 8px 0; color: rgba(255,255,255,0.9); display: flex; align-items: center; gap: 8px; font-size: 0.92rem; }
+    .next-list li::before { content: "✓"; color: var(--gold); font-weight: 700; }
+
+    .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 36px; }
+    @media (max-width: 900px) { .quick-grid { grid-template-columns: 1fr; } }
+    .quick-card { background: var(--stone); border-radius: 14px; padding: 24px 22px; text-align: center; }
+    .quick-card .icon { width: 48px; height: 48px; border-radius: 12px; background: var(--white); color: var(--black); margin: 0 auto 12px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; }
+    .quick-card h3 { font-family: var(--font-display); margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .quick-card p { color: var(--gray-600); margin: 0 0 14px; font-size: 0.92rem; line-height: 1.5; }
+    .quick-card a { color: var(--white); font-family: var(--font-display); font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; font-size: 0.78rem; text-decoration: none; }
   </style>
 </head>
 <body>
 
 <nav class="nav" role="navigation" aria-label="Main">
   <div class="nav-inner">
-    <a href="index.html" class="logo"><span class="monogram">BK</span><span class="wordmark"><span>The Ballers Kingdom</span><span class="est">EST 2019</span></span></a>
+        <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
+      <img src="assets/img/logo-nav-white.png" alt="The Ballers Kingdom" class="logo-img" width="340" height="24" />
+    </a>
     <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <div class="nav-links">
       <a href="soccer.html">Training</a>
       <a href="ee-venture.html">Consulting</a>
-      <a href="home-inspection-guide/">Inspections</a>
-      <a href="index.html#toolkit">Toolkit</a>
-      <a href="index.html#products">Products</a>
+      <a href="shop.html">Shop</a>
+      <a href="readiness.html">Readiness</a>
+      <a href="growth.html">Inner Game</a>
+      <a href="audit.html">Site Audit</a>
+      <a href="home-inspection-guide/">Home Inspection</a>
       <a href="about.html">About</a>
       <a href="contact.html" class="nav-cta">Book Consulting</a>
     </div>
@@ -54,11 +77,11 @@
 <header class="contact-hero">
   <div class="container">
     <span class="pos-pill">Get Started</span>
-    <h1>Two ways to begin.</h1>
-    <p class="lead">Book a free 30-minute consultation with Brian to map your next step in training or consulting. Let's build the kingdom.</p>
+    <h1>Let's get started.</h1>
+    <p class="lead">Book a free 30-minute consultation with Brian — soccer training, holistic consulting, or speaking. Let's build the kingdom.</p>
     <div class="hero-ctas" style="margin-top: 24px;">
       <a href="https://calendly.com/ballerskingdom/30min" target="_blank" rel="noopener" class="btn btn-primary">Book a Call →</a>
-
+      <a href="soccer.html" class="btn btn-ghost">Explore Training</a>
     </div>
   </div>
 </header>
@@ -120,25 +143,17 @@
       </div>
 
       <div class="next-card">
-        <h2>Next step</h2>
-        <p>Ready to start? Book a free 30-minute consultation and we will map the path — training, consulting, inspections, or toolkit.</p>
-        <a href="#book" class="btn btn-primary">Book a Call →</a>
+        <h2>Start with a conversation</h2>
+        <p>Training, consulting, or speaking — book a free 30-minute call with Brian and we'll map the path. Apparel &amp; Shop is coming soon.</p>
+        <ul class="next-list">
+          <li>Personal, group, and team training</li>
+          <li>Holistic consulting across five tracks</li>
+          <li>Keynotes, panels, and workshops</li>
+        </ul>
+        <a href="https://calendly.com/ballerskingdom/30min" target="_blank" rel="noopener" class="btn btn-primary">Book a Call →</a>
+        <a href="shop.html" class="btn btn-ghost">Shop · Coming Soon</a>
       </div>
     </div>
-  </div>
-</section>
-
-<!-- Calendly inline — cleanly wired -->
-<section id="book">
-  <div class="container">
-    <div class="section-header">
-      <div class="kicker">Book Directly</div>
-      <h2>Pick a time — 30 minutes, on us.</h2>
-      <p class="lead">No forms. Choose your slot and you'll get a calendar invite + automatic email confirmation via the Email connector.</p>
-    </div>
-    <div class="calendly-inline-widget" data-url="https://calendly.com/ballerskingdom/30min?hide_gdpr_banner=1&background_color=ffffff&text_color=1a1f2e&primary_color=1b3a8e" style="min-width:320px;height:760px;border:1px solid var(--gray-200);border-radius:12px;overflow:hidden"></div>
-    <script src="https://assets.calendly.com/assets/external/widget.js" async></script>
-    <p style="text-align:center;margin-top:14px;color:var(--gray-400);font-size:.85rem">Powered by Calendly · also at <a href="https://calendly.com/ballerskingdom/30min" target="_blank" rel="noopener">calendly.com/ballerskingdom/30min</a></p>
   </div>
 </section>
 
@@ -181,7 +196,7 @@
       <div class="eco-card current">
         <div class="eco-kicker">You are here</div>
         <div class="eco-name">The Ballers Kingdom</div>
-        <p>Training, consulting, inspections, and development toolkit.</p>
+        <p>Soccer training and consulting practice.</p>
         <div class="eco-link">ballkingdom.com →</div>
       </div>
       <a class="eco-card" href="https://entrepreneur-ecosystem.com" target="_blank" rel="noopener">
@@ -204,21 +219,17 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <div class="logo" style="color: var(--cream);"><span class="monogram">BK</span><span class="wordmark"><span>The Ballers Kingdom</span><span class="est">EST 2019</span></span></div>
-        <p>Training · Consulting · Inspections · Development Toolkit. Inland Empire, California.</p>
+                <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
+          <img src="assets/img/logo-wordmark-white.png" alt="The Ballers Kingdom" class="footer-logo" width="380" height="49" />
+        </a>
+        <p>Soccer training and multi-dimensional development consulting. Inland Empire, California.</p>
         <div class="socials">
           <a href="https://www.instagram.com/theballerskingdom_" target="_blank" rel="noopener" aria-label="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 1.2.1 1.8.3 2.2.5.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .5 2.2.1 1.2.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 1.2-.3 1.8-.5 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.5-1.2.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-1.2-.1-1.8-.3-2.2-.5-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.5-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8c.1-1.2.3-1.8.5-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.5C8.4 2.2 8.8 2.2 12 2.2zm0 1.9c-3.1 0-3.5 0-4.7.1-1.1.1-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1C2.6 9.5 2.6 9.9 2.6 13s0 3.5.1 4.7c.1 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-4.7s0-3.5-.1-4.7c-.1-1.1-.2-1.7-.4-2.1-.2-.5-.4-.9-.8-1.3-.4-.4-.8-.6-1.3-.8-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1zm0 3.3c2.7 0 4.9 2.2 4.9 4.9s-2.2 4.9-4.9 4.9-4.9-2.2-4.9-4.9 2.2-4.9 4.9-4.9zm0 8.1c1.8 0 3.2-1.4 3.2-3.2s-1.4-3.2-3.2-3.2-3.2 1.4-3.2 3.2 1.4 3.2 3.2 3.2zm6.3-8.3c0 .6-.5 1.1-1.1 1.1s-1.1-.5-1.1-1.1.5-1.1 1.1-1.1 1.1.5 1.1 1.1z"/></svg></a>
           <a href="https://www.youtube.com/@TheBallersKingdom" target="_blank" rel="noopener" aria-label="YouTube"><svg viewBox="0 0 24 24"><path d="M23.5 6.2c-.3-1-1-1.8-2-2.1C19.7 3.5 12 3.5 12 3.5s-7.7 0-9.5.6c-1 .3-1.8 1.1-2 2.1C0 8 0 12 0 12s0 4 .5 5.8c.3 1 1 1.8 2 2.1 1.8.6 9.5.6 9.5.6s7.7 0 9.5-.6c1-.3 1.8-1.1 2-2.1C24 16 24 12 24 12s0-4-.5-5.8zM9.5 15.5V8.5l6.5 3.5-6.5 3.5z"/></svg></a>
           <a href="https://linkedin.com/in/brian-kennedy-jr-ampac" target="_blank" rel="noopener" aria-label="LinkedIn"><svg viewBox="0 0 24 24"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 110-4.12 2.06 2.06 0 010 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.28V1.72C24 .77 23.2 0 22.23 0z"/></svg></a>
         </div>
       </div>
-      <div>
-        <h4>Services</h4>
-        <a href="soccer.html">Training</a>
-        <a href="ee-venture.html">Consulting</a>
-        <a href="home-inspection-guide/">Inspections</a>
-        <a href="index.html#toolkit">Development Toolkit</a>
-      </div>
+      <div><h4>Kingdom System</h4><a href="soccer.html">Training</a><a href="ee-venture.html">Consulting</a><a href="home-inspection-guide/">Home Inspection</a><a href="shop.html">Apparel &amp; Shop · Coming Soon</a></div>
       <div><h4>About</h4><a href="about.html">Meet Brian</a><a href="https://linkedin.com/in/brian-kennedy-jr-ampac" target="_blank" rel="noopener">LinkedIn</a><a href="contact.html">Book Consulting</a></div>
       <div><h4>Get in touch</h4><a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a><a href="https://linktr.ee/TheBallersKingdom" target="_blank" rel="noopener">Linktree</a></div>
     </div>

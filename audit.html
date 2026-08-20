@@ -17,44 +17,348 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
 
+    <link rel="icon" type="image/png" href="assets/img/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/styles.css" />
   <link rel="stylesheet" href="assets/css/tools.css" />
 
   <style>
-.au-wrap { max-width: 880px; margin: 0 auto; }
-    .au-buy, .au-card, .au-step, .au-email { padding: 22px 18px; }
-    .au-buy { text-align:center; }
-    .au-price { font-family:var(--font-display); font-size:clamp(3rem,9vw,4.4rem); line-height:0.9; color:var(--white); }
-    .au-price sup { color:var(--royal-glow); font-size:0.42em; }
-    .au-price-sub, .au-section-head .kicker { font-family:var(--font-display); text-transform:uppercase; letter-spacing:0.18em; font-size:0.72rem; color:var(--royal-glow); }
-    .au-buy-btns, .au-hero-actions, .au-trust, .rs-cta-btns { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-    .au-btn-pay { background:var(--royal-bright); color:var(--white) !important; }
-    .au-btn-pay:hover { background:var(--royal-glow); }
-    .au-includes, .au-steps, .au-hero-proof { display:grid; gap:16px; }
-    .au-includes { grid-template-columns:repeat(2,minmax(0,1fr)); margin:30px 0; }
-    .au-steps, .au-hero-proof { grid-template-columns:repeat(3,minmax(0,1fr)); }
-    @media (max-width: 680px) { .au-includes, .au-steps, .au-hero-proof { grid-template-columns:1fr; } }
-    .au-card p, .au-leaks li, .au-step p, .au-email p, .au-section-head p, .au-calc-note { color:var(--ink); }
-    .au-leaks { list-style:none; margin:0; padding:0; }
-    .au-leaks li { position:relative; padding:12px 0 12px 28px; border-bottom:1px solid rgba(255,255,255,0.06); }
-    .au-leaks li::before { content:'→'; position:absolute; left:0; color:var(--royal-glow); }
-    .au-step { text-align:center; }
-    .au-step-num { width:42px; height:42px; margin:0 auto 12px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:var(--royal-bright); color:var(--white); font-family:var(--font-display); }
-    .au-email { border-left:2px solid var(--royal-glow); }
-    .au-hero-proof div, .au-calc-badge, .au-field, .au-calc-result { border:1px solid var(--line); border-radius:10px; background:rgba(255,255,255,0.03); padding:14px; }
-    .au-hero-proof strong, .au-calc-badge strong, .au-calc-result strong { display:block; color:var(--white); font-family:var(--font-display); font-size:1.2rem; }
-    .au-hero-proof span, .au-calc-badge span, .au-calc-note, .au-field label { color:var(--muted); }
-    .au-calculator { overflow:hidden; }
-    .au-calc-head { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:18px; align-items:end; padding:24px 20px; border-bottom:1px solid rgba(255,255,255,0.06); background:linear-gradient(180deg, rgba(18,64,160,0.18), rgba(3,5,7,0)); }
-    @media (max-width: 700px) { .au-calc-head { grid-template-columns:1fr; } }
-    .au-calc-head h2 { margin:8px 0; }
-    .au-calc-head p { color:var(--ink); margin:0; }
-    .au-calc-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; padding:22px 20px 10px; }
-    @media (max-width: 700px) { .au-calc-grid { grid-template-columns:1fr; } }
-    .au-field input, .au-field select, .au-field textarea { width:100%; margin-top:8px; padding:12px 12px; background:var(--charcoal); color:var(--white); border:1px solid var(--line); border-radius:4px; }
-    .au-calc-actions { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:0 20px 22px; }
+    /* ---- Site Leak Audit page ---- */
+    .au-wrap { max-width: 880px; margin: 0 auto; }
+
+    /* price + buy card */
+    .au-buy {
+      margin: 0 auto 40px;
+      max-width: 720px;
+      padding: 36px;
+      border-radius: 18px;
+      background: var(--stone);
+      border: 2px solid var(--gray-200);
+      box-shadow: var(--shadow-md);
+      text-align: center;
+    }
+    @media (max-width: 540px) { .au-buy { padding: 26px 18px; } }
+    .au-price {
+      font-family: var(--font-display);
+      font-weight: 700;
+      line-height: 1;
+      color: var(--white);
+      font-size: clamp(3rem, 9vw, 4.4rem);
+    }
+    .au-price sup { font-size: 0.42em; top: -0.7em; color: var(--royal); margin-right: 2px; }
+    .au-price-sub {
+      font-family: var(--font-display);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.82rem;
+      color: var(--gray-600);
+      margin-top: 6px;
+    }
+    .au-buy-btns {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 26px 0 14px;
+    }
+    .au-btn-pay {
+      background: var(--white);
+      color: var(--black) !important;
+      font-size: 1.05rem;
+      padding: 16px 34px;
+    }
+    .au-btn-pay:hover { background: var(--gold); }
+    .au-trust {
+      display: flex; gap: 18px; justify-content: center; flex-wrap: wrap;
+      color: var(--gray-400); font-size: 0.86rem; margin-top: 14px;
+    }
+    .au-trust span { display: inline-flex; align-items: center; gap: 6px; }
+    .au-trust strong { color: var(--royal); }
+
+    /* includes grid */
+    .au-includes {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 34px 0;
+    }
+    @media (max-width: 680px) { .au-includes { grid-template-columns: 1fr; } }
+    .au-card {
+      background: var(--stone); border: 1px solid var(--gray-200); border-radius: 14px;
+      padding: 24px; box-shadow: var(--shadow-sm);
+    }
+    .au-card-num {
+      font-family: var(--font-display); font-weight: 700; color: var(--royal);
+      letter-spacing: 0.18em; font-size: 0.82rem; margin-bottom: 8px; display: block;
+    }
+    .au-card h3 { text-transform: none; letter-spacing: 0; font-size: 1.12rem; margin-bottom: 8px; }
+    .au-card p { color: var(--gray-600); font-size: 0.95rem; line-height: 1.55; margin: 0; }
+
+    /* leaks list */
+    .au-leaks { list-style: none; margin: 0; padding: 0; }
+    .au-leaks li {
+      position: relative; padding: 14px 0 14px 34px; border-bottom: 1px solid var(--gray-200);
+      color: var(--gray-600); line-height: 1.5;
+    }
+    .au-leaks li::before {
+      content: '\2192'; position: absolute; left: 0; top: 14px;
+      color: var(--royal); font-weight: 700; font-family: var(--font-display);
+    }
+    .au-leaks strong { color: var(--ink); }
+
+    /* steps */
+    .au-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 30px 0; }
+    @media (max-width: 680px) { .au-steps { grid-template-columns: 1fr; } }
+    .au-step { text-align: center; padding: 24px 18px; background: var(--stone); border-radius: 14px; border-top: 3px solid var(--royal); }
+    .au-step-num {
+      width: 44px; height: 44px; border-radius: 50%; background: var(--royal); color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; margin-bottom: 12px;
+    }
+    .au-step h3 { text-transform: none; letter-spacing: 0; font-size: 1.05rem; margin-bottom: 6px; }
+    .au-step p { color: var(--gray-600); font-size: 0.9rem; margin: 0; line-height: 1.5; }
+
+    /* email fallback */
+    .au-email {
+      margin: 36px auto 0; max-width: 720px; padding: 28px 30px; border-radius: 16px;
+      background: var(--stone); border-left: 4px solid var(--royal);
+    }
+    @media (max-width: 540px) { .au-email { padding: 22px 18px; } }
+    .au-email h3 { text-transform: none; letter-spacing: 0; font-size: 1.2rem; margin-bottom: 8px; }
+    .au-email p { color: var(--gray-600); margin: 0 0 16px; line-height: 1.55; }
+    .au-email .btn { align-self: flex-start; }
+
+    .au-section-head { text-align: center; max-width: 60ch; margin: 0 auto 28px; }
+    .au-section-head .kicker {
+      font-family: var(--font-display); letter-spacing: 0.22em; text-transform: uppercase;
+      font-size: 0.78rem; color: var(--royal); margin-bottom: 10px;
+    }
+    .au-section-head h2 { margin-bottom: 10px; }
+    .au-section-head p { color: var(--gray-600); }
+
+    .au-hero-actions {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+    .au-hero-actions .btn {
+      padding: 13px 22px;
+      font-size: 0.86rem;
+    }
+    .au-hero-proof {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      max-width: 720px;
+      margin: 28px auto 0;
+    }
+    .au-hero-proof div {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.05);
+      padding: 14px;
+    }
+    .au-hero-proof strong {
+      display: block;
+      color: var(--white);
+      font-family: var(--font-display);
+      font-size: 1.22rem;
+      line-height: 1;
+    }
+    .au-hero-proof span {
+      display: block;
+      color: #9CA3AF;
+      font-size: 0.8rem;
+      line-height: 1.35;
+      margin-top: 7px;
+    }
+    @media (max-width: 620px) {
+      .au-hero-proof { grid-template-columns: 1fr; }
+    }
+
+    /* leak math calculator */
+    .au-calculator {
+      margin: 0 auto 34px;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--black);
+      color: var(--white);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(59, 91, 165, 0.55);
+    }
+    .au-calc-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 22px;
+      align-items: end;
+      padding: 30px 32px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background:
+        linear-gradient(135deg, rgba(27, 58, 142, 0.4), rgba(11, 18, 32, 0.2)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 54px);
+    }
+    .au-calc-head h2 {
+      color: var(--white);
+      margin: 8px 0 8px;
+      font-size: clamp(2rem, 4.6vw, 3.4rem);
+    }
+    .au-calc-head p {
+      color: #CBD5E1;
+      margin: 0;
+      max-width: 58ch;
+    }
+    .au-calc-badge {
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: right;
+      min-width: 170px;
+      background: rgba(255,255,255,0.08);
+    }
+    .au-calc-badge strong {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      line-height: 1;
+      color: var(--white);
+    }
+    .au-calc-badge span {
+      color: #9CA3AF;
+      font-size: 0.8rem;
+    }
+    .au-calc-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 0.82fr);
+      gap: 0;
+    }
+    .au-calc-inputs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      padding: 28px 32px;
+      background: #0F172A;
+    }
+    .au-field {
+      display: grid;
+      gap: 7px;
+    }
+    .au-field label {
+      font-family: var(--font-display);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #CBD5E1;
+      font-size: 0.74rem;
+    }
+    .au-field input {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      color: var(--white);
+      font: 700 1.12rem var(--font-body);
+      padding: 13px 12px;
+    }
+    .au-field input:focus {
+      outline: 3px solid rgba(59, 91, 165, 0.45);
+      border-color: var(--royal-light);
+    }
+    .au-field small {
+      color: #8A93A6;
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+    .au-calc-results {
+      display: grid;
+      gap: 12px;
+      padding: 28px;
+      background: var(--stone);
+      color: var(--cream);
+    }
+    .au-result-main {
+      padding: 20px;
+      border-radius: 14px;
+      background: var(--white);
+      color: var(--black);
+    }
+    .au-result-main span,
+    .au-result-card span {
+      display: block;
+      font-family: var(--font-display);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 0.72rem;
+    }
+    .au-result-main strong {
+      display: block;
+      font-family: var(--font-display);
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      line-height: 1;
+      margin-top: 7px;
+    }
+    .au-result-main em {
+      display: block;
+      color: #444;
+      font-style: normal;
+      font-size: 0.88rem;
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+    .au-result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .au-result-card {
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 15px;
+      background: var(--stone);
+    }
+    .au-result-card span {
+      color: var(--gray-400);
+    }
+    .au-result-card strong {
+      display: block;
+      color: var(--white);
+      font-family: var(--font-display);
+      font-size: 1.55rem;
+      line-height: 1;
+      margin-top: 7px;
+    }
+    .au-calc-note {
+      margin: 2px 0 0;
+      color: var(--gray-600);
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+    .au-calc-cta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 2px;
+    }
+    .au-calc-cta .btn {
+      padding: 12px 18px;
+      font-size: 0.84rem;
+    }
+    .au-calc-cta span {
+      color: var(--gray-400);
+      font-size: 0.84rem;
+    }
+    @media (max-width: 820px) {
+      .au-calc-head,
+      .au-calc-body { grid-template-columns: 1fr; }
+      .au-calc-badge { text-align: left; }
+    }
+    @media (max-width: 560px) {
+      .au-calc-head,
+      .au-calc-inputs,
+      .au-calc-results { padding: 22px 18px; }
+      .au-calc-inputs,
+      .au-result-grid { grid-template-columns: 1fr; }
+    }
   </style>
 
   <script type="application/ld+json">
@@ -76,20 +380,18 @@
 <!-- NAV -->
 <nav class="nav" role="navigation" aria-label="Main">
   <div class="nav-inner">
-    <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
-      <span class="monogram">BK</span>
-      <span class="wordmark">
-        <span>The Ballers Kingdom</span>
-        <span class="est">EST 2019</span>
-      </span>
+        <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
+      <img src="assets/img/logo-nav-white.png" alt="The Ballers Kingdom" class="logo-img" width="340" height="24" />
     </a>
     <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <div class="nav-links">
       <a href="soccer.html">Training</a>
       <a href="ee-venture.html">Consulting</a>
-      <a href="home-inspection-guide/">Inspections</a>
-      <a href="index.html#toolkit">Toolkit</a>
-      <a href="index.html#products">Products</a>
+      <a href="shop.html">Shop</a>
+      <a href="readiness.html">Readiness</a>
+      <a href="growth.html">Inner Game</a>
+      <a href="audit.html">Site Audit</a>
+      <a href="home-inspection-guide/">Home Inspection</a>
       <a href="about.html">About</a>
       <a href="contact.html" class="nav-cta">Book Consulting</a>
     </div>
@@ -312,14 +614,10 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <div class="logo" style="color: var(--cream);">
-          <span class="monogram">BK</span>
-          <span class="wordmark">
-            <span>The Ballers Kingdom</span>
-            <span class="est">EST 2019</span>
-          </span>
-        </div>
-        <p>Training · Consulting · Inspections · Development Toolkit. Inland Empire, California.</p>
+                <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
+          <img src="assets/img/logo-wordmark-white.png" alt="The Ballers Kingdom" class="footer-logo" width="380" height="49" />
+        </a>
+        <p>Soccer training and multi-dimensional development consulting. Inland Empire, California.</p>
       </div>
       <div>
         <h4>Tools</h4>
@@ -332,7 +630,8 @@
       <div>
         <h4>About</h4>
         <a href="about.html">Meet Brian</a>
-        <a href="contact.html" class="nav-cta">Book Consulting</a>
+        <a href="shop.html">Apparel &amp; Shop · Coming Soon</a>
+        <a href="contact.html">Book Consulting</a>
       </div>
       <div>
         <h4>Get in touch</h4>
