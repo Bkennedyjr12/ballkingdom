@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="The Ballers Kingdom logo">
+  <title>BK — The Ballers Kingdom</title>
+  <rect width="120" height="120" rx="18" fill="#0B1220"/>
+  <circle cx="60" cy="60" r="42" fill="none" stroke="#1B3A8E" stroke-width="4"/>
+  <circle cx="60" cy="60" r="28" fill="#1B3A8E"/>
+  <text x="60" y="72" text-anchor="middle" font-family="Oswald, sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="0.04em">BK</text>
+  <text x="60" y="98" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="7" fill="#BFC8D6" letter-spacing="0.22em">EST 2019</text>
+</svg>
