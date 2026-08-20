@@ -4,6 +4,8 @@
 (function () {
   'use strict';
 
+  document.documentElement.classList.add('js');
+
   // Mobile nav toggle
   var toggle = document.querySelector('.nav-toggle');
   var links = document.querySelector('.nav-links');
@@ -43,4 +45,7 @@
   } else {
     document.querySelectorAll('[data-reveal]').forEach(function (el) { el.classList.add('is-visible'); });
   }
+  window.setTimeout(function () {
+    document.querySelectorAll('[data-reveal]').forEach(function (el) { el.classList.add('is-visible'); });
+  }, 1200);
 })();

@@ -278,6 +278,36 @@
 .rs-form-success { padding: 16px; border-radius: 10px; background: #F0FDF4; border: 1px solid #BBF7D0; color: #14532D; line-height: 1.6; }
 .rs-form-success a { color: var(--royal); font-weight: 600; }
 
+/* ---- Dark kingdom restyle for tool cards ---- */
+.ig-emotion, .ig-step, .ig-chip, .rs-intro-card, .rs-q, .rs-opt, .rs-lead, .ig-log-item {
+  background: var(--stone);
+  color: var(--cream);
+}
+.ig-emotion-label, .ig-step-emotion, .ig-log-emotion, .rs-stage, .rs-bar-name, .rs-q-text, .rs-lead h3 {
+  color: var(--white);
+}
+.ig-chip, .rs-opt { color: var(--cream); border-color: var(--gray-200); }
+.ig-chip:hover, .rs-opt:hover { background: #222; color: var(--white); border-color: #555; }
+.ig-chip.on, .rs-opt.on { background: var(--white); border-color: var(--white); color: var(--black); }
+.ig-glyph { background: var(--white); color: var(--black); }
+.ig-textarea, .rs-input {
+  background: var(--ink);
+  color: var(--cream);
+  border-color: var(--gray-200);
+}
+.ig-callout.warn { background: #2A1A12; color: #FDBA74; border-left-color: #C2410C; }
+.ig-callout.grow { background: #102418; color: #86EFAC; border-left-color: #15803D; }
+.ig-crisis { background: #2A1A12; border-color: #7C2D12; }
+.ig-crisis-text { color: #FDBA74; }
+.ig-crisis-line { background: #1A1A1A; border-color: #7C2D12; }
+.ig-crisis-line strong { color: #FDBA74; }
+.ig-crisis-line span { color: #F6AD55; }
+.rs-form-success { background: #102418; border-color: #166534; color: #86EFAC; }
+.rs-cta-card { background: linear-gradient(135deg, #1A1A1A, #2A2A2A); }
+.ig-btn.primary { background: var(--white); color: var(--black); }
+.ig-btn.primary:hover { background: var(--gold); color: var(--black); }
+.tool-hero .kicker { color: var(--gray-400); }
+
 @media print {
   nav, .tool-hero .disclaimer, .rs-result-actions, .rs-cta-btns, .rs-lead, footer, .no-print { display: none !important; }
 }

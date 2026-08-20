@@ -19,6 +19,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
 
+    <link rel="icon" type="image/png" href="assets/img/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/styles.css" />
   <link rel="stylesheet" href="assets/css/tools.css" />
 
@@ -32,8 +34,8 @@
       max-width: 720px;
       padding: 36px;
       border-radius: 18px;
-      background: var(--white);
-      border: 2px solid var(--royal);
+      background: var(--stone);
+      border: 2px solid var(--gray-200);
       box-shadow: var(--shadow-md);
       text-align: center;
     }
@@ -42,7 +44,7 @@
       font-family: var(--font-display);
       font-weight: 700;
       line-height: 1;
-      color: var(--black);
+      color: var(--white);
       font-size: clamp(3rem, 9vw, 4.4rem);
     }
     .au-price sup { font-size: 0.42em; top: -0.7em; color: var(--royal); margin-right: 2px; }
@@ -62,12 +64,12 @@
       margin: 26px 0 14px;
     }
     .au-btn-pay {
-      background: var(--royal);
-      color: var(--white) !important;
+      background: var(--white);
+      color: var(--black) !important;
       font-size: 1.05rem;
       padding: 16px 34px;
     }
-    .au-btn-pay:hover { background: var(--royal-dark); }
+    .au-btn-pay:hover { background: var(--gold); }
     .au-trust {
       display: flex; gap: 18px; justify-content: center; flex-wrap: wrap;
       color: var(--gray-400); font-size: 0.86rem; margin-top: 14px;
@@ -81,7 +83,7 @@
     }
     @media (max-width: 680px) { .au-includes { grid-template-columns: 1fr; } }
     .au-card {
-      background: var(--white); border: 1px solid var(--gray-200); border-radius: 14px;
+      background: var(--stone); border: 1px solid var(--gray-200); border-radius: 14px;
       padding: 24px; box-shadow: var(--shadow-sm);
     }
     .au-card-num {
@@ -270,14 +272,14 @@
       display: grid;
       gap: 12px;
       padding: 28px;
-      background: var(--white);
-      color: var(--ink);
+      background: var(--stone);
+      color: var(--cream);
     }
     .au-result-main {
       padding: 20px;
       border-radius: 14px;
-      background: var(--royal);
-      color: var(--white);
+      background: var(--white);
+      color: var(--black);
     }
     .au-result-main span,
     .au-result-card span {
@@ -296,7 +298,7 @@
     }
     .au-result-main em {
       display: block;
-      color: rgba(255,255,255,0.76);
+      color: #444;
       font-style: normal;
       font-size: 0.88rem;
       margin-top: 8px;
@@ -318,7 +320,7 @@
     }
     .au-result-card strong {
       display: block;
-      color: var(--black);
+      color: var(--white);
       font-family: var(--font-display);
       font-size: 1.55rem;
       line-height: 1;
@@ -378,12 +380,8 @@
 <!-- NAV -->
 <nav class="nav" role="navigation" aria-label="Main">
   <div class="nav-inner">
-    <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
-      <span class="monogram">BK</span>
-      <span class="wordmark">
-        <span>The Ballers Kingdom</span>
-        <span class="est">EST 2019</span>
-      </span>
+        <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
+      <img src="assets/img/logo-nav-white.png" alt="The Ballers Kingdom" class="logo-img" width="340" height="24" />
     </a>
     <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <div class="nav-links">
@@ -616,13 +614,9 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <div class="logo" style="color: var(--cream);">
-          <span class="monogram">BK</span>
-          <span class="wordmark">
-            <span>The Ballers Kingdom</span>
-            <span class="est">EST 2019</span>
-          </span>
-        </div>
+                <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
+          <img src="assets/img/logo-wordmark-white.png" alt="The Ballers Kingdom" class="footer-logo" width="380" height="49" />
+        </a>
         <p>Tech-forward training platform and multi-dimensional development consulting. Inland Empire, California.</p>
       </div>
       <div>

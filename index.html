@@ -21,6 +21,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
 
+    <link rel="icon" type="image/png" href="assets/img/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/styles.css" />
 
   <style>
@@ -70,7 +72,7 @@
       display: block;
       padding: 28px 24px;
       border-radius: 14px;
-      background: var(--white);
+      background: var(--stone);
       border: 1px solid var(--gray-200);
       box-shadow: var(--shadow-sm);
       text-decoration: none;
@@ -80,7 +82,7 @@
     .ks-card:hover {
       transform: translateY(-4px);
       box-shadow: var(--shadow-md);
-      border-color: var(--crimson);
+      border-color: #444;
     }
     .ks-num {
       position: absolute;
@@ -94,8 +96,8 @@
     .ks-icon {
       width: 44px; height: 44px;
       border-radius: 10px;
-      background: var(--crimson);
-      color: var(--white);
+      background: var(--white);
+      color: var(--black);
       display: inline-flex;
       align-items: center; justify-content: center;
       font-family: var(--font-display);
@@ -109,7 +111,7 @@
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: var(--black);
+      color: var(--white);
       margin: 0 0 8px;
     }
     .ks-desc {
@@ -119,7 +121,7 @@
       margin: 0 0 14px;
     }
     .ks-arrow {
-      color: var(--crimson);
+      color: var(--white);
       font-family: var(--font-display);
       font-weight: 600;
       letter-spacing: 0.15em;
@@ -129,18 +131,18 @@
 
     /* ---- App CTA band ---- */
     .app-cta {
-      background: linear-gradient(135deg, var(--crimson-dark), var(--crimson));
+      background: var(--charcoal);
       color: var(--white);
       padding: 64px 0;
       text-align: center;
     }
     .app-cta h2 { color: var(--white); margin: 0 0 14px; }
-    .app-cta p { color: rgba(255,255,255,0.85); max-width: 640px; margin: 0 auto 28px; }
+    .app-cta p { color: var(--gray-600); max-width: 640px; margin: 0 auto 28px; }
     .app-cta .btn-primary {
       background: var(--white);
-      color: var(--crimson-dark);
+      color: var(--black);
     }
-    .app-cta .btn-primary:hover { background: var(--gray-200); }
+    .app-cta .btn-primary:hover { background: var(--gold); }
     .app-cta .price-pill {
       display: inline-block;
       margin-left: 14px;
@@ -177,12 +179,8 @@
 <!-- NAV -->
 <nav class="nav" role="navigation" aria-label="Main">
   <div class="nav-inner">
-    <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
-      <span class="monogram">BK</span>
-      <span class="wordmark">
-        <span>The Ballers Kingdom</span>
-        <span class="est">EST 2019</span>
-      </span>
+        <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
+      <img src="assets/img/logo-nav-white.png" alt="The Ballers Kingdom" class="logo-img" width="340" height="24" />
     </a>
     <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <div class="nav-links">
@@ -203,6 +201,7 @@
 <header class="hero hero-bigtype">
   <div class="hero-inner">
     <span class="pos-pill">Training Platform · Consulting Company · Community Impact</span>
+    <img src="assets/img/logo-wordmark-white.png" alt="The Ballers Kingdom" class="hero-lockup" width="520" height="67" />
     <h1>Building Ballers.<br />Advancing Kingdoms.<br /><span class="accent">Continually Setting the Standard.</span></h1>
     <p class="sub">
       The Ballers Kingdom is a tech-forward, community-centered training platform — personal soccer training and multi-dimensional development consulting. Apparel is coming soon. Founded in 2019 by <strong>Brian Kennedy Jr, M.Ed</strong> — 2024 California 30 Under 30, 2× BIG EAST Champion, NCAA Final Four &amp; Elite 8 Providence Friar, Pro experience.
@@ -402,13 +401,9 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <div class="logo" style="color: var(--cream);">
-          <span class="monogram">BK</span>
-          <span class="wordmark">
-            <span>The Ballers Kingdom</span>
-            <span class="est">EST 2019</span>
-          </span>
-        </div>
+                <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
+          <img src="assets/img/logo-wordmark-white.png" alt="The Ballers Kingdom" class="footer-logo" width="380" height="49" />
+        </a>
         <p>Tech-forward training platform and multi-dimensional development consulting. Inland Empire, California.</p>
         <div class="socials">
           <a href="https://www.instagram.com/theballerskingdom_" target="_blank" rel="noopener" aria-label="Instagram">

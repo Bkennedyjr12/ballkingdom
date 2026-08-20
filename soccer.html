@@ -12,6 +12,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="assets/img/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/styles.css" />
 
   <style>
@@ -40,24 +42,24 @@
     /* Numbered training options */
     .opts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 36px; }
     @media (max-width: 900px) { .opts-grid { grid-template-columns: 1fr; } }
-    .opt-card { background: var(--white); border: 1px solid var(--gray-200); border-radius: 14px; padding: 28px 24px; box-shadow: var(--shadow-sm); transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease; position: relative; }
-    .opt-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--crimson); }
+    .opt-card { background: var(--stone); border: 1px solid var(--gray-200); border-radius: 14px; padding: 28px 24px; box-shadow: var(--shadow-sm); transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease; position: relative; }
+    .opt-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--gold); }
     .opt-num { position: absolute; top: 18px; right: 22px; color: var(--gray-400); font-family: var(--font-display); font-size: 0.82rem; letter-spacing: 0.22em; }
     .opt-icon { width: 48px; height: 48px; border-radius: 12px; background: var(--crimson); color: var(--white); display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; margin-bottom: 14px; }
     .opt-card h3 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 8px; }
     .opt-card p { color: var(--gray-600); margin: 0 0 14px; font-size: 0.95rem; line-height: 1.5; }
-    .opt-card a.inquire { color: var(--crimson); font-family: var(--font-display); font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; font-size: 0.78rem; text-decoration: none; }
+    .opt-card a.inquire { color: var(--gold); font-family: var(--font-display); font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; font-size: 0.78rem; text-decoration: none; }
 
     /* YouTube cards */
     .yt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 36px; }
     @media (max-width: 900px) { .yt-grid { grid-template-columns: 1fr; } }
-    .yt-card { background: var(--white); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-sm); text-decoration: none; color: inherit; display: block; transition: transform 220ms ease, box-shadow 220ms ease; }
+    .yt-card { background: var(--stone); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-sm); text-decoration: none; color: inherit; display: block; transition: transform 220ms ease, box-shadow 220ms ease; }
     .yt-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
     .yt-thumb { aspect-ratio: 16/9; background-size: cover; background-position: center; position: relative; display: flex; align-items: center; justify-content: center; }
     .yt-thumb::after { content: "▶"; width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.95); color: var(--crimson-dark); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; padding-left: 4px; }
     .yt-tag { position: absolute; top: 12px; left: 12px; background: rgba(11,18,32,0.85); color: var(--white); font-family: var(--font-display); font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 5px 10px; border-radius: 4px; z-index: 2; }
     .yt-meta { padding: 16px 18px; }
-    .yt-meta strong { display: block; color: var(--ink); font-size: 0.98rem; line-height: 1.4; margin-bottom: 4px; }
+    .yt-meta strong { display: block; color: var(--cream); font-size: 0.98rem; line-height: 1.4; margin-bottom: 4px; }
     .yt-meta span { color: var(--gray-400); font-size: 0.82rem; }
 
     .app-cta { background: linear-gradient(135deg, var(--crimson-dark), var(--crimson)); color: var(--white); padding: 64px 0; text-align: center; }
@@ -66,11 +68,13 @@
     .app-cta .btn-primary { background: var(--white); color: var(--crimson-dark); }
   </style>
 </head>
-<body>
+<body class="theme-training">
 
 <nav class="nav" role="navigation" aria-label="Main">
   <div class="nav-inner">
-    <a href="index.html" class="logo"><span class="monogram">BK</span><span class="wordmark"><span>The Ballers Kingdom</span><span class="est">EST 2019</span></span></a>
+        <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
+      <img src="assets/img/logo-nav-white.png" alt="The Ballers Kingdom" class="logo-img" width="340" height="24" />
+    </a>
     <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <div class="nav-links">
       <a href="soccer.html">Training</a>
@@ -91,6 +95,7 @@
     <div class="training-grid">
       <div>
         <span class="pos-pill">01 · Training Hub</span>
+        <img src="assets/img/logo-nav-white.png" alt="The Ballers Kingdom" class="hero-lockup" width="420" height="30" style="margin:16px 0 18px;" />
         <h1>Personal training.<br /><span class="accent">Division I &amp; Pro built.</span></h1>
         <p class="lead">Tech-forward training where Ballers create personal plans, book local coaches, and access consulting support. 1-on-1, group, and team programs — built on Division I and Pro experience.</p>
         <div class="hero-ctas">
@@ -224,7 +229,9 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <div class="logo" style="color: var(--cream);"><span class="monogram">BK</span><span class="wordmark"><span>The Ballers Kingdom</span><span class="est">EST 2019</span></span></div>
+                <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
+          <img src="assets/img/logo-wordmark-white.png" alt="The Ballers Kingdom" class="footer-logo" width="380" height="49" />
+        </a>
         <p>Tech-forward training platform and multi-dimensional development consulting. Inland Empire, California.</p>
         <div class="socials">
           <a href="https://www.instagram.com/theballerskingdom_" target="_blank" rel="noopener" aria-label="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 1.2.1 1.8.3 2.2.5.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .5 2.2.1 1.2.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 1.2-.3 1.8-.5 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.5-1.2.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-1.2-.1-1.8-.3-2.2-.5-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.5-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8c.1-1.2.3-1.8.5-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.5C8.4 2.2 8.8 2.2 12 2.2zm0 1.9c-3.1 0-3.5 0-4.7.1-1.1.1-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1C2.6 9.5 2.6 9.9 2.6 13s0 3.5.1 4.7c.1 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-4.7s0-3.5-.1-4.7c-.1-1.1-.2-1.7-.4-2.1-.2-.5-.4-.9-.8-1.3-.4-.4-.8-.6-1.3-.8-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1zm0 3.3c2.7 0 4.9 2.2 4.9 4.9s-2.2 4.9-4.9 4.9-4.9-2.2-4.9-4.9 2.2-4.9 4.9-4.9zm0 8.1c1.8 0 3.2-1.4 3.2-3.2s-1.4-3.2-3.2-3.2-3.2 1.4-3.2 3.2 1.4 3.2 3.2 3.2zm6.3-8.3c0 .6-.5 1.1-1.1 1.1s-1.1-.5-1.1-1.1.5-1.1 1.1-1.1 1.1.5 1.1 1.1z"/></svg></a>
