@@ -1,0 +1,17 @@
+{
+  "name": "ballkingdom-integrations",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22" },
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/index.js && node --check src/orchestration.js && node --check src/domain/workflow.js && node --check src/providers/microsoft-graph.js && node --check src/providers/quickbooks.js"
+  },
+  "dependencies": {
+    "@google-cloud/secret-manager": "^6.1.0",
+    "firebase-admin": "^14.3.0",
+    "firebase-functions": "^7.3.2"
+  }
+}
