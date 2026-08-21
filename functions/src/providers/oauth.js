@@ -22,14 +22,14 @@ export async function exchangeQuickBooksCode({clientId,clientSecret,redirectUri,
 
 export function buildMicrosoftAuthUrl({tenantId,clientId,redirectUri,state}) {
   const url = new URL(`https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/authorize`);
-  url.search = new URLSearchParams({client_id:clientId,response_type:'code',redirect_uri:redirectUri,response_mode:'query',scope:'openid profile email offline_access Mail.Send',state,prompt:'select_account'}).toString();
+  url.search = new URLSearchParams({client_id:clientId,response_type:'code',redirect_uri:redirectUri,response_mode:'query',scope:'openid profile email offline_access User.Read Mail.Send',state,prompt:'select_account'}).toString();
   return url.toString();
 }
 
 export async function exchangeMicrosoftCode({tenantId,clientId,clientSecret,redirectUri,code},fetchImpl=fetch) {
   const response = await fetchImpl(`https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`, {
     method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
-    body:new URLSearchParams({client_id:clientId,client_secret:clientSecret,grant_type:'authorization_code',code,redirect_uri:redirectUri,scope:'openid profile email offline_access Mail.Send'}),
+    body:new URLSearchParams({client_id:clientId,client_secret:clientSecret,grant_type:'authorization_code',code,redirect_uri:redirectUri,scope:'openid profile email offline_access User.Read Mail.Send'}),
   });
   return tokenJson(response,'Microsoft');
 }

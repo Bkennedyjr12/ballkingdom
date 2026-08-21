@@ -11,6 +11,7 @@ test('QuickBooks authorization URL has accounting scope and state', () => {
 test('Microsoft authorization URL requests delegated offline mail access', () => {
   const url = new URL(buildMicrosoftAuthUrl({tenantId:'tenant',clientId:'client',redirectUri:'https://example.com/ms',state:'state-2'}));
   assert.match(url.searchParams.get('scope'),/offline_access/);
+  assert.match(url.searchParams.get('scope'),/User.Read/);
   assert.match(url.searchParams.get('scope'),/Mail.Send/);
   assert.equal(url.searchParams.get('prompt'),'select_account');
 });
