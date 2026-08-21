@@ -1,0 +1,66 @@
+import {buildInvoiceRequest, isApprovalDue, validateAppointment} from './domain/workflow.js';
+
+export function createIntegrationService({repository, graph, quickbooks, clock = () => new Date()}) {
+  return {
+    async confirmAcceptedBooking(appointmentId, rawAppointment) {
+      const appointment = validateAppointment(rawAppointment);
+      if (appointment.status !== 'accepted') return {ignored:true};
+      if (!await repository.claimConfirmation(appointmentId)) return {duplicate:true};
+      try {
+        const receipt = await graph.sendConfirmation({
+          to:appointment.customerEmail,
+          customerName:appointment.customerName,
+          serviceName:appointment.serviceName,
+          startsAt:appointment.startsAt,
+          idempotencyKey:`${appointmentId}-confirmation`,
+        });
+        await repository.completeConfirmation(appointmentId, receipt);
+        return {sent:true};
+      } catch (error) {
+        await repository.failConfirmation(appointmentId, {message:error.message});
+        throw error;
+      }
+    },
+
+    async stageDueApprovals() {
+      const now = clock();
+      const appointments = await repository.listAcceptedBefore(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+      let staged = 0;
+      for (const appointment of appointments) {
+        if (!isApprovalDue(appointment, now)) continue;
+        if (await repository.stageApproval(appointment.id, {dueAt:now})) staged += 1;
+      }
+      return {examined:appointments.length, staged};
+    },
+
+    async approveInvoice({appointmentId, auth}) {
+      if (!auth?.uid || auth.token?.admin !== true) throw new Error('An authenticated administrator is required');
+      const appointment = await repository.claimApproval(appointmentId, auth.uid);
+      if (!appointment) return {duplicate:true};
+      try {
+        const invoiceRequest = buildInvoiceRequest(appointment);
+        const invoice = await quickbooks.createInvoice({
+          ...invoiceRequest,
+          customerName:appointment.customerName,
+          customerEmail:appointment.customerEmail,
+          appointmentId,
+        });
+        const pdf = await quickbooks.getInvoicePdf(invoice.id);
+        const email = await graph.sendInvoice({
+          to:appointment.customerEmail,
+          customerName:appointment.customerName,
+          invoiceNumber:invoice.number,
+          pdf,
+          idempotencyKey:`${appointmentId}-invoice-email`,
+        });
+        await repository.completeApproval(appointmentId, {
+          approvedBy:auth.uid, invoiceId:invoice.id, invoiceNumber:invoice.number, emailAccepted:email.accepted === true,
+        });
+        return {invoiceId:invoice.id, invoiceNumber:invoice.number};
+      } catch (error) {
+        await repository.failApproval(appointmentId, {message:error.message});
+        throw error;
+      }
+    },
+  };
+}

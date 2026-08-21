@@ -1,4 +1,12 @@
 {
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs22",
+    "codebase": "ballkingdom-integrations"
+  },
+  "firestore": {
+    "indexes": "firestore.indexes.json"
+  },
   "hosting": [
     {
       "target": "public",
