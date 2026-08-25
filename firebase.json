@@ -39,7 +39,8 @@
         "home-inspection-guide/src/**",
         "home-inspection-guide/input/**",
         "home-inspection-guide/audit/**",
-        "home-inspection-guide/README.md"
+        "home-inspection-guide/README.md",
+        "hosting/**"
       ],
       "rewrites": [
         {
@@ -60,6 +61,21 @@
       ],
       "cleanUrls": true,
       "trailingSlash": false
+    },
+    {
+      "site": "theballerskingdom-redirect",
+      "public": "hosting/theballerskingdom-redirect/public",
+      "ignore": [
+        "firebase.json",
+        "**/.*"
+      ],
+      "redirects": [
+        {
+          "source": "**",
+          "destination": "https://ballkingdom.com/",
+          "type": 301
+        }
+      ]
     }
   ]
 }

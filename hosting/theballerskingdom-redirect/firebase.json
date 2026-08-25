@@ -1,0 +1,10 @@
+{
+  "hosting": {
+    "site": "theballerskingdom-redirect",
+    "public": "public",
+    "ignore": ["firebase.json", "**/.*"],
+    "redirects": [
+      { "source": "**", "destination": "https://ballkingdom.com/", "type": 301 }
+    ]
+  }
+}
