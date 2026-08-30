@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-08-30T23:30:50Z",
+  "project": "the-ballers-kingdom",
+  "environment": "production",
+  "method": {
+    "description": "One approved read-only shell process loaded the latest QBO_CLIENT_ID, QBO_CLIENT_SECRET, QBO_REFRESH_TOKEN, and QBO_REALM_ID Secret Manager values directly into process-local variables with gcloud stderr suppressed. It submitted an OAuth refresh POST, retained only the HTTP status and in-memory access token, then submitted one Accounting CompanyInfo GET using the in-memory realm and retained only the HTTP status and CompanyName. The process printed or persisted no secret value, realm ID, token, authorization header, request credential, endpoint containing the realm, or provider response payload.",
+    "secretNames": [
+      "QBO_CLIENT_ID",
+      "QBO_CLIENT_SECRET",
+      "QBO_REFRESH_TOKEN",
+      "QBO_REALM_ID"
+    ],
+    "secretValuesRetained": false,
+    "realmIdRetained": false,
+    "accessTokenRetained": false,
+    "providerPayloadRetained": false
+  },
+  "oauthRefresh": {
+    "attempted": true,
+    "httpStatus": 200,
+    "successful": true
+  },
+  "accountingCompanyInfo": {
+    "attempted": true,
+    "httpStatus": 200,
+    "successful": true,
+    "companyName": "The Ballers Kingdom",
+    "expectedCompanyNameMatched": true
+  },
+  "mutationBoundary": {
+    "providerRecordsCreated": false,
+    "providerRecordsUpdated": false,
+    "providerRecordsDeleted": false,
+    "emailOrInvoiceSent": false,
+    "secretChanged": false,
+    "deploymentPerformed": false
+  },
+  "scopeBoundary": "This dated check resolves production Accounting OAuth health and company-identity readback only. It is not Intuit sandbox proof, entity-write proof, invoice-send proof, payment proof, webhook proof, settlement proof, or continuing health beyond the observation time."
+}
