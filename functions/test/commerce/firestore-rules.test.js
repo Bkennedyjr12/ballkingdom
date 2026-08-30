@@ -62,5 +62,22 @@ test('the index manifest supports the bounded due-effect dispatcher', async () =
 });
 
 test('emulator auth-context coverage requires the Firebase Rules test SDK and a Java runtime', {
-  skip: 'Environment gate: no @firebase/rules-unit-testing dependency or Java runtime is available in this branch.',
+  skip: 'Release gate: merge candidate is unmapped and no @firebase/rules-unit-testing dependency or Java runtime is available.',
 }, () => {});
+
+test('Firestore merge candidate preserves every original byte outside narrow commerce denies', async () => {
+  const original = await readFile(new URL(
+    'docs/operations/evidence/firebase-rules/firestore/2c9d612b-dd17-406f-9a0f-86230c57420c/firestore.rules',rootUrl
+  ), 'utf8');
+  const candidate = await readFile(new URL(
+    'docs/operations/evidence/firebase-rules/merge-candidates/firestore.rules',rootUrl
+  ), 'utf8');
+  const stripped = candidate.replace(
+    /    \/\/ BEGIN LOCAL COMMERCE MERGE CANDIDATE\n[\s\S]*?    \/\/ END LOCAL COMMERCE MERGE CANDIDATE\n\n/,
+    '',
+  );
+  assert.equal(stripped, original);
+  for (const collection of [...COMMERCE_COLLECTIONS,'commerceRefundReviews','commerceRefundReviewTotals']) {
+    assert.match(candidate, new RegExp(`match /${collection}/\\{document=\\*\\*\\}`));
+  }
+});

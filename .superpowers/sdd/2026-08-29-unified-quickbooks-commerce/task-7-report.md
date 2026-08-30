@@ -54,4 +54,24 @@ No emulator claim is made: `/usr/bin/java` exists only as a launcher and reports
 
 ## Release blockers
 
-The production pilot and all Rules activation remain blocked until the authoritative production Firestore and Storage Rules sources, exact bucket mapping, paid-object placement, source/merged hashes, Java runtime, Rules test SDK, and emulator proof are recovered and reviewed. No deploy, provider call, secret access, message, invoice, payment, or refund occurred in this task.
+The authoritative deployed Rules originals and exact bucket are now independently retained. The production pilot and Rules activation remain blocked until the local merge candidates are independently accepted, the paid artifact and exact private object key are approved and present, Java and the Rules SDK are separately approved/installed, the complete emulator matrix passes, and explicit mappings receive release review. No deploy, dry run, provider call, secret access, object upload/content read, message, invoice, payment, or refund occurred in this task.
+
+## Resumed implementation from evidence commit `86a1d82`
+
+- Created separate Firestore and Storage merge candidates from the immutable retained deployed originals. Removing the one marked commerce block from either candidate yields the original byte-for-byte. Stable diffs, source/candidate/diff hashes, provenance, and inactive release flags are recorded in the candidate manifest.
+- Added explicit direct-client denies for every server-authoritative commerce collection and `private-commerce/{artifact=**}` without changing root Rules fragments or `firebase.json` mappings.
+- Implemented a Firestore transactional fulfillment repository. It persists only grant digests and bounded binding fields, verifies the fulfilled order plus active entitlement in the same transaction, enforces an exact ten-minute grant, atomically consumes once, rejects replay/expiry, and allows a new digest after a stream failure.
+- Added a serialized Firestore-shaped fake that exercises real repository transaction code. This is faithful local transaction-contract evidence, not emulator or live persistence evidence.
+- Implemented a private Admin Storage stream adapter pinned to `the-ballers-kingdom.firebasestorage.app`. It verifies the private prefix and exact object metadata, streams directly to the response, and never calls or returns a signed URL.
+- Added a fail-closed runtime readiness module: `ready:false`, `activeArtifactCount:0`, blocker `paid_artifact_absent`. No endpoint or active SKU object is wired because the verified inventory contains no paid artifact.
+- Did not add the Rules SDK because Java is absent and no emulator claim can be made; no Java or tooling installation was attempted.
+
+### Resumed verification
+
+- Functions: 332 passed, 2 explicit release-gate skips.
+- Storefront: 18 unit/content and 4 browser tests passed.
+- Home Inspection companion-link verification passed.
+- Functions static checks and direct syntax checks for all four fulfillment modules passed.
+- Original and candidate Rules hashes matched the recorded provenance and candidate manifest.
+- Secure repository scan reported only the existing synthetic secret-like strings in pre-existing tests; no Task 7 file was flagged.
+- Production dependency audit reports 7 moderate transitive `uuid` findings under the existing Firebase/Google Storage dependency chain. The offered forced remediation would downgrade `firebase-admin` to a breaking major version, so no unrelated forced dependency mutation was made.

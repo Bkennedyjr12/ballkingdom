@@ -146,7 +146,10 @@ export function createFulfillmentService({
         throw fulfillmentError('FULFILLMENT_GRANT_INVALID', 'Download grant is invalid or expired');
       }
       const result = await streamArtifact(
-        artifact.key,Object.freeze({orderId,sku:order.sku,customerUid:uid})
+        artifact.key,Object.freeze({
+          orderId,sku:order.sku,customerUid:uid,response:authContext.response,
+          expectedContentType:artifact.contentType,maxBytes:artifact.maxBytes,
+        })
       );
       if (!isRecord(result) || result.streamed !== true
         || Object.keys(result).some(key => !['streamed','contentType','bytesWritten'].includes(key))

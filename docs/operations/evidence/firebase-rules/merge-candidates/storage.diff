@@ -1,0 +1,10 @@
+--- deployed-original/storage.rules
++++ local-merge-candidate/storage.rules
+@@ -176,0 +177,7 @@
++    // BEGIN LOCAL COMMERCE MERGE CANDIDATE
++    // Paid artifacts are streamed only by the Admin SDK fulfillment function.
++    match /private-commerce/{artifact=**} {
++      allow read, write: if false;
++    }
++    // END LOCAL COMMERCE MERGE CANDIDATE
++

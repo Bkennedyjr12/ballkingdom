@@ -1,6 +1,6 @@
 # Firebase commerce Rules source evidence
 
-Status: **Byte-exact deployed originals retained and hashed; unmerged, unmapped, and not release-ready — do not map, deploy, or activate the commerce pilot**
+Status: **Byte-exact originals retained and separate local merge candidates prepared; unmapped, emulator-unverified, artifact-absent, and not release-ready**
 
 Recorded: 2026-08-30 (America/Los_Angeles)
 
@@ -23,24 +23,35 @@ The deployed originals were hashed byte-for-byte from the API response and retai
 - `storage.rules` is a local commerce-only deny fragment created for static fail-closed verification. It is not an authoritative production ruleset, and `firebase.json` intentionally has no `storage` block.
 - Both local fragments are excluded from every Hosting manifest entry.
 - Firebase Admin operations would bypass these fragments; no browser or public-object access is authorized by this work.
-- The fulfillment unit suite demonstrates the required atomic `consumeDownloadGrant` repository contract with an in-memory test double. There is no real Firestore transaction implementation or emulator proof in this task, so persistent single-use redemption is not claimed as complete.
-- The artifact boundary is stream-only and rejects URL-shaped results. It remains intentionally unwired until the bucket and object placement are verified; no reusable signed or provider URL is produced.
+- The fulfillment service boundary is stream-only and rejects URL-shaped results. It remains intentionally inactive because the verified bucket contains no approved paid artifact; no reusable signed or provider URL is produced.
+- A Firestore fulfillment repository now implements digest-only grant creation and atomic consumption using Firestore transactions. A serialized, Firestore-shaped fake proves the transaction contract locally, including concurrent replay denial and issuing a new grant after a consumed streaming failure. This is not Rules-emulator or live-persistence proof.
+- An Admin Storage adapter now verifies the exact recovered bucket name, private prefix, object MIME and size before streaming directly to a server response. It never calls or returns a signed URL. Runtime readiness remains hard-coded false and the active artifact allowlist remains empty because the retained inventory proves no paid artifact exists.
 
 The local-fragment hashes below identify only the reviewed repository artifacts. They are **not** production-source or merge evidence:
 
 - local `firestore.rules`: `c33aa73684250b52184999a3da0abe1825a5286f65014ebf8287155d47c37504`
 - local `storage.rules`: `c5b5a5dd70201822c901e439030b0491fec980424c40c97569c1c3141ddbedcc`
 
+## Separate local merge candidates
+
+The immutable deployed originals remain unchanged. Separate candidates and stable unified diffs are retained under [`docs/operations/evidence/firebase-rules/merge-candidates/`](evidence/firebase-rules/merge-candidates/). Removing each single marked commerce block produces a byte-exact copy of its deployed original; automated tests enforce that property.
+
+| Candidate | Added policy | Candidate SHA-256 | Diff SHA-256 |
+| --- | --- | --- | --- |
+| Firestore | Explicit direct-client deny matches for all commerce collections, including fulfillment and refund-review state | `78138d8cd5ffd417c932c670bc2327c33886a43c4c880c7de6a3ba33d056f122` | `ba7119afb613fbbe1f382e394d4334f9e41ae1b12478dc0fac0533d3d45625f1` |
+| Storage | Explicit direct-client deny for `private-commerce/{artifact=**}` | `5d5bc0155f2f2c2a39b0b837714903e4337a0868ec0997375ad4e14d36e03de8` | `7a44c367595dca82e37e8842839259cdc68485ae20abba3d08e2dd76727e8757` |
+
+[`manifest.json`](evidence/firebase-rules/merge-candidates/manifest.json) records source Ruleset identities, source hashes, candidate sizes/hashes, diff sizes/hashes, the verified bucket, and the inactive release boundary. These files are candidates only: root fragments and `firebase.json` mappings were not changed.
+
 ## Remaining missing evidence
 
 The following evidence has not been recovered or independently verified:
 
 1. The reviewed private-object prefix and object placement for each commerce SKU. No paid pilot artifact currently exists in the verified production bucket.
-2. A reviewed merge of the narrow commerce denies into both recovered source bodies.
-3. Merged policy hashes demonstrating that unrelated live policy was preserved.
-4. Exact `firebase.json` Rules mappings to the reviewed merged files.
-5. Auth, Firestore, Storage, and Functions emulator results against the merged policies.
-6. A real persistent fulfillment adapter and atomic single-use grant implementation against the verified bucket and approved object mapping.
+2. Independent review acceptance of the two local merge candidates.
+3. Exact `firebase.json` Rules mappings to reviewed candidates, under separate release approval.
+4. Auth, Firestore, Storage, and Functions emulator results against the candidates.
+5. An approved paid artifact, exact private object key, verified metadata, and post-placement inventory evidence.
 
 ## Tooling gate
 
@@ -50,6 +61,6 @@ The following evidence has not been recovered or independently verified:
 
 ## Release decision
 
-No Rules mapping was added to `firebase.json`, no paid object path was guessed, and no Rules deployment or dry run was attempted. Retaining the exact deployed originals resolves the evidence-preservation step only; it does not make either the originals or the unmerged local fragments deployable. The digital fulfillment implementation accepts its SKU-to-object allowlist and object reader only as server-side dependencies, and the production runtime must remain unwired until the paid artifact is approved and placed, both live policies are merged and reviewed, and the emulator matrix passes.
+No Rules mapping was added to `firebase.json`, no paid object path was guessed, and no Rules deployment or dry run was attempted. The candidate files do not replace the repository-root fragments. The fulfillment runtime readiness state is false with zero active artifacts, so the new Firestore and Admin Storage adapters cannot create a customer-facing delivery path.
 
-The production commerce pilot remains blocked even if application unit tests pass. The safe next sequence is: preserve the recovered source bodies in a reviewed source-control change; approve the exact pilot artifact and private object key; merge the commerce denies without deleting existing policy; review the resulting hashes and mappings; install Java and the Rules SDK under separate approval; pass the complete emulator matrix; and only then request separate scoped dry-run and deployment approvals.
+The production commerce pilot remains blocked even if application unit tests pass. The safe next sequence is: independently review the candidates; approve and place the exact pilot artifact and private key; retain verified object metadata; install Java and the Rules SDK under separate approval; pass the complete emulator matrix; review explicit mappings; and only then request separate scoped dry-run and deployment approvals.
