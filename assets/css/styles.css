@@ -945,3 +945,12 @@ body.theme-training .training-hero::before {
 .solution-process li { display: grid; grid-template-columns: minmax(160px, .55fr) 1.45fr; gap: 2rem; padding: 1.4rem 0; border-top: 1px solid #3b3b3b; counter-increment: solution-step; }
 .solution-process strong::before { content: counter(solution-step, decimal-leading-zero) " / "; color: var(--gold); font-family: var(--font-display); }
 @media (max-width: 780px) { .solution-capabilities { grid-template-columns: 1fr; } .solution-process li { grid-template-columns: 1fr; gap: .5rem; } }
+.homepage-products { background: #080808; color: #c9c9c9; }
+.homepage-products .section-header h2 { color: #fff; }
+.homepage-product-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2.5rem; }
+.homepage-product-grid article { display: flex; min-height: 330px; flex-direction: column; padding: 2rem; border: 1px solid #303030; background: #111; }
+.homepage-product-grid h3 { color: #fff; }
+.homepage-product-grid a { margin-top: auto; color: var(--gold); font-family: var(--font-display); font-weight: 700; letter-spacing: .04em; text-decoration: none; text-transform: uppercase; }
+.homepage-product-grid small { display: block; margin-top: .75rem; color: #8f9298; }
+.homepage-products__action { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 2rem; }
+@media (max-width: 850px) { .homepage-product-grid { grid-template-columns: 1fr; } .homepage-product-grid article { min-height: 0; } }
