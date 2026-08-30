@@ -220,3 +220,25 @@ GitHub Pages rebuilds within 1–2 minutes.
 Maintained with Brian by the AmPac Entrepreneur Ecosystem's AI CTO.
 
 Last updated: April 2026.
+
+---
+
+## Digital Products Storefront
+
+The Phase 1 storefront adds these public routes:
+
+- `products.html` — Digital Products & Personalized Solutions catalog
+- `career-blueprint.html` — free Snapshot and paid Blueprint funnel preview
+- `custom-solutions.html` — scoped custom-solutions inquiry path
+
+Run the storefront verification suite with:
+
+```bash
+npm run test:storefront
+```
+
+### Current safety boundary
+
+Phase 1 is a catalog and funnel preview. Resume intake, QuickBooks checkout, protected PDF delivery, and the human-service purchase workflow are not active. Checkout-dependent products are labeled accordingly, no payment is collected, and no protected PDF is linked from the new storefront.
+
+Phase 2 will replace `[data-career-intake-pending]` with a secure authenticated intake route. The existing Home Inspection Guide source and generation pipeline remain unchanged by the storefront work.

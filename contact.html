@@ -50,6 +50,11 @@
     .quick-card h3 { font-family: var(--font-display); margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
     .quick-card p { color: var(--gray-600); margin: 0 0 14px; font-size: 0.92rem; line-height: 1.5; }
     .quick-card a { color: var(--white); font-family: var(--font-display); font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; font-size: 0.78rem; text-decoration: none; }
+    .custom-inquiry { padding: 0 0 72px; }
+    .custom-inquiry[hidden] { display: none; }
+    .custom-inquiry-card { padding: 34px 30px; border: 1px solid var(--gold); background: var(--stone); box-shadow: var(--shadow-md); }
+    .custom-inquiry-card h2 { margin-bottom: 12px; }
+    .custom-inquiry-card ul { margin: 0 0 24px 1.2rem; color: var(--gray-600); }
   </style>
 </head>
 <body>
@@ -85,6 +90,23 @@
     </div>
   </div>
 </header>
+
+<section class="custom-inquiry" id="custom-solution-inquiry" data-custom-solution-context hidden>
+  <div class="container">
+    <div class="custom-inquiry-card">
+      <div class="kicker">Custom solutions inquiry</div>
+      <h2>Request a Custom Solution</h2>
+      <p>Tell us what you are trying to accomplish so we can assess scope, source requirements, timing, and fit before proposing work.</p>
+      <ul>
+        <li>The audience and outcome you need</li>
+        <li>The source material you already have</li>
+        <li>Your preferred delivery date and format</li>
+      </ul>
+      <a class="btn btn-primary" href="mailto:info@ballkingdom.com?subject=Custom%20Solution%20Inquiry&amp;body=Desired%20outcome%3A%0AAudience%3A%0ASource%20materials%3A%0APreferred%20timeline%3A">Start My Custom Inquiry</a>
+      <p><small>Submitting an inquiry does not create an engagement or guarantee feasibility, timing, price, or results.</small></p>
+    </div>
+  </div>
+</section>
 
 <section>
   <div class="container">
@@ -238,6 +260,16 @@
 </footer>
 
 <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script>
+  (function () {
+    var interest = new URLSearchParams(window.location.search).get('interest');
+    if (interest !== 'custom-solution') return;
+    var context = document.querySelector('[data-custom-solution-context]');
+    if (!context) return;
+    context.hidden = false;
+    context.scrollIntoView({ block: 'start' });
+  })();
+</script>
 <script src="assets/js/main.js"></script>
 </body>
 </html>

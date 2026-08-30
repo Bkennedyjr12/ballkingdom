@@ -11,6 +11,8 @@ npm-debug.log*
 firebase-debug.log
 output/playwright/
 assets/css/*.bak
+test-results/
+playwright-report/
 
 # Home Inspection Guide local-only course/source material
 home-inspection-guide/input/images/*
