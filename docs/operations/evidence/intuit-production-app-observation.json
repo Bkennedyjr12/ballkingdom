@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "attestationRecordedAtUtc": "2026-08-30T22:49:03Z",
+  "observationDate": "2026-08-30",
+  "workspace": "The Ballers Kingdom",
+  "app": "TBK Q.B A.I",
+  "environmentStatus": "IN PRODUCTION",
+  "productionWebhook": {
+    "configured": false,
+    "endpointLength": 0,
+    "saveDisabled": true
+  },
+  "safetyBoundary": {
+    "keysViewed": false,
+    "tokensViewed": false,
+    "credentialsViewed": false,
+    "changesMade": false,
+    "saveAttempted": false
+  },
+  "scopeBoundary": "This dashboard observation proves app visibility and the unconfigured webhook endpoint only; it does not prove current Accounting OAuth health or authorize a webhook change."
+}

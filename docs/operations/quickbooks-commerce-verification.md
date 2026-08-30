@@ -8,7 +8,7 @@ Source commit before this evidence: `783a664501a93377bcd8ff6e55fa8dcc2afd73cc`
 
 ## Decision
 
-The local implementation and its injected provider contracts pass under the declared Node 22 runtime, but the production pilot is not release-ready. A later read-only preflight recovered both authoritative deployed Rules sources and the active Storage bucket; the commerce merges, paid artifact/object mapping, Rules emulator proof, and persistent fulfillment runtime remain missing. No current Intuit sandbox run, production Accounting OAuth read, configured production webhook, or documented refund/reversal reader was verified in this task. A separate read-only signed-in review verified the owning Intuit Developer workspace and production app, as recorded below.
+The local implementation and its injected provider contracts pass under the declared Node 22 runtime, but the production pilot is not release-ready. A later read-only preflight retained byte-exact originals from both current deployed Rulesets and identified the active Storage bucket; those originals remain unmerged and unmapped, while paid artifact/object mapping, Rules emulator proof, and the persistent fulfillment runtime remain missing. No current Intuit sandbox run, production Accounting OAuth read, configured production webhook, or documented refund/reversal reader was verified in this task. A separate read-only signed-in review verified the owning Intuit Developer workspace and production app, as recorded below.
 
 This record does not convert mock results into Intuit sandbox or production truth. It authorizes no deployment, secret creation, email, invoice, payment, refund, webhook configuration, or customer communication.
 
@@ -18,7 +18,7 @@ This record does not convert mock results into Intuit sandbox or production trut
 | --- | --- |
 | Local static/unit/injected-mock tests | Passed as detailed below. |
 | Local browser tests | Passed against a local HTTP server and injected browser mocks. |
-| Firebase emulator | Blocked before emulator startup by the missing Java runtime; authoritative Rules and Storage mapping are independently absent. |
+| Firebase emulator | Blocked before emulator startup by the missing Java runtime. Byte-exact deployed Rules originals are now retained as evidence, but reviewed commerce merges, `firebase.json` mappings, `@firebase/rules-unit-testing`, paid-object mapping, and runtime authorization proof remain absent. |
 | Intuit sandbox | Not accessed; no sandbox entity was created, read, sent, paid, or refunded. |
 | Signed-in read-only provider truth | On 2026-08-30, a separate read-only browser review verified Intuit Developer workspace `The Ballers Kingdom`, app `TBK Q.B A.I`, and its `IN PRODUCTION` marker. The Production Webhooks tab was accessible; its endpoint input was empty (`configured:false`, length 0) and Save was disabled. No verifier token, credential, or secret value was viewed, and no setting was changed or saved. This does not prove current Accounting OAuth or sandbox capability. |
 | Production | No provider or Firebase production mutation, dry run, secret read, customer/entity read, or outbound effect occurred. |

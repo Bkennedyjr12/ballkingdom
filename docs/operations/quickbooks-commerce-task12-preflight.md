@@ -1,6 +1,6 @@
 # QuickBooks commerce Task 12 preflight
 
-Status: **HOLD — source recovery advanced; no production release or pilot action is authorized**
+Status: **HOLD — byte-exact deployed Rules originals retained; no production release or pilot action is authorized**
 
 Recorded: 2026-08-30 (America/Los_Angeles)
 
@@ -13,12 +13,14 @@ This preflight used only local repository/history inspection and authorized read
 1. **Firebase identity and target resolution:** explicit project/account readback resolved `the-ballers-kingdom` under `lilpelejr12@gmail.com`, default Firestore database `(default)`, Hosting target `public -> ballkingdom-com`, and inspector target `inspector -> the-ballers-kingdom`.
 2. **Intuit production app visibility:** workspace `The Ballers Kingdom` contains app `TBK Q.B A.I` marked `IN PRODUCTION`.
 3. **Webhook state observed:** the Production Webhooks endpoint is empty (length 0) and Save is disabled. No key/token was viewed and no setting changed. Webhooks remain optional acceleration and separately approval-gated; scheduled reconciliation remains mandatory.
-4. **Authoritative Firestore source identity:** live release `cloud.firestore` points to Ruleset `2c9d612b-dd17-406f-9a0f-86230c57420c`, created `2026-08-01T18:17:20.210799Z`, source SHA-256 `0d700ff33ee25eb5032ce04308e30ffc91d04e5c3a548bf7118bb641c5ae94a5`.
-5. **Authoritative Storage source and bucket identity:** live release `firebase.storage/the-ballers-kingdom.firebasestorage.app` points to Ruleset `6a0d2e24-723d-4512-a4e1-7f2288550997`, created `2026-07-25T16:21:33.435711Z`, source SHA-256 `fb9987658560321e9cb039f0d0bed04c581fe5abe83cba440cbabfac8a1f86ef`. The production bucket is `the-ballers-kingdom.firebasestorage.app` in `US-WEST1`.
+4. **Deployed Firestore original retained:** live release `cloud.firestore` points to Ruleset `2c9d612b-dd17-406f-9a0f-86230c57420c`, created `2026-08-01T18:17:20.210799Z`; its unmodified 10,192-byte `firestore.rules` is retained with SHA-256 `0d700ff33ee25eb5032ce04308e30ffc91d04e5c3a548bf7118bb641c5ae94a5`.
+5. **Deployed Storage original and bucket retained:** live release `firebase.storage/the-ballers-kingdom.firebasestorage.app` points to Ruleset `6a0d2e24-723d-4512-a4e1-7f2288550997`, created `2026-07-25T16:21:33.435711Z`; its unmodified 7,999-byte `storage.rules` is retained with SHA-256 `fb9987658560321e9cb039f0d0bed04c581fe5abe83cba440cbabfac8a1f86ef`. The production bucket is `the-ballers-kingdom.firebasestorage.app` in `US-WEST1`.
+
+Durable evidence paths and checksums are indexed in [`docs/operations/evidence/README.md`](evidence/README.md). The structured Intuit observation's canonical JSON SHA-256 is `f93c3264d76cad6065f83d1d6ef22190421633d3a80c22ad226744cb78b49937`.
 
 ## Blockers remaining
 
-1. The recovered live source bodies are not yet preserved and reviewed in Git, merged with the narrow commerce denies, or mapped in `firebase.json`. The current tracked rules remain local fragments and must not be deployed.
+1. The retained deployed originals are not yet merged with the narrow commerce denies, independently reviewed as merged policies, or mapped in `firebase.json`. The current root-level tracked rules remain local fragments and must not be deployed.
 2. The verified bucket contains no paid pilot artifact or reviewed `private-commerce`/per-SKU object placement. The repository has a local `home-inspection-guide/public/assets/guide.pdf`, but local presence is not authority to publish or select it as the paid artifact.
 3. Java is unavailable (`java -version` exits 1), `@firebase/rules-unit-testing` is absent, and the complete Auth/Firestore/Storage/Functions emulator matrix has not run.
 4. The persistent production fulfillment adapter and atomic grant consumption remain intentionally unwired pending the approved object mapping and Rules proof.

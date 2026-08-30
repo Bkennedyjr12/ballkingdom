@@ -1,6 +1,6 @@
 # Firebase commerce Rules source evidence
 
-Status: **Sources recovered; merge, artifact mapping, and emulator proof remain blocked — do not map, deploy, or activate the commerce pilot**
+Status: **Byte-exact deployed originals retained and hashed; unmerged, unmapped, and not release-ready — do not map, deploy, or activate the commerce pilot**
 
 Recorded: 2026-08-30 (America/Los_Angeles)
 
@@ -15,7 +15,7 @@ An authorized read-only Firebase Rules API query on 2026-08-30 independently res
 
 The release names also independently identify the active Storage Rules bucket as `the-ballers-kingdom.firebasestorage.app`. A read-only Cloud Storage listing confirmed that bucket exists in `US-WEST1` with uniform bucket-level access currently false. It contains one object under the existing `owners/` namespace and zero objects whose names match the proposed `private-commerce` prefix, the pilot SKU, study-guide terms, or PDF artifacts. No object contents were read.
 
-The recovered deployed sources were hashed byte-for-byte from the API response. An exact-content comparison against every `firestore.rules` and `storage.rules` revision reachable from the local Git refs found no match, so no historical repository file is being substituted for the live source. The recovered source bodies were kept only in local temporary preflight files; this evidence retains their immutable Ruleset IDs, timestamps, sizes, and hashes without silently overwriting the reviewed local fragments.
+The deployed originals were hashed byte-for-byte from the API response and retained without modification under [`docs/operations/evidence/firebase-rules/`](evidence/firebase-rules/). The adjacent [`provenance-manifest.json`](evidence/firebase-rules/provenance-manifest.json) records the immutable release/Ruleset names, retrieval method, immediate matching release readback, file sizes, and hashes. The paginated metadata-only bucket evidence is retained separately in [`storage-object-inventory.json`](evidence/firebase-rules/storage-object-inventory.json); its sole private object name is hashed, not disclosed. An exact-content comparison against every `firestore.rules` and `storage.rules` revision reachable from the local Git refs found no match, so no historical repository file is being substituted for the live source. The retained originals are evidence inputs only; they do not overwrite the reviewed local fragments and are not mapped for deployment.
 
 ## Verified repository state
 
@@ -50,6 +50,6 @@ The following evidence has not been recovered or independently verified:
 
 ## Release decision
 
-No Rules mapping was added to `firebase.json`, no paid object path was guessed, and no Rules deployment or dry run was attempted. The deployed source recovery resolves the source-identity blocker only; it does not make the unmerged local fragments deployable. The digital fulfillment implementation accepts its SKU-to-object allowlist and object reader only as server-side dependencies, and the production runtime must remain unwired until the paid artifact is approved and placed, both live policies are merged and reviewed, and the emulator matrix passes.
+No Rules mapping was added to `firebase.json`, no paid object path was guessed, and no Rules deployment or dry run was attempted. Retaining the exact deployed originals resolves the evidence-preservation step only; it does not make either the originals or the unmerged local fragments deployable. The digital fulfillment implementation accepts its SKU-to-object allowlist and object reader only as server-side dependencies, and the production runtime must remain unwired until the paid artifact is approved and placed, both live policies are merged and reviewed, and the emulator matrix passes.
 
 The production commerce pilot remains blocked even if application unit tests pass. The safe next sequence is: preserve the recovered source bodies in a reviewed source-control change; approve the exact pilot artifact and private object key; merge the commerce denies without deleting existing policy; review the resulting hashes and mappings; install Java and the Rules SDK under separate approval; pass the complete emulator matrix; and only then request separate scoped dry-run and deployment approvals.
