@@ -15,6 +15,7 @@ test('Graph refreshes delegated OAuth and sends confirmation from info mailbox',
   const fetchMock = async (url, options) => {
     calls.push({url: String(url), options});
     if (calls.length === 1) return response({access_token: 'graph-access', refresh_token: 'graph-next'});
+    if (calls.length === 2) return response({mail:'info@ballkingdom.com'});
     return response('', 202);
   };
   const rotated = [];
@@ -27,8 +28,10 @@ test('Graph refreshes delegated OAuth and sends confirmation from info mailbox',
     startsAt: new Date('2026-08-22T18:00:00Z'), idempotencyKey: 'appointment-1-confirmation',
   });
   assert.match(calls[0].url, /tenant\/oauth2\/v2\.0\/token/);
-  assert.equal(calls[1].url, 'https://graph.microsoft.com/v1.0/me/sendMail');
-  const message = JSON.parse(calls[1].options.body).message;
+  assert.match(String(calls[0].options.body), /scope=offline_access\+User\.Read\+Mail\.Send/);
+  assert.equal(calls[1].url, 'https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName');
+  assert.equal(calls[2].url, 'https://graph.microsoft.com/v1.0/me/sendMail');
+  const message = JSON.parse(calls[2].options.body).message;
   assert.match(message.subject, /confirmed/i);
   assert.equal(message.toRecipients[0].emailAddress.address, 'ada@example.com');
   assert.deepEqual(rotated, ['graph-next']);
@@ -38,11 +41,13 @@ test('Graph invoice email includes the PDF attachment', async () => {
   const calls = [];
   const fetchMock = async (url, options) => {
     calls.push({url: String(url), options});
-    return calls.length === 1 ? response({access_token: 'token'}) : response('', 202);
+    if (calls.length === 1) return response({access_token:'token'});
+    if (calls.length === 2) return response({userPrincipalName:'info@ballkingdom.com'});
+    return response('', 202);
   };
   const graph = createGraphClient({tenantId:'t',clientId:'c',clientSecret:'s',refreshToken:'r',sender:'info@ballkingdom.com'}, fetchMock);
   await graph.sendInvoice({to:'ada@example.com',customerName:'Ada',invoiceNumber:'1001',pdf:Buffer.from('pdf')});
-  const attachment = JSON.parse(calls[1].options.body).message.attachments[0];
+  const attachment = JSON.parse(calls[2].options.body).message.attachments[0];
   assert.equal(attachment.name, 'Ballers-Kingdom-Invoice-1001.pdf');
   assert.equal(attachment.contentBytes, Buffer.from('pdf').toString('base64'));
 });
@@ -51,7 +56,9 @@ test('Graph sends the dedicated pilot authentication template without returning 
   const calls = [];
   const fetchMock = async (url, options) => {
     calls.push({url: String(url), options});
-    return calls.length === 1 ? response({access_token: 'token'}) : response('', 202);
+    if (calls.length === 1) return response({access_token:'token'});
+    if (calls.length === 2) return response({mail:'info@ballkingdom.com'});
+    return response('', 202);
   };
   const graph = createGraphClient({
     tenantId:'t',clientId:'c',clientSecret:'s',refreshToken:'r',sender:'info@ballkingdom.com',
@@ -64,10 +71,34 @@ test('Graph sends the dedicated pilot authentication template without returning 
 
   assert.deepEqual(result, {accepted:true});
   assert.equal(Object.hasOwn(result, 'link'), false);
-  const message = JSON.parse(calls[1].options.body).message;
+  const message = JSON.parse(calls[2].options.body).message;
   assert.match(message.subject, /secure sign-in/i);
   assert.match(message.body.content, /finish-sign-in/);
   assert.equal(message.toRecipients[0].emailAddress.address, 'pilot@example.test');
+});
+
+test('Graph refuses to send when the delegated /me mailbox is not the configured sender', async () => {
+  const calls = [];
+  const fetchMock = async (url, options = {}) => {
+    calls.push({url:String(url),options});
+    if (calls.length === 1) return response({access_token:'token'});
+    if (String(url).includes('/me?')) {
+      return response({mail:'other@ballkingdom.com',userPrincipalName:'other@ballkingdom.com'});
+    }
+    throw new Error('sendMail must not be called for a mismatched mailbox');
+  };
+  const graph = createGraphClient({
+    tenantId:'t',clientId:'c',clientSecret:'s',refreshToken:'r',sender:'info@ballkingdom.com',
+  }, fetchMock);
+
+  await assert.rejects(
+    graph.sendPilotAuthLink({
+      to:'pilot@example.test',
+      link:'https://ballkingdom.com/finish-sign-in?mode=signIn&oobCode=code',
+    }),
+    /configured sender/
+  );
+  assert.equal(calls.some(call => call.url.endsWith('/me/sendMail')), false);
 });
 
 test('QuickBooks creates a variable-price invoice using customer and item references', async () => {

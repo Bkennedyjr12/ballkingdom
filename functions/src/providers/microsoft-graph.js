@@ -20,7 +20,7 @@ export function createGraphClient(config, fetchImpl = fetch) {
       client_secret: config.clientSecret,
       refresh_token: config.refreshToken,
       grant_type: 'refresh_token',
-      scope: 'offline_access Mail.Send',
+      scope: 'offline_access User.Read Mail.Send',
     });
     const response = await fetchImpl(`https://login.microsoftonline.com/${encodeURIComponent(config.tenantId)}/oauth2/v2.0/token`, {
       method: 'POST', headers: {'content-type':'application/x-www-form-urlencoded'}, body,
@@ -34,6 +34,22 @@ export function createGraphClient(config, fetchImpl = fetch) {
 
   async function send(message) {
     const token = await accessToken();
+    const profileResponse = await fetchImpl(`${GRAPH_ROOT}/me?$select=mail,userPrincipalName`, {
+      headers:{authorization:`Bearer ${token}`,accept:'application/json'},
+    });
+    await expectResponse(profileResponse, 'Microsoft sender validation');
+    let profile;
+    try {
+      profile = await profileResponse.json();
+    } catch {
+      throw new Error('Microsoft sender validation returned an invalid profile');
+    }
+    const identities = [profile?.mail,profile?.userPrincipalName]
+      .filter(value => typeof value === 'string')
+      .map(value => value.trim().toLowerCase());
+    if (!identities.includes(sender)) {
+      throw new Error('Microsoft delegated mailbox is not the configured sender');
+    }
     const response = await fetchImpl(`${GRAPH_ROOT}/me/sendMail`, {
       method: 'POST',
       headers: {authorization:`Bearer ${token}`,'content-type':'application/json'},

@@ -45,6 +45,20 @@ test('the index manifest supports bounded due-order reconciliation queries', asy
   }]);
 });
 
+test('the index manifest supports the bounded due-effect dispatcher', async () => {
+  const manifest = JSON.parse(await readFile(new URL('firestore.indexes.json', rootUrl), 'utf8'));
+  const matchingIndexes = manifest.indexes.filter(index => index.collectionGroup === 'commerceEffects');
+
+  assert.deepEqual(matchingIndexes, [{
+    collectionGroup:'commerceEffects',
+    queryScope:'COLLECTION',
+    fields:[
+      {fieldPath:'status',order:'ASCENDING'},
+      {fieldPath:'nextAttemptAt',order:'ASCENDING'},
+    ],
+  }]);
+});
+
 test('emulator auth-context coverage requires the Firebase Rules test SDK and a Java runtime', {
   skip: 'Environment gate: no @firebase/rules-unit-testing dependency or Java runtime is available in this branch.',
 }, () => {});

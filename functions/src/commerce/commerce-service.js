@@ -9,6 +9,7 @@ const SAFE_ORDER_RESULT_MESSAGE = 'QuickBooks sent payment instructions to your 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SAFE_IDEMPOTENCY_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const RECONCILIATION_LIMIT = 50;
+const RECONCILIATION_HINT_TTL_MS = 24 * 60 * 60 * 1000;
 
 function commerceError(code, message) {
   const error = new Error(message);
@@ -62,6 +63,32 @@ function authIdentity(authContext) {
     throw commerceError('VERIFIED_EMAIL_REQUIRED', 'A verified email is required');
   }
   return {uid,email};
+}
+
+async function authoritativeIdentity(authContext, getCurrentUser) {
+  const identity = authIdentity(authContext);
+  if (typeof getCurrentUser !== 'function') {
+    throw commerceError('COMMERCE_CONFIGURATION_INVALID', 'Commerce is unavailable');
+  }
+  let user;
+  try {
+    user = await getCurrentUser(identity.uid);
+  } catch {
+    throw commerceError('AUTH_SESSION_INVALID', 'Authentication is no longer valid');
+  }
+  const currentEmail = normalizedEmail(user?.email);
+  const authTime = Number(authContext?.token?.auth_time);
+  const validAfter = Date.parse(user?.tokensValidAfterTime ?? '');
+  if (user?.uid !== identity.uid
+    || user.disabled === true
+    || user.emailVerified !== true
+    || currentEmail !== identity.email
+    || !Number.isInteger(authTime)
+    || !Number.isFinite(validAfter)
+    || authTime * 1000 < validAfter) {
+    throw commerceError('AUTH_SESSION_INVALID', 'Authentication is no longer valid');
+  }
+  return Object.freeze({...identity,authorizedRecipientBinding:recipientBinding(currentEmail)});
 }
 
 function safeOrderStatus(status) {
@@ -123,6 +150,7 @@ export function createCommerceService({
   getCommerceItem = getCatalogItem,
   readFeatureFlags: readFlags = readCommerceFeatureFlags,
   getApprovedPilotEmail,
+  getCurrentUser,
   fulfillDigitalOrder = async () => ({fulfilled:true}),
   alertOperator = async () => {},
   authRequestLimiter = async () => true,
@@ -184,12 +212,17 @@ export function createCommerceService({
     return true;
   }
 
-  async function resumeDigitalInvoice(orderId) {
+  async function resumeDigitalInvoice(orderId, approvedEmail) {
     if (!quickbooks?.createCommerceInvoice || !quickbooks?.sendInvoice || !quickbooks?.getInvoice) {
       throw commerceError('COMMERCE_CONFIGURATION_INVALID', 'Commerce is unavailable');
     }
     let order = await repository.getOrder(orderId);
     if (!order) throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
+    const ephemeralEmail = normalizedEmail(approvedEmail);
+    if (!ephemeralEmail
+      || order.authorizedRecipientBinding !== recipientBinding(ephemeralEmail)) {
+      throw commerceError('COMMERCE_CONFIGURATION_INVALID', 'Commerce is unavailable');
+    }
     if (order.status === 'manual_review') {
       throw commerceError('ORDER_MANUAL_REVIEW', 'Order requires administrator review');
     }
@@ -212,7 +245,10 @@ export function createCommerceService({
             customerId:order.providerRefs.customerId,
           };
         } else {
-          created = await quickbooks.createCommerceInvoice(order);
+          created = await quickbooks.createCommerceInvoice({
+            ...order,
+            customer:{...order.customer,email:ephemeralEmail},
+          });
           readback = await quickbooks.getInvoice(created.invoiceId);
           if (readback?.invoice?.invoiceId !== created.invoiceId
             || readback.invoice.providerOrderRef !== `bk-order-${orderId}`
@@ -264,7 +300,7 @@ export function createCommerceService({
       try {
         const sent = await quickbooks.sendInvoice({
           invoiceId:order.providerRefs.invoiceId,
-          customerEmail:order.customer.email,
+          customerEmail:ephemeralEmail,
         });
         if (sent?.sendAccepted !== true || sent.invoiceId !== order.providerRefs.invoiceId) {
           throw commerceError('INVOICE_SEND_INVALID', 'Invoice send result was invalid');
@@ -294,28 +330,51 @@ export function createCommerceService({
     return order;
   }
 
-  async function fulfillOnce(orderId) {
-    let order = await repository.getOrder(orderId);
-    if (order.status === 'fulfilled') return order;
-    if (order.status !== 'paid') return order;
-    const workerId = workerIdFactory('digital-fulfillment');
-    const fulfilling = await repository.claimTransition(orderId, 'fulfilling', workerId);
-    if (!fulfilling) return repository.getOrder(orderId);
-    try {
-      await fulfillDigitalOrder(order);
-    } catch {
-      await repository.recordFailure(
-        orderId, 'fulfilling', workerId, fulfilling.claimId,
-        {code:'fulfillment_failed',retryAt:retryAt(order, clock())}
-      );
-      return repository.getOrder(orderId);
+  async function dispatchPendingEffectsInternal(at) {
+    const recovered = await repository.recoverExpiredEffects(at);
+    for (const orderId of recovered.manualReviewOrderIds) {
+      await alertOperator({code:'invoice_send_unknown',orderId});
     }
-    await repository.completeTransition(orderId, 'fulfilling', workerId, fulfilling.claimId);
-    const fulfilled = await repository.claimTransition(orderId, 'fulfilled', workerId);
-    if (fulfilled) {
-      await repository.completeTransition(orderId, 'fulfilled', workerId, fulfilled.claimId);
+    for (const ignored of recovered.manualReviewPilotAuthBindings) {
+      void ignored;
+      await alertOperator({code:'pilot_auth_email_unknown'});
     }
-    return repository.getOrder(orderId);
+    const flags = readFlags();
+    const dueEffects = await repository.listDueEffects(at, {limit:RECONCILIATION_LIMIT});
+    if (flags.digitalInvoicePilotEnabled === true) {
+      let approved;
+      const loadApproved = () => {
+        approved ??= requireApprovedEmail(getApprovedPilotEmail);
+        return approved;
+      };
+      const processedOrders = new Set();
+      for (const effect of dueEffects) {
+        try {
+          if (effect.effect === 'pilot_auth_email') {
+            const email = loadApproved();
+            if (effect.recipientBinding === recipientBinding(email)) {
+              await dispatchPilotAuthEmail(email, effect.recipientBinding);
+            }
+            continue;
+          }
+          if (processedOrders.has(effect.orderId)) continue;
+          processedOrders.add(effect.orderId);
+          const order = await repository.getOrder(effect.orderId);
+          if (!order) continue;
+          const email = loadApproved();
+          if (order.authorizedRecipientBinding !== recipientBinding(email)) {
+            await alertOperator({code:'authorized_recipient_binding_mismatch',orderId:effect.orderId});
+            continue;
+          }
+          await resumeDigitalInvoice(effect.orderId, email);
+        } catch (error) {
+          if (!['ORDER_PROCESSING_PENDING','ORDER_MANUAL_REVIEW'].includes(error?.code)) {
+            await alertOperator({code:'commerce_effect_dispatch_unavailable'});
+          }
+        }
+      }
+    }
+    return recovered;
   }
 
   return Object.freeze({
@@ -323,11 +382,10 @@ export function createCommerceService({
       if (!appCheckContext?.app) throw commerceError('APP_CHECK_REQUIRED', 'App Check is required');
       if (!record(input) || Object.keys(input).some(key => key !== 'email')) return GENERIC_AUTH_RESULT;
       const candidate = normalizedEmail(input.email);
-      if (!candidate || !(await authRequestLimiter(rateLimitKey(candidate)))) {
-        return GENERIC_AUTH_RESULT;
-      }
+      if (!candidate) return GENERIC_AUTH_RESULT;
       const approved = requireApprovedEmail(getApprovedPilotEmail);
       if (!approvedRecipient(candidate, approved)) return GENERIC_AUTH_RESULT;
+      if (!(await authRequestLimiter(rateLimitKey('pilot-auth-approved')))) return GENERIC_AUTH_RESULT;
       const flags = readFlags();
       if (flags.digitalInvoicePilotEnabled !== true) {
         await repository.recordPilotAuthRequestAllowedDisabled();
@@ -344,10 +402,13 @@ export function createCommerceService({
       if (flags.digitalInvoicePilotEnabled !== true) {
         throw commerceError('COMMERCE_DISABLED', 'Digital ordering is unavailable');
       }
-      const identity = authIdentity(authContext);
+      const identity = await authoritativeIdentity(authContext, getCurrentUser);
       const approved = requireApprovedEmail(getApprovedPilotEmail);
       if (!approvedRecipient(identity.email, approved)) {
         throw commerceError('PILOT_RECIPIENT_REQUIRED', 'Digital ordering is unavailable');
+      }
+      if (identity.authorizedRecipientBinding !== recipientBinding(approved)) {
+        throw commerceError('AUTH_SESSION_INVALID', 'Authentication is no longer valid');
       }
       if (!validOrderInput(input)) throw commerceError('ORDER_INVALID', 'Order input is invalid');
       const item = getCommerceItem(input.sku);
@@ -355,15 +416,16 @@ export function createCommerceService({
         throw commerceError('DIGITAL_PRODUCT_REQUIRED', 'Digital product ordering is required');
       }
       const order = {
-        ...newOrder({item,customer:{name:input.customerName.trim(),email:identity.email}}),
+        ...newOrder({item,customer:{name:input.customerName.trim()}}),
         customerUid:identity.uid,
+        authorizedRecipientBinding:identity.authorizedRecipientBinding,
       };
       const reservation = await repository.createReservedDigitalOrder({
         recipientBinding:recipientBinding(approved),
         orderId:idFactory(),
         order,
       });
-      await resumeDigitalInvoice(reservation.orderId);
+      await resumeDigitalInvoice(reservation.orderId, approved);
       const stored = await repository.getOrder(reservation.orderId);
       return Object.freeze({
         orderHandle:reservation.orderId,
@@ -375,7 +437,7 @@ export function createCommerceService({
     },
 
     async getOrderStatus({orderHandle} = {}, authContext) {
-      const identity = authIdentity(authContext);
+      const identity = await authoritativeIdentity(authContext, getCurrentUser);
       if (!(await statusRequestLimiter(rateLimitKey(identity.uid)))) {
         throw commerceError('RATE_LIMITED', 'Status request limit reached');
       }
@@ -385,6 +447,10 @@ export function createCommerceService({
       const order = await repository.getOrder(orderHandle);
       if (!order || order.customerUid !== identity.uid) {
         throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
+      }
+      if (order.authorizedRecipientBinding != null
+        && order.authorizedRecipientBinding !== identity.authorizedRecipientBinding) {
+        throw commerceError('AUTH_SESSION_INVALID', 'Authentication is no longer valid');
       }
       return Object.freeze({
         orderHandle,
@@ -403,15 +469,12 @@ export function createCommerceService({
       if (order.status === 'fulfilled' || order.status === 'manual_review') {
         return Object.freeze({status:safeOrderStatus(order.status)});
       }
-      if (order.status === 'paid') {
-        order = await fulfillOnce(orderId);
-        return Object.freeze({status:safeOrderStatus(order.status)});
-      }
-      if (order.status !== 'pending_payment' || !order.providerRefs?.invoiceId) {
+      if (!['pending_payment','payment_verifying','paid','fulfilling'].includes(order.status)
+        || !order.providerRefs?.invoiceId) {
         return Object.freeze({status:safeOrderStatus(order.status)});
       }
       const workerId = workerIdFactory('payment-verification');
-      const verifying = await repository.claimTransition(orderId, 'payment_verifying', workerId);
+      const verifying = await repository.claimPaymentVerification(orderId, workerId, clock());
       if (!verifying) {
         order = await repository.getOrder(orderId);
         return Object.freeze({status:safeOrderStatus(order.status)});
@@ -420,10 +483,9 @@ export function createCommerceService({
       try {
         evidence = await quickbooks.getInvoice(order.providerRefs.invoiceId);
       } catch {
-        await repository.recordFailure(
-          orderId, 'payment_verifying', workerId, verifying.claimId,
-          {code:'payment_evidence_unavailable',retryAt:retryAt(order, clock())}
-        );
+        await repository.completePaymentVerification(orderId, workerId, verifying.claimId, {
+          outcome:'retry',errorCode:'payment_evidence_unavailable',retryAt:retryAt(order, clock()),
+        });
         return Object.freeze({status:'payment_verification_pending'});
       }
 
@@ -435,43 +497,25 @@ export function createCommerceService({
           amountCents:order.amountCents,
           currency:order.currency,
         });
-        await repository.completeTransition(
-          orderId, 'payment_verifying', workerId, verifying.claimId,
-          {reconciliationDueAt:clock()}
-        );
-        const paid = await repository.claimTransition(orderId, 'paid', workerId);
-        if (paid) {
-          await repository.completeTransition(orderId, 'paid', workerId, paid.claimId, {
-            providerRefs:{
-              realmId:verified.realmId,
-              providerOrderRef:verified.providerOrderRef,
-              providerPaymentRef:verified.providerPaymentRef,
-            },
-          });
-        }
-        order = await fulfillOnce(orderId);
-        return Object.freeze({status:safeOrderStatus(order.status)});
+        await repository.completeVerifiedDigitalOrder(orderId, workerId, verifying.claimId, {
+          realmId:verified.realmId,
+          providerOrderRef:verified.providerOrderRef,
+          providerPaymentRef:verified.providerPaymentRef,
+        });
+        return Object.freeze({status:'fulfilled'});
       } catch (error) {
         if (error?.code !== 'PAYMENT_VERIFICATION_MISMATCH') throw error;
       }
 
-      await repository.completeTransition(
-        orderId, 'payment_verifying', workerId, verifying.claimId,
-        {reconciliationDueAt:clock()}
-      );
-      if (isExactlyUnpaid(evidence, order)) {
-        const pending = await repository.claimTransition(orderId, 'pending_payment', workerId);
-        if (pending) {
-          await repository.completeTransition(orderId, 'pending_payment', workerId, pending.claimId, {
-            reconciliationDueAt:retryAt(order, clock()),
-          });
-        }
+      if (isExactlyUnpaid(evidence, order) && ['pending_payment','payment_verifying'].includes(order.status)) {
+        await repository.completePaymentVerification(orderId, workerId, verifying.claimId, {
+          outcome:'pending',retryAt:retryAt(order, clock()),
+        });
         return Object.freeze({status:'payment_verification_pending'});
       }
-      const review = await repository.claimTransition(orderId, 'manual_review', workerId);
-      if (review) {
-        await repository.completeTransition(orderId, 'manual_review', workerId, review.claimId);
-      }
+      await repository.completePaymentVerification(orderId, workerId, verifying.claimId, {
+        outcome:'manual_review',errorCode:'payment_verification_mismatch',
+      });
       await alertOperator({code:'payment_verification_mismatch',orderId});
       return Object.freeze({status:'manual_review'});
     },
@@ -479,54 +523,93 @@ export function createCommerceService({
     async reconcilePendingOrders(now = clock()) {
       const at = new Date(now);
       if (Number.isNaN(at.getTime())) throw commerceError('ORDER_INVALID', 'Reconciliation time is invalid');
-      const recovered = await repository.recoverExpiredEffects(at);
-      for (const orderId of recovered.manualReviewOrderIds) {
-        await alertOperator({code:'invoice_send_unknown',orderId});
-      }
-      for (const ignored of recovered.manualReviewPilotAuthBindings) {
-        void ignored;
-        await alertOperator({code:'pilot_auth_email_unknown'});
-      }
-      const flags = readFlags();
-      const approved = requireApprovedEmail(getApprovedPilotEmail);
-      const binding = recipientBinding(approved);
-      if (flags.digitalInvoicePilotEnabled === true
-        && recovered.recoveredPilotAuthBindings.includes(binding)) {
-        await dispatchPilotAuthEmail(approved, binding);
-      }
-      for (const orderId of recovered.recoveredCreateOrderIds) {
-        try { await resumeDigitalInvoice(orderId); } catch (error) {
-          if (!['ORDER_PROCESSING_PENDING','ORDER_MANUAL_REVIEW'].includes(error?.code)) throw error;
+      const recovered = await dispatchPendingEffectsInternal(at);
+
+      await repository.purgeExpiredWebhookHints(at, {
+        limit:RECONCILIATION_LIMIT,ttlMs:RECONCILIATION_HINT_TTL_MS,
+      });
+      const hints = await repository.listReconciliationHints(at, {
+        limit:RECONCILIATION_LIMIT,ttlMs:RECONCILIATION_HINT_TTL_MS,
+      });
+      const prioritized = new Map();
+      const consumedHintIds = [];
+      const prioritizeInvoice = async (realmId, invoiceId, source) => {
+        const order = await repository.findOrderByInvoiceId(realmId, invoiceId);
+        if (order && !prioritized.has(order.id)) prioritized.set(order.id, {order,source});
+      };
+      const prioritizeEntity = async ({realmId,entityName,entityId}, source) => {
+        if (entityName === 'Invoice') {
+          await prioritizeInvoice(realmId, entityId, source);
+          return;
+        }
+        if (entityName === 'Payment' && quickbooks?.getPayment) {
+          const payment = await quickbooks.getPayment(entityId);
+          for (const application of payment.applications.slice(0, 10)) {
+            if (application.linkedTxnType === 'Invoice') {
+              await prioritizeInvoice(realmId, application.linkedTxnId, source);
+            }
+          }
+        }
+      };
+      for (const hint of hints) {
+        try {
+          await prioritizeEntity(hint, 'webhook_hint');
+          consumedHintIds.push(hint.hintId);
+        } catch {
+          await alertOperator({code:'quickbooks_hint_unavailable'});
         }
       }
+      if (consumedHintIds.length > 0) {
+        await repository.consumeReconciliationHints(consumedHintIds);
+      }
 
-      const candidates = await repository.listReconciliationCandidates(at, {limit:RECONCILIATION_LIMIT});
-      if (candidates.length > 0 && quickbooks?.getAccountingChanges) {
+      if (quickbooks?.getAccountingChanges) {
         try {
-          await quickbooks.getAccountingChanges({
+          const changes = await quickbooks.getAccountingChanges({
             changedSince:new Date(at.getTime() - 24 * 60 * 60 * 1000).toISOString(),
           });
+          for (const change of changes.changes.slice(0, RECONCILIATION_LIMIT)) {
+            await prioritizeEntity({
+              realmId:changes.realmId,
+              entityName:change.entityType,
+              entityId:change.entityId,
+            }, 'scheduled');
+          }
         } catch {
           await alertOperator({code:'quickbooks_cdc_unavailable'});
         }
       }
-      let verified = 0;
+
+      const candidates = await repository.listReconciliationCandidates(at, {limit:RECONCILIATION_LIMIT});
       for (const candidate of candidates) {
+        if (!prioritized.has(candidate.id)) prioritized.set(candidate.id, {order:candidate,source:'scheduled'});
+      }
+      let verified = 0;
+      for (const {order:candidate,source} of [...prioritized.values()].slice(0, RECONCILIATION_LIMIT)) {
         if (!candidate.providerRefs?.invoiceId) {
-          try { await resumeDigitalInvoice(candidate.id); } catch (error) {
-            if (!['ORDER_PROCESSING_PENDING','ORDER_MANUAL_REVIEW'].includes(error?.code)) throw error;
-          }
           continue;
         }
-        await this.verifyOrderPayment({orderId:candidate.id,source:'scheduled'});
+        await this.verifyOrderPayment({orderId:candidate.id,source});
         verified += 1;
       }
       return Object.freeze({
         recoveredCreateCount:recovered.recoveredCreateOrderIds.length,
         manualReviewCount:recovered.manualReviewOrderIds.length
           + recovered.manualReviewPilotAuthBindings.length,
-        reconciliationCandidateCount:candidates.length,
+        reconciliationCandidateCount:prioritized.size,
         verifiedCount:verified,
+      });
+    },
+
+    async dispatchPendingEffects(now = clock()) {
+      const at = new Date(now);
+      if (Number.isNaN(at.getTime())) throw commerceError('ORDER_INVALID', 'Dispatch time is invalid');
+      const recovered = await dispatchPendingEffectsInternal(at);
+      return Object.freeze({
+        recoveredCreateCount:recovered.recoveredCreateOrderIds.length,
+        recoveredSendCount:recovered.recoveredSendOrderIds.length,
+        manualReviewCount:recovered.manualReviewOrderIds.length
+          + recovered.manualReviewPilotAuthBindings.length,
       });
     },
 

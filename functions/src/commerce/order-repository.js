@@ -25,6 +25,9 @@ const EFFECT_LEASE_MILLISECONDS = 5 * 60 * 1000;
 const WEBHOOK_ENTITY = new Set(['Invoice', 'Payment']);
 const WEBHOOK_OPERATION = new Set(['Create', 'Update', 'Delete', 'Merge', 'Void']);
 const RATE_LIMIT_SCOPE = new Set(['pilot_auth', 'order_status']);
+const PAYMENT_RECOVERY_STATUSES = new Set([
+  'pending_payment', 'payment_verifying', 'paid', 'fulfilling',
+]);
 
 function repositoryError(code, message) {
   const error = new Error(message);
@@ -116,6 +119,9 @@ function normalizeOrder(order) {
   if (order.customerUid != null) {
     normalized.customerUid = requiredId(order.customerUid, 'customerUid', WORKER_ID);
   }
+  if (order.authorizedRecipientBinding != null) {
+    normalized.authorizedRecipientBinding = recipientBinding(order.authorizedRecipientBinding);
+  }
   return Object.freeze(normalized);
 }
 
@@ -143,6 +149,20 @@ function recipientBinding(value) {
     throw repositoryError('ORDER_INVALID', 'recipient binding is invalid');
   }
   return value;
+}
+
+function normalizedWebhookHint(hint) {
+  const keys = ['realmId','entityName','entityId','operation','lastUpdated'];
+  if (!plainObject(hint)
+    || Object.keys(hint).sort().join(',') !== keys.sort().join(',')
+    || typeof hint.realmId !== 'string' || !PROVIDER_VALUE.test(hint.realmId)
+    || !WEBHOOK_ENTITY.has(hint.entityName)
+    || typeof hint.entityId !== 'string' || !PROVIDER_VALUE.test(hint.entityId)
+    || !WEBHOOK_OPERATION.has(hint.operation)
+    || typeof hint.lastUpdated !== 'string' || Number.isNaN(Date.parse(hint.lastUpdated))) {
+    throw repositoryError('ORDER_INVALID', 'Webhook hint is invalid');
+  }
+  return Object.freeze(Object.fromEntries(keys.map(key => [key,hint[key]])));
 }
 
 function digestId(domain, ...parts) {
@@ -243,7 +263,7 @@ export function createOrderRepository({
       dispatchAttemptCount: 0,
       attemptCount: 0,
       lastErrorCode: null,
-      nextAttemptAt: null,
+      nextAttemptAt: Timestamp.fromDate(dateValue(clock(), 'clock')),
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -300,23 +320,95 @@ export function createOrderRepository({
 
     async storeWebhookHint(rawHintId, hint) {
       const hintId = recipientBinding(rawHintId);
-      const keys = ['realmId','entityName','entityId','operation','lastUpdated'];
-      if (!plainObject(hint)
-        || Object.keys(hint).sort().join(',') !== keys.sort().join(',')
-        || typeof hint.realmId !== 'string' || !PROVIDER_VALUE.test(hint.realmId)
-        || !WEBHOOK_ENTITY.has(hint.entityName)
-        || typeof hint.entityId !== 'string' || !PROVIDER_VALUE.test(hint.entityId)
-        || !WEBHOOK_OPERATION.has(hint.operation)
-        || typeof hint.lastUpdated !== 'string' || Number.isNaN(Date.parse(hint.lastUpdated))) {
-        throw repositoryError('ORDER_INVALID', 'Webhook hint is invalid');
-      }
+      const normalized = normalizedWebhookHint(hint);
       const reference = webhookHints.doc(hintId);
       return db.runTransaction(async transaction => {
         const existing = await transaction.get(reference);
         if (existing.exists) return false;
-        transaction.create(reference, Object.freeze({...hint}));
+        transaction.create(reference, normalized);
         return true;
       });
+    },
+
+    async storeWebhookHints(entries) {
+      if (!Array.isArray(entries) || entries.length < 1 || entries.length > 100) {
+        throw repositoryError('ORDER_INVALID', 'Webhook hint batch is invalid');
+      }
+      const unique = new Map();
+      for (const entry of entries) {
+        if (!plainObject(entry)) throw repositoryError('ORDER_INVALID', 'Webhook hint batch is invalid');
+        unique.set(recipientBinding(entry.id), normalizedWebhookHint(entry.hint));
+      }
+      const batch = db.batch();
+      for (const [hintId,hint] of unique) batch.set(webhookHints.doc(hintId), hint);
+      await batch.commit();
+      return unique.size;
+    },
+
+    async listReconciliationHints(now = clock(), {limit = 50, ttlMs = 24 * 60 * 60 * 1000} = {}) {
+      const maximum = Number(limit);
+      if (!Number.isInteger(maximum) || maximum < 1 || maximum > 100
+        || !Number.isInteger(ttlMs) || ttlMs < 60 * 1000 || ttlMs > 7 * 24 * 60 * 60 * 1000) {
+        throw repositoryError('ORDER_INVALID', 'Webhook hint query is invalid');
+      }
+      const at = dateValue(now, 'now');
+      const cutoff = new Date(at.getTime() - ttlMs).toISOString();
+      const snapshot = await webhookHints
+        .where('lastUpdated','>=',cutoff)
+        .orderBy('lastUpdated','asc')
+        .limit(maximum)
+        .get();
+      return Object.freeze(snapshot.docs.map(document => Object.freeze({
+        hintId:recipientBinding(document.id),...normalizedWebhookHint(document.data()),
+      })));
+    },
+
+    async consumeReconciliationHints(rawHintIds) {
+      if (!Array.isArray(rawHintIds) || rawHintIds.length < 1 || rawHintIds.length > 100) {
+        throw repositoryError('ORDER_INVALID', 'Webhook hint identifiers are invalid');
+      }
+      const hintIds = [...new Set(rawHintIds.map(recipientBinding))];
+      const batch = db.batch();
+      for (const hintId of hintIds) batch.delete(webhookHints.doc(hintId));
+      await batch.commit();
+      return hintIds.length;
+    },
+
+    async purgeExpiredWebhookHints(now = clock(), {limit = 50, ttlMs = 24 * 60 * 60 * 1000} = {}) {
+      const maximum = Number(limit);
+      if (!Number.isInteger(maximum) || maximum < 1 || maximum > 100
+        || !Number.isInteger(ttlMs) || ttlMs < 60 * 1000 || ttlMs > 7 * 24 * 60 * 60 * 1000) {
+        throw repositoryError('ORDER_INVALID', 'Webhook hint purge is invalid');
+      }
+      const at = dateValue(now, 'now');
+      const cutoff = new Date(at.getTime() - ttlMs).toISOString();
+      const snapshot = await webhookHints
+        .where('lastUpdated','<=',cutoff)
+        .orderBy('lastUpdated','asc')
+        .limit(maximum)
+        .get();
+      if (snapshot.docs.length === 0) return 0;
+      const batch = db.batch();
+      for (const document of snapshot.docs) batch.delete(webhookHints.doc(document.id));
+      await batch.commit();
+      return snapshot.docs.length;
+    },
+
+    async findOrderByInvoiceId(rawRealmId, rawInvoiceId) {
+      const realmId = requiredId(rawRealmId, 'realmId', PROVIDER_VALUE);
+      const invoiceId = requiredId(rawInvoiceId, 'invoiceId', PROVIDER_VALUE);
+      const snapshot = await orders
+        .where('providerRefs.invoiceId','==',invoiceId)
+        .where('providerRefs.realmId','==',realmId)
+        .limit(2)
+        .get();
+      const matches = snapshot.docs
+        .map(document => ({id:document.id,...document.data()}))
+        .filter(order => order.providerRefs?.realmId === realmId);
+      if (matches.length > 1) {
+        throw repositoryError('PROVIDER_REF_CONFLICT', 'Invoice reference is ambiguous');
+      }
+      return matches[0] ?? null;
     },
 
     async grantDigitalFulfillment(orderId) {
@@ -389,7 +481,14 @@ export function createOrderRepository({
     async createReservedDigitalOrder({recipientBinding: rawBinding, orderId, order: rawOrder} = {}) {
       const binding = recipientBinding(rawBinding);
       const id = requiredId(orderId, 'orderId');
-      const order = normalizeOrder(rawOrder);
+      if (!plainObject(rawOrder) || !plainObject(rawOrder.customer)) {
+        throw repositoryError('ORDER_INVALID', 'order is invalid');
+      }
+      const order = normalizeOrder({
+        ...rawOrder,
+        customer:{name:rawOrder.customer.name},
+        authorizedRecipientBinding:binding,
+      });
       if (!order.customerUid) throw repositoryError('ORDER_INVALID', 'customerUid is required');
       const reservationId = digestId('pilot-order-reservation', binding, order.sku);
       const reservation = reservations.doc(reservationId);
@@ -422,6 +521,7 @@ export function createOrderRepository({
           orderId: id,
           customerUid: order.customerUid,
           sku: order.sku,
+          authorizedRecipientBinding: binding,
           createdAt: timestamp,
         });
         transaction.create(createEffect, pendingEffect(id, 'invoice_create'));
@@ -449,6 +549,7 @@ export function createOrderRepository({
           dispatchStartedAt: null,
           dispatchAttemptCount: 0,
           lastErrorCode: null,
+          nextAttemptAt: Timestamp.fromDate(dateValue(clock(), 'clock')),
           createdAt: timestamp,
           updatedAt: timestamp,
         });
@@ -487,6 +588,7 @@ export function createOrderRepository({
           ...effect,
           status: 'claimed',
           claim: {workerId: worker, claimId, claimedAt: claimedTimestamp, leaseExpiresAt: expires},
+          nextAttemptAt: null,
           updatedAt: fieldValue.serverTimestamp(),
         });
         transaction.create(receipt, effectReceipt({
@@ -561,6 +663,7 @@ export function createOrderRepository({
       const worker = requiredId(workerId, 'workerId', WORKER_ID);
       const claimId = requiredId(rawClaimId, 'claimId');
       const receipt = auditRef();
+      const alertReceipt = auditRef();
       return db.runTransaction(async transaction => {
         const snapshot = await transaction.get(reference);
         if (!snapshot.exists) throw repositoryError('EFFECT_NOT_FOUND', 'Effect was not found');
@@ -584,6 +687,11 @@ export function createOrderRepository({
           event: ambiguous ? 'effect_manual_review' : 'effect_failed',
           effect: 'pilot_auth_email', workerId: worker, claimId, errorCode,
         }, fieldValue));
+        if (ambiguous) {
+          transaction.create(alertReceipt, auditReceipt({
+            event:'operator_alert',errorCode:'pilot_auth_email_unknown',
+          }, fieldValue));
+        }
         return true;
       });
     },
@@ -621,6 +729,7 @@ export function createOrderRepository({
           ...effect,
           status: 'claimed',
           claim: {workerId: worker, claimId, claimedAt: claimedTimestamp, leaseExpiresAt: expires},
+          nextAttemptAt: null,
           updatedAt: fieldValue.serverTimestamp(),
         });
         transaction.create(receipt, effectReceipt({
@@ -736,6 +845,7 @@ export function createOrderRepository({
       const reference = effectRef(id, effectName);
       const orderReference = orderRef(id);
       const receipt = auditRef();
+      const alertReceipt = auditRef();
       return db.runTransaction(async transaction => {
         const [effectSnapshot, orderSnapshot] = await Promise.all([
           transaction.get(reference), transaction.get(orderReference),
@@ -792,8 +902,42 @@ export function createOrderRepository({
           claimId,
           errorCode,
         }, fieldValue));
+        if (ambiguousSend) {
+          transaction.create(alertReceipt, auditReceipt({
+            orderId:id,event:'operator_alert',errorCode:'invoice_send_unknown',
+          }, fieldValue));
+        }
         return true;
       });
+    },
+
+    async listDueEffects(now = clock(), {limit = 50} = {}) {
+      const maximum = Number(limit);
+      if (!Number.isInteger(maximum) || maximum < 1 || maximum > 100) {
+        throw repositoryError('ORDER_INVALID', 'limit is invalid');
+      }
+      const cutoff = Timestamp.fromDate(dateValue(now, 'now'));
+      const snapshot = await effects
+        .where('status', '==', 'pending')
+        .where('nextAttemptAt', '<=', cutoff)
+        .orderBy('nextAttemptAt', 'asc')
+        .limit(maximum)
+        .get();
+      return Object.freeze(snapshot.docs.map(document => {
+        const effect = document.data();
+        if (effect.effect === 'pilot_auth_email') {
+          return Object.freeze({
+            effectId:document.id,
+            effect:effect.effect,
+            recipientBinding:recipientBinding(document.id.slice('pilot-auth-'.length)),
+          });
+        }
+        return Object.freeze({
+          effectId:document.id,
+          effect:effectType(effect.effect),
+          orderId:requiredId(effect.orderId, 'orderId'),
+        });
+      }));
     },
 
     async recoverExpiredEffects(now = clock()) {
@@ -806,48 +950,57 @@ export function createOrderRepository({
       const recovered = {
         recoveredCreateOrderIds: [],
         recoveredPilotAuthBindings: [],
+        recoveredSendOrderIds: [],
         manualReviewOrderIds: [],
         manualReviewPilotAuthBindings: [],
       };
       for (const document of snapshot.docs) {
         const reference = effects.doc(document.id);
-        await db.runTransaction(async transaction => {
+        const alertReceipt = auditRef();
+        const outcome = await db.runTransaction(async transaction => {
           const current = await transaction.get(reference);
-          if (!current.exists) return;
+          if (!current.exists) return null;
           const effect = current.data();
           if (effect.status !== 'claimed'
-            || timestampDate(effect.claim?.leaseExpiresAt, 'leaseExpiresAt') > dateValue(now, 'now')) return;
+            || timestampDate(effect.claim?.leaseExpiresAt, 'leaseExpiresAt') > dateValue(now, 'now')) return null;
           const timestamp = fieldValue.serverTimestamp();
           if (effect.effect === 'pilot_auth_email') {
             const binding = document.id.slice('pilot-auth-'.length);
             if (effect.dispatchStartedAt == null && effect.dispatchAttemptCount === 0) {
               transaction.set(reference, {
                 ...effect, status: 'pending', claim: null,
-                lastErrorCode: effect.lastErrorCode, updatedAt: timestamp,
+                lastErrorCode: effect.lastErrorCode, nextAttemptAt:cutoff, updatedAt: timestamp,
               });
-              recovered.recoveredPilotAuthBindings.push(binding);
-              return;
+              return {kind:'recovered_auth',id:binding};
             }
             transaction.set(reference, {
               ...effect, status: 'manual_review', claim: null,
               lastClaimId: effect.claim?.claimId,
-              lastErrorCode: 'pilot_auth_email_unknown', updatedAt: timestamp,
+              lastErrorCode: 'pilot_auth_email_unknown', nextAttemptAt:null, updatedAt: timestamp,
             });
-            recovered.manualReviewPilotAuthBindings.push(binding);
-            return;
+            transaction.create(alertReceipt, auditReceipt({
+              event:'operator_alert',errorCode:'pilot_auth_email_unknown',
+            }, fieldValue));
+            return {kind:'manual_auth',id:binding};
           }
           if (effect.effect === 'invoice_create') {
             transaction.set(reference, {
               ...effect, status: 'pending', claim: null,
               lastErrorCode: effect.lastErrorCode, nextAttemptAt: cutoff, updatedAt: timestamp,
             });
-            recovered.recoveredCreateOrderIds.push(effect.orderId);
-            return;
+            return {kind:'recovered_create',id:effect.orderId};
           }
           if (effect.effect === 'invoice_send') {
+            if (effect.dispatchStartedAt == null && effect.dispatchAttemptCount === 0) {
+              transaction.set(reference, {
+                ...effect,status:'pending',claim:null,
+                lastErrorCode:effect.lastErrorCode,nextAttemptAt:cutoff,updatedAt:timestamp,
+              });
+              return {kind:'recovered_send',id:effect.orderId};
+            }
             const orderReference = orderRef(effect.orderId);
             const orderSnapshot = await transaction.get(orderReference);
-            if (!orderSnapshot.exists) return;
+            if (!orderSnapshot.exists) return null;
             const order = orderSnapshot.data();
             transaction.set(reference, {
               ...effect, status: 'manual_review', claim: null,
@@ -858,15 +1011,160 @@ export function createOrderRepository({
               ...order, status: 'manual_review', terminal: true, activeTransition: null,
               reconciliationDueAt: null, lastErrorCode: 'invoice_send_unknown', updatedAt: timestamp,
             });
-            recovered.manualReviewOrderIds.push(effect.orderId);
+            transaction.create(alertReceipt, auditReceipt({
+              orderId:effect.orderId,event:'operator_alert',errorCode:'invoice_send_unknown',
+            }, fieldValue));
+            return {kind:'manual_send',id:effect.orderId};
           }
+          return null;
         });
+        if (outcome?.kind === 'recovered_auth') recovered.recoveredPilotAuthBindings.push(outcome.id);
+        if (outcome?.kind === 'manual_auth') recovered.manualReviewPilotAuthBindings.push(outcome.id);
+        if (outcome?.kind === 'recovered_create') recovered.recoveredCreateOrderIds.push(outcome.id);
+        if (outcome?.kind === 'recovered_send') recovered.recoveredSendOrderIds.push(outcome.id);
+        if (outcome?.kind === 'manual_send') recovered.manualReviewOrderIds.push(outcome.id);
       }
       return Object.freeze({
         recoveredCreateOrderIds: Object.freeze(recovered.recoveredCreateOrderIds),
         recoveredPilotAuthBindings: Object.freeze(recovered.recoveredPilotAuthBindings),
+        recoveredSendOrderIds: Object.freeze(recovered.recoveredSendOrderIds),
         manualReviewOrderIds: Object.freeze(recovered.manualReviewOrderIds),
         manualReviewPilotAuthBindings: Object.freeze(recovered.manualReviewPilotAuthBindings),
+      });
+    },
+
+    async claimPaymentVerification(orderId, workerId, now = clock()) {
+      const id = requiredId(orderId, 'orderId');
+      const worker = requiredId(workerId, 'workerId', WORKER_ID);
+      const claimId = requiredId(claimIdFactory(), 'claimId');
+      const claimedAt = dateValue(now, 'now');
+      const leaseExpiresAt = new Date(claimedAt.getTime() + EFFECT_LEASE_MILLISECONDS);
+      const reference = orderRef(id);
+      const receipt = auditRef();
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists) throw repositoryError('ORDER_NOT_FOUND', 'Order was not found');
+        const order = snapshot.data();
+        if (!PAYMENT_RECOVERY_STATUSES.has(order.status)) return false;
+        const currentLease = order.paymentVerificationClaim?.leaseExpiresAt;
+        if (currentLease && timestampDate(currentLease, 'leaseExpiresAt') > claimedAt) return false;
+        const timestamp = fieldValue.serverTimestamp();
+        transaction.set(reference, {
+          ...order,
+          activeTransition:null,
+          paymentVerificationClaim:{
+            claimId,workerId:worker,previousStatus:order.status,
+            claimedAt:Timestamp.fromDate(claimedAt),
+            leaseExpiresAt:Timestamp.fromDate(leaseExpiresAt),
+          },
+          terminal:false,
+          reconciliationDueAt:Timestamp.fromDate(leaseExpiresAt),
+          updatedAt:timestamp,
+        });
+        transaction.create(receipt, auditReceipt({
+          orderId:id,event:'payment_verification_claimed',workerId:worker,claimId,
+        }, fieldValue));
+        return Object.freeze({claimId});
+      });
+    },
+
+    async completeVerifiedDigitalOrder(orderId, workerId, rawClaimId, rawProviderRefs = {}) {
+      const id = requiredId(orderId, 'orderId');
+      const worker = requiredId(workerId, 'workerId', WORKER_ID);
+      const claimId = requiredId(rawClaimId, 'claimId');
+      const providerRefs = normalizeProviderRefs(rawProviderRefs);
+      if (!Object.hasOwn(providerRefs, 'providerPaymentRef')) {
+        throw repositoryError('UNSAFE_PROVIDER_REFS', 'Payment reference is required');
+      }
+      const reference = orderRef(id);
+      const grantReference = fulfillmentGrants.doc(id);
+      const receipt = auditRef();
+      return db.runTransaction(async transaction => {
+        const [snapshot, grantSnapshot] = await Promise.all([
+          transaction.get(reference),transaction.get(grantReference),
+        ]);
+        if (!snapshot.exists) throw repositoryError('ORDER_NOT_FOUND', 'Order was not found');
+        const order = snapshot.data();
+        if (order.status === 'fulfilled' && order.lastPaymentVerificationClaimId === claimId) return false;
+        if (order.paymentVerificationClaim?.claimId !== claimId
+          || order.paymentVerificationClaim?.workerId !== worker) {
+          throw repositoryError('PAYMENT_CLAIM_LOST', 'Payment verification claim is no longer held');
+        }
+        if (order.orderType !== 'digital_product'
+          || typeof order.customerUid !== 'string'
+          || order.customerUid.length < 1) {
+          throw repositoryError('INVALID_ORDER_TRANSITION', 'Digital fulfillment is not allowed');
+        }
+        const timestamp = fieldValue.serverTimestamp();
+        if (!grantSnapshot.exists) {
+          transaction.create(grantReference, {
+            orderId:id,sku:order.sku,customerUid:order.customerUid,
+            fulfillmentType:order.fulfillmentType,status:'active',createdAt:timestamp,
+          });
+        }
+        transaction.set(reference, {
+          ...order,
+          status:'fulfilled',terminal:true,activeTransition:null,
+          paymentVerificationClaim:null,lastPaymentVerificationClaimId:claimId,
+          providerRefs:mergeProviderRefs(order.providerRefs, providerRefs),
+          fulfillment:{status:'fulfilled'},lastErrorCode:null,retry:null,
+          reconciliationDueAt:null,updatedAt:timestamp,
+        });
+        transaction.create(receipt, auditReceipt({
+          orderId:id,event:'payment_verified_and_fulfilled',toStatus:'fulfilled',
+          workerId:worker,claimId,
+        }, fieldValue));
+        return true;
+      });
+    },
+
+    async completePaymentVerification(orderId, workerId, rawClaimId, result = {}) {
+      const id = requiredId(orderId, 'orderId');
+      const worker = requiredId(workerId, 'workerId', WORKER_ID);
+      const claimId = requiredId(rawClaimId, 'claimId');
+      const outcome = result.outcome;
+      if (!['pending','retry','manual_review'].includes(outcome)) {
+        throw repositoryError('ORDER_INVALID', 'Payment verification outcome is invalid');
+      }
+      const errorCode = result.errorCode == null ? null : safeErrorCode(result.errorCode);
+      const retryAt = outcome === 'manual_review'
+        ? null
+        : Timestamp.fromDate(dateValue(result.retryAt, 'retryAt'));
+      const reference = orderRef(id);
+      const receipt = auditRef();
+      const alertReceipt = auditRef();
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists) throw repositoryError('ORDER_NOT_FOUND', 'Order was not found');
+        const order = snapshot.data();
+        const claim = order.paymentVerificationClaim;
+        if (claim?.claimId !== claimId || claim?.workerId !== worker) {
+          throw repositoryError('PAYMENT_CLAIM_LOST', 'Payment verification claim is no longer held');
+        }
+        const status = outcome === 'manual_review'
+          ? 'manual_review'
+          : outcome === 'pending' ? 'pending_payment' : claim.previousStatus;
+        const timestamp = fieldValue.serverTimestamp();
+        transaction.set(reference, {
+          ...order,status,activeTransition:null,paymentVerificationClaim:null,
+          terminal:outcome === 'manual_review',
+          reconciliationDueAt:retryAt,
+          lastErrorCode:errorCode,
+          retry:outcome === 'manual_review' ? null : {
+            attemptCount:Number(order.retry?.attemptCount ?? 0) + 1,dueAt:retryAt,
+          },
+          updatedAt:timestamp,
+        });
+        transaction.create(receipt, auditReceipt({
+          orderId:id,event:'payment_verification_completed',toStatus:status,
+          workerId:worker,claimId,errorCode,
+        }, fieldValue));
+        if (outcome === 'manual_review') {
+          transaction.create(alertReceipt, auditReceipt({
+            orderId:id,event:'operator_alert',errorCode:errorCode ?? 'payment_verification_mismatch',
+          }, fieldValue));
+        }
+        return true;
       });
     },
 

@@ -13,6 +13,7 @@ import {createIntegrationService} from './orchestration.js';
 import {createCommerceService} from './commerce/commerce-service.js';
 import {createOrderRepository} from './commerce/order-repository.js';
 import {readCommerceFeatureFlags} from './commerce/feature-flags.js';
+import {createLazyProvider} from './commerce/lazy-provider.js';
 import {createQuickBooksWebhookProcessor} from './providers/quickbooks-webhooks.js';
 import {buildMicrosoftAuthUrl,buildQuickBooksAuthUrl,exchangeMicrosoftCode,exchangeQuickBooksCode} from './providers/oauth.js';
 
@@ -153,12 +154,27 @@ function quickBooksClient() {
   });
 }
 
+function lazyGraphClient() {
+  return createLazyProvider(graphClient, [
+    'sendPilotAuthLink','sendConfirmation','sendInvoice',
+  ]);
+}
+
+function lazyQuickBooksClient() {
+  return createLazyProvider(quickBooksClient, [
+    'createCommerceInvoice','sendInvoice','getInvoice','getPayment','getAccountingChanges',
+  ]);
+}
+
 function commerceRepository() {
   return createOrderRepository({db,fieldValue:FieldValue,Timestamp});
 }
 
 function commerceHttpsError(error) {
   if (error?.code === 'AUTH_REQUIRED') return new HttpsError('unauthenticated','Authentication is required');
+  if (error?.code === 'AUTH_SESSION_INVALID') {
+    return new HttpsError('unauthenticated','Authentication is no longer valid');
+  }
   if (['VERIFIED_EMAIL_REQUIRED','PILOT_RECIPIENT_REQUIRED','ADMIN_REQUIRED'].includes(error?.code)) {
     return new HttpsError('permission-denied','This operation is not permitted');
   }
@@ -172,14 +188,15 @@ function runtimeCommerceService({withPilotEmail = false, withQuickBooks = false,
   const repository = commerceRepository();
   return createCommerceService({
     repository,
-    quickbooks:withQuickBooks ? quickBooksClient() : null,
-    graph:withGraph ? graphClient() : null,
+    quickbooks:withQuickBooks ? lazyQuickBooksClient() : null,
+    graph:withGraph ? lazyGraphClient() : null,
     auth:withPilotEmail ? {
       generateSignInWithEmailLink:(email, settings) => getAuth().generateSignInWithEmailLink(email, settings),
     } : null,
     getApprovedPilotEmail:withPilotEmail
       ? () => COMMERCE_PILOT_RECIPIENT_EMAIL.value()
       : () => { throw new Error('Pilot recipient secret is unavailable'); },
+    getCurrentUser:uid => getAuth().getUser(uid),
     authRequestLimiter:key => repository.consumeRateLimit(
       'pilot_auth',key,new Date(),{limit:5,windowMs:10 * 60 * 1000}
     ),
@@ -269,7 +286,7 @@ export const quickBooksCommerceWebhook = onRequest({
     const processor = createQuickBooksWebhookProcessor({
       verifierToken:QBO_WEBHOOK_VERIFIER_TOKEN.value(),
       expectedRealmId:QBO_REALM_ID.value(),
-      storeHint:(id,hint) => repository.storeWebhookHint(id,hint),
+      storeHints:entries => repository.storeWebhookHints(entries),
     });
     await processor.acceptQuickBooksWebhook({
       rawBody:request.rawBody,
@@ -285,10 +302,18 @@ export const quickBooksCommerceWebhook = onRequest({
 
 export const reconcileCommerceOrders = onSchedule({schedule:'every 5 minutes',
   timeZone:'America/Los_Angeles',region:REGION,
+  secrets:QBO_SECRETS,
+}, async () => {
+  const service = runtimeCommerceService({withQuickBooks:true});
+  await service.reconcilePendingOrders(new Date());
+});
+
+export const dispatchCommerceEffects = onSchedule({schedule:'every 5 minutes',
+  timeZone:'America/Los_Angeles',region:REGION,
   secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_SECRETS,...MS_SECRETS],
 }, async () => {
   const service = runtimeCommerceService({withPilotEmail:true,withQuickBooks:true,withGraph:true});
-  await service.reconcilePendingOrders(new Date());
+  await service.dispatchPendingEffects(new Date());
 });
 
 export const confirmAcceptedBooking = onDocumentWritten({document:'appointments/{appointmentId}',region:REGION,secrets:MS_SECRETS}, async event => {

@@ -26,15 +26,22 @@ function signature(raw) {
 function fixture() {
   const hints = new Map();
   let orderWrites = 0;
+  let batchCalls = 0;
   return {
     hints,
     get orderWrites() { return orderWrites; },
+    get batchCalls() { return batchCalls; },
     processor: createQuickBooksWebhookProcessor({
       verifierToken,
       expectedRealmId: realmId,
       storeHint: async (id, hint) => {
         if (!hints.has(id)) hints.set(id, hint);
         return !hints.has(id);
+      },
+      storeHints: async entries => {
+        batchCalls += 1;
+        for (const {id,hint} of entries) hints.set(id,hint);
+        return entries.length;
       },
       updateOrder: async () => { orderWrites += 1; },
     }),
@@ -79,6 +86,7 @@ test('stores only normalized Invoice and Payment reconciliation hints idempotent
   await state.processor.acceptQuickBooksWebhook({rawBody: raw, signature: signed});
 
   assert.equal(state.hints.size, 2);
+  assert.equal(state.batchCalls, 2);
   assert.equal(state.orderWrites, 0);
   assert.deepEqual([...state.hints.values()], [
     {
@@ -99,6 +107,44 @@ test('stores only normalized Invoice and Payment reconciliation hints idempotent
   const serialized = JSON.stringify([...state.hints.values()]);
   assert.equal(serialized.includes(signed), false);
   assert.equal(serialized.includes(raw.toString('base64')), false);
+});
+
+test('rejects a validly signed oversized raw body before parsing or persistence', async () => {
+  const state = fixture();
+  const raw = Buffer.from(JSON.stringify({
+    eventNotifications:[{
+      realmId,
+      dataChangeEvent:{entities:[
+        {name:'Invoice',id:'30',operation:'Update',lastUpdated:'2026-08-29T18:00:00.000Z'},
+      ]},
+    }],
+    padding:'x'.repeat(256 * 1024),
+  }));
+
+  await assert.rejects(
+    state.processor.acceptQuickBooksWebhook({rawBody:raw,signature:signature(raw)}),
+    {code:'WEBHOOK_PAYLOAD_INVALID'}
+  );
+  assert.equal(state.hints.size, 0);
+  assert.equal(state.batchCalls, 0);
+});
+
+test('caps the total entity count across all notifications and never starts sequential writes', async () => {
+  const entities = Array.from({length:60}, (_, index) => ({
+    name:'Invoice',id:String(index + 1),operation:'Update',lastUpdated:'2026-08-29T18:00:00.000Z',
+  }));
+  const raw = Buffer.from(JSON.stringify({eventNotifications:[
+    {realmId,dataChangeEvent:{entities}},
+    {realmId,dataChangeEvent:{entities:entities.map((entity, index) => ({...entity,id:String(index + 61)}))}},
+  ]}));
+  const state = fixture();
+
+  await assert.rejects(
+    state.processor.acceptQuickBooksWebhook({rawBody:raw,signature:signature(raw)}),
+    {code:'WEBHOOK_PAYLOAD_INVALID'}
+  );
+  assert.equal(state.hints.size, 0);
+  assert.equal(state.batchCalls, 0);
 });
 
 test('ignores non-payment entities and rejects malformed normalized identifiers', async () => {

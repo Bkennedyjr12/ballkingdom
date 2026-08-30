@@ -3,6 +3,9 @@ import {createHash, createHmac, timingSafeEqual} from 'node:crypto';
 const ALLOWED_ENTITIES = new Set(['Invoice', 'Payment']);
 const ALLOWED_OPERATIONS = new Set(['Create', 'Update', 'Delete', 'Merge', 'Void']);
 const IDENTIFIER = /^[A-Za-z0-9._:/-]{1,200}$/;
+const MAX_RAW_BODY_BYTES = 256 * 1024;
+const MAX_NOTIFICATIONS = 20;
+const MAX_ENTITIES = 100;
 
 function webhookError(code, message) {
   const error = new Error(message);
@@ -61,11 +64,11 @@ function hintId(hint) {
 export function createQuickBooksWebhookProcessor({
   verifierToken,
   expectedRealmId,
-  storeHint,
+  storeHints,
 } = {}) {
   if (typeof verifierToken !== 'string' || verifierToken.length < 1
     || typeof expectedRealmId !== 'string' || !IDENTIFIER.test(expectedRealmId)
-    || typeof storeHint !== 'function') {
+    || typeof storeHints !== 'function') {
     throw new TypeError('QuickBooks webhook dependencies are required');
   }
 
@@ -73,6 +76,9 @@ export function createQuickBooksWebhookProcessor({
     async acceptQuickBooksWebhook({rawBody, signature} = {}) {
       if (!validSignature(rawBody, signature, verifierToken)) {
         throw webhookError('WEBHOOK_SIGNATURE_INVALID', 'QuickBooks webhook signature was rejected');
+      }
+      if (rawBody.length > MAX_RAW_BODY_BYTES) {
+        throw webhookError('WEBHOOK_PAYLOAD_INVALID', 'QuickBooks webhook payload was invalid');
       }
 
       let payload;
@@ -84,29 +90,37 @@ export function createQuickBooksWebhookProcessor({
       if (!isRecord(payload)
         || !Array.isArray(payload.eventNotifications)
         || payload.eventNotifications.length < 1
-        || payload.eventNotifications.length > 100) {
+        || payload.eventNotifications.length > MAX_NOTIFICATIONS) {
         throw webhookError('WEBHOOK_PAYLOAD_INVALID', 'QuickBooks webhook payload was invalid');
       }
 
-      const hints = [];
+      const hints = new Map();
+      let entityCount = 0;
       for (const notification of payload.eventNotifications) {
         if (!isRecord(notification) || notification.realmId !== expectedRealmId) {
           throw webhookError('WEBHOOK_REALM_INVALID', 'QuickBooks webhook realm was rejected');
         }
         const entities = notification.dataChangeEvent?.entities;
-        if (!Array.isArray(entities) || entities.length > 1000) {
+        if (!Array.isArray(entities)) {
           throw webhookError('WEBHOOK_PAYLOAD_INVALID', 'QuickBooks webhook payload was invalid');
         }
         for (const entity of entities) {
+          entityCount += 1;
+          if (entityCount > MAX_ENTITIES) {
+            throw webhookError('WEBHOOK_PAYLOAD_INVALID', 'QuickBooks webhook payload was invalid');
+          }
           if (!isRecord(entity)) {
             throw webhookError('WEBHOOK_PAYLOAD_INVALID', 'QuickBooks webhook payload was invalid');
           }
           if (!ALLOWED_ENTITIES.has(entity.name)) continue;
-          hints.push(normalizeHint(notification, entity, expectedRealmId));
+          const hint = normalizeHint(notification, entity, expectedRealmId);
+          hints.set(hintId(hint), hint);
         }
       }
 
-      for (const hint of hints) await storeHint(hintId(hint), hint);
+      if (hints.size > 0) {
+        await storeHints([...hints].map(([id,hint]) => Object.freeze({id,hint})));
+      }
       return Object.freeze({accepted: true});
     },
   });
