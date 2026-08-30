@@ -15,10 +15,9 @@ import {createOrderRepository} from './commerce/order-repository.js';
 import {readCommerceFeatureFlags} from './commerce/feature-flags.js';
 import {createLazyProvider} from './commerce/lazy-provider.js';
 import {
-  createFirestoreQuickBooksRefreshLeaseStore,
   createQuickBooksRefreshSecretStore,
-  createQuickBooksTokenCoordinator,
 } from './commerce/quickbooks-token-coordinator.js';
+import {createBoundQuickBooksCredentialCoordinator,createFirestoreQuickBooksCredentialStore,publishQuickBooksReconnect} from './commerce/quickbooks-credential-binding.js';
 import {createQuickBooksWebhookProcessor} from './providers/quickbooks-webhooks.js';
 import {buildMicrosoftAuthUrl,buildQuickBooksAuthUrl,exchangeMicrosoftCode,exchangeQuickBooksCode} from './providers/oauth.js';
 
@@ -29,7 +28,6 @@ const secretManager = new SecretManagerServiceClient();
 
 const QBO_CLIENT_ID = defineSecret('QBO_CLIENT_ID');
 const QBO_CLIENT_SECRET = defineSecret('QBO_CLIENT_SECRET');
-const QBO_REALM_ID = defineSecret('QBO_REALM_ID');
 const MS_TENANT_ID = defineSecret('MS_TENANT_ID');
 const MS_CLIENT_ID = defineSecret('MS_CLIENT_ID');
 const MS_CLIENT_SECRET = defineSecret('MS_CLIENT_SECRET');
@@ -39,7 +37,7 @@ const QBO_WEBHOOK_VERIFIER_TOKEN = defineSecret('QBO_WEBHOOK_VERIFIER_TOKEN');
 const QBO_REDIRECT_URI = defineString('QBO_REDIRECT_URI',{default:'https://us-west1-the-ballers-kingdom.cloudfunctions.net/quickBooksOAuthCallback'});
 const MS_REDIRECT_URI = defineString('MS_REDIRECT_URI',{default:'https://us-west1-the-ballers-kingdom.cloudfunctions.net/microsoftOAuthCallback'});
 
-const QBO_RUNTIME_SECRETS = [QBO_CLIENT_ID,QBO_CLIENT_SECRET,QBO_REALM_ID];
+const QBO_RUNTIME_SECRETS = [QBO_CLIENT_ID,QBO_CLIENT_SECRET];
 const MS_SECRETS = [MS_TENANT_ID,MS_CLIENT_ID,MS_CLIENT_SECRET,MS_REFRESH_TOKEN];
 const ALL_SECRETS = [...QBO_RUNTIME_SECRETS,...MS_SECRETS];
 const COMMERCE_QBO_WEBHOOK_ENABLED = false;
@@ -137,30 +135,40 @@ function graphClient() {
   });
 }
 
-let qboTokenCoordinator;
-let qboRefreshLeaseStore;
-function quickBooksRefreshLeaseStore() {
-  if (!qboRefreshLeaseStore) qboRefreshLeaseStore=createFirestoreQuickBooksRefreshLeaseStore({db});
-  return qboRefreshLeaseStore;
+let qboCredentialCoordinator;
+let qboCredentialStore;
+let qboTokenStore;
+let qboRealmStore;
+function quickBooksCredentialStore() {
+  if (!qboCredentialStore) qboCredentialStore=createFirestoreQuickBooksCredentialStore({db});
+  return qboCredentialStore;
 }
-function quickBooksTokenCoordinator() {
-  if (qboTokenCoordinator) return qboTokenCoordinator;
+function quickBooksSecretStores() {
   const projectId=process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
   if (!projectId) throw new Error('Google Cloud project is unavailable');
-  qboTokenCoordinator=createQuickBooksTokenCoordinator({
-    secretStore:createQuickBooksRefreshSecretStore({client:secretManager,projectId}),
-    leaseStore:quickBooksRefreshLeaseStore(),
+  if (!qboTokenStore) qboTokenStore=createQuickBooksRefreshSecretStore({client:secretManager,projectId,secretName:'QBO_REFRESH_TOKEN'});
+  if (!qboRealmStore) qboRealmStore=createQuickBooksRefreshSecretStore({client:secretManager,projectId,secretName:'QBO_REALM_ID'});
+  return {tokenStore:qboTokenStore,realmStore:qboRealmStore};
+}
+function quickBooksTokenCoordinator() {
+  if (qboCredentialCoordinator) return qboCredentialCoordinator;
+  const {tokenStore,realmStore}=quickBooksSecretStores();
+  qboCredentialCoordinator=createBoundQuickBooksCredentialCoordinator({
+    credentialStore:quickBooksCredentialStore(),tokenStore,realmStore,
     refresh:refreshToken=>refreshQuickBooksAccessToken({
       clientId:QBO_CLIENT_ID.value(),clientSecret:QBO_CLIENT_SECRET.value(),refreshToken,
     }),
   });
-  return qboTokenCoordinator;
+  return qboCredentialCoordinator;
 }
 
 function quickBooksClient() {
-  return createQuickBooksClient({
-    realmId:QBO_REALM_ID.value(),accessTokenProvider:quickBooksTokenCoordinator(),
-  });
+  const methodNames=['createInvoice','getInvoicePdf','createCommerceInvoice','sendInvoice','getInvoice','getPayment','getAccountingChanges'];
+  return Object.freeze(Object.fromEntries(methodNames.map(methodName=>[methodName,async(...args)=>{
+    const credentials=await quickBooksTokenCoordinator().getCredentials();
+    const client=createQuickBooksClient({realmId:credentials.realmId,accessTokenProvider:{getAccessToken:async()=>credentials.accessToken}});
+    return client[methodName](...args);
+  }])));
 }
 
 function lazyGraphClient() {
@@ -539,17 +547,18 @@ export const reconcileRefund = onCall({
 
 export const quickBooksCommerceWebhook = onRequest({
   region:REGION,
-  secrets:[QBO_WEBHOOK_VERIFIER_TOKEN,QBO_REALM_ID],
+  secrets:[QBO_WEBHOOK_VERIFIER_TOKEN],
 }, async (request,response) => {
   if (COMMERCE_QBO_WEBHOOK_ENABLED !== true || readCommerceFeatureFlags().digitalInvoicePilotEnabled !== true) {
     response.status(404).send('Not found');
     return;
   }
   try {
+    const expectedRealmId=await quickBooksTokenCoordinator().getRealmId();
     const repository = commerceRepository();
     const processor = createQuickBooksWebhookProcessor({
       verifierToken:QBO_WEBHOOK_VERIFIER_TOKEN.value(),
-      expectedRealmId:QBO_REALM_ID.value(),
+      expectedRealmId,
       storeHints:entries => repository.storeWebhookHints(entries),
     });
     await processor.acceptQuickBooksWebhook({
@@ -623,8 +632,8 @@ export const quickBooksOAuthCallback = onRequest({region:REGION,secrets:[QBO_CLI
     const realmId = String(request.query.realmId||'');
     if (!code || !realmId) throw new Error('QuickBooks callback is incomplete');
     const tokens = await exchangeQuickBooksCode({clientId:QBO_CLIENT_ID.value(),clientSecret:QBO_CLIENT_SECRET.value(),redirectUri:QBO_REDIRECT_URI.value(),code});
-    await Promise.all([addSecretVersion('QBO_REFRESH_TOKEN',tokens.refreshToken),addSecretVersion('QBO_REALM_ID',realmId)]);
-    await quickBooksRefreshLeaseStore().resetAfterReconnect({nowMs:Date.now()});
+    const {tokenStore,realmStore}=quickBooksSecretStores();
+    await publishQuickBooksReconnect({credentialStore:quickBooksCredentialStore(),tokenStore,realmStore,refreshToken:tokens.refreshToken,realmId});
     response.status(200).send(connectionHtml('QuickBooks'));
   } catch (error) {
     response.status(400).send('QuickBooks connection failed. Return to the application and try again.');

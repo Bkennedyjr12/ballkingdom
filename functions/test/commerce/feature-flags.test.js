@@ -58,7 +58,7 @@ test('Firebase wiring keeps the integration codebase path and secret boundaries 
   assert.match(indexSource, /export const getCommerceReleaseState = onCall\(\{[^}]*enforceAppCheck:true/s);
   assert.match(indexSource, /export const reconcileCommerceOrders = onSchedule\(\{schedule:'every 5 minutes',[\s\S]*?secrets:QBO_RUNTIME_SECRETS,[\s\S]*?runtimeCommerceService\(\{withQuickBooks:true\}\)/);
   assert.match(indexSource, /export const dispatchCommerceEffects = onSchedule\(\{schedule:'every 5 minutes',[\s\S]*?secrets:\[COMMERCE_PILOT_RECIPIENT_EMAIL,\.\.\.QBO_RUNTIME_SECRETS,\.\.\.MS_SECRETS\],[\s\S]*?dispatchPendingEffects/);
-  assert.doesNotMatch(indexSource, /defineSecret\(['"]QBO_REFRESH_TOKEN/);
+  assert.doesNotMatch(indexSource, /defineSecret\(['"]QBO_(?:REFRESH_TOKEN|REALM_ID)/);
   const serviceSource = await readFile(new URL('src/commerce/commerce-service.js', functionsUrl), 'utf8');
   assert.match(serviceSource, /timingSafeEqual\(/);
   assert.match(serviceSource, /compare\\0/);
