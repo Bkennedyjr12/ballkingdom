@@ -385,6 +385,73 @@ export function createCommerceService({
     return recovered;
   }
 
+  async function verifyOrderPaymentInternal({orderId, source} = {}) {
+    if (!['scheduled','webhook_hint','admin'].includes(source)) {
+      throw commerceError('ORDER_INVALID', 'Payment verification source is invalid');
+    }
+    let order = await repository.getOrder(orderId);
+    if (!order) throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
+    if (order.status === 'fulfilled' || order.status === 'manual_review') {
+      return Object.freeze({
+        status:safeOrderStatus(order.status),
+        disposition:'terminal_observed',
+      });
+    }
+    if (!['pending_payment','payment_verifying','paid','fulfilling'].includes(order.status)
+      || !order.providerRefs?.invoiceId) {
+      return Object.freeze({status:safeOrderStatus(order.status),disposition:'deferred'});
+    }
+    const workerId = workerIdFactory('payment-verification');
+    const verifying = await repository.claimPaymentVerification(orderId, workerId, clock());
+    if (!verifying) {
+      order = await repository.getOrder(orderId);
+      if (!order) throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
+      const terminal = order.status === 'fulfilled' || order.status === 'manual_review';
+      return Object.freeze({
+        status:safeOrderStatus(order.status),
+        disposition:terminal ? 'terminal_observed' : 'deferred',
+      });
+    }
+    let evidence;
+    try {
+      evidence = await quickbooks.getInvoice(order.providerRefs.invoiceId);
+    } catch {
+      await repository.completePaymentVerification(orderId, workerId, verifying.claimId, {
+        outcome:'retry',errorCode:'payment_evidence_unavailable',retryAt:retryAt(order, clock()),
+      });
+      return Object.freeze({status:'payment_verification_pending',disposition:'deferred'});
+    }
+
+    try {
+      const verified = verifyQuickBooksPaymentEvidence(evidence, {
+        realmId:order.providerRefs.realmId,
+        invoiceId:order.providerRefs.invoiceId,
+        providerOrderRef:order.providerRefs.providerOrderRef,
+        amountCents:order.amountCents,
+        currency:order.currency,
+      });
+      await repository.completeVerifiedDigitalOrder(orderId, workerId, verifying.claimId, {
+        realmId:verified.realmId,
+        providerOrderRef:verified.providerOrderRef,
+        providerPaymentRef:verified.providerPaymentRef,
+      });
+      return Object.freeze({status:'fulfilled',disposition:'completed'});
+    } catch (error) {
+      if (error?.code !== 'PAYMENT_VERIFICATION_MISMATCH') throw error;
+    }
+
+    if (isExactlyUnpaid(evidence, order) && ['pending_payment','payment_verifying'].includes(order.status)) {
+      await repository.completePaymentVerification(orderId, workerId, verifying.claimId, {
+        outcome:'pending',retryAt:retryAt(order, clock()),
+      });
+      return Object.freeze({status:'payment_verification_pending',disposition:'completed'});
+    }
+    await repository.completePaymentVerification(orderId, workerId, verifying.claimId, {
+      outcome:'manual_review',errorCode:'payment_verification_mismatch',
+    });
+    return Object.freeze({status:'manual_review',disposition:'completed'});
+  }
+
   return Object.freeze({
     async requestPilotSignInLink(input, appCheckContext) {
       if (!appCheckContext?.app) throw commerceError('APP_CHECK_REQUIRED', 'App Check is required');
@@ -470,63 +537,9 @@ export function createCommerceService({
       });
     },
 
-    async verifyOrderPayment({orderId, source} = {}) {
-      if (!['scheduled','webhook_hint','admin'].includes(source)) {
-        throw commerceError('ORDER_INVALID', 'Payment verification source is invalid');
-      }
-      let order = await repository.getOrder(orderId);
-      if (!order) throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
-      if (order.status === 'fulfilled' || order.status === 'manual_review') {
-        return Object.freeze({status:safeOrderStatus(order.status)});
-      }
-      if (!['pending_payment','payment_verifying','paid','fulfilling'].includes(order.status)
-        || !order.providerRefs?.invoiceId) {
-        return Object.freeze({status:safeOrderStatus(order.status)});
-      }
-      const workerId = workerIdFactory('payment-verification');
-      const verifying = await repository.claimPaymentVerification(orderId, workerId, clock());
-      if (!verifying) {
-        order = await repository.getOrder(orderId);
-        return Object.freeze({status:safeOrderStatus(order.status)});
-      }
-      let evidence;
-      try {
-        evidence = await quickbooks.getInvoice(order.providerRefs.invoiceId);
-      } catch {
-        await repository.completePaymentVerification(orderId, workerId, verifying.claimId, {
-          outcome:'retry',errorCode:'payment_evidence_unavailable',retryAt:retryAt(order, clock()),
-        });
-        return Object.freeze({status:'payment_verification_pending'});
-      }
-
-      try {
-        const verified = verifyQuickBooksPaymentEvidence(evidence, {
-          realmId:order.providerRefs.realmId,
-          invoiceId:order.providerRefs.invoiceId,
-          providerOrderRef:order.providerRefs.providerOrderRef,
-          amountCents:order.amountCents,
-          currency:order.currency,
-        });
-        await repository.completeVerifiedDigitalOrder(orderId, workerId, verifying.claimId, {
-          realmId:verified.realmId,
-          providerOrderRef:verified.providerOrderRef,
-          providerPaymentRef:verified.providerPaymentRef,
-        });
-        return Object.freeze({status:'fulfilled'});
-      } catch (error) {
-        if (error?.code !== 'PAYMENT_VERIFICATION_MISMATCH') throw error;
-      }
-
-      if (isExactlyUnpaid(evidence, order) && ['pending_payment','payment_verifying'].includes(order.status)) {
-        await repository.completePaymentVerification(orderId, workerId, verifying.claimId, {
-          outcome:'pending',retryAt:retryAt(order, clock()),
-        });
-        return Object.freeze({status:'payment_verification_pending'});
-      }
-      await repository.completePaymentVerification(orderId, workerId, verifying.claimId, {
-        outcome:'manual_review',errorCode:'payment_verification_mismatch',
-      });
-      return Object.freeze({status:'manual_review'});
+    async verifyOrderPayment(input = {}) {
+      const result = await verifyOrderPaymentInternal(input);
+      return Object.freeze({status:result.status});
     },
 
     async reconcilePendingOrders(now = clock()) {
@@ -546,22 +559,31 @@ export function createCommerceService({
         const order = await repository.findOrderByInvoiceId(realmId, invoiceId);
         return order ? [order] : [];
       };
-      const resolveEntity = async ({realmId,entityName,entityId}) => {
+      const resolveEntity = async ({realmId,entityName,entityId}, capacity) => {
         if (entityName === 'Invoice') {
-          return resolveInvoice(realmId, entityId);
+          return Object.freeze({orders:await resolveInvoice(realmId, entityId),complete:true});
         }
         const resolved = new Map();
+        let newOrderCount = 0;
         if (entityName === 'Payment' && quickbooks?.getPayment) {
           const payment = await quickbooks.getPayment(entityId);
-          for (const application of payment.applications.slice(0, 10)) {
+          const applications = payment.applications.slice(0, 10);
+          for (let index = 0; index < applications.length; index += 1) {
+            if (newOrderCount >= capacity) {
+              return Object.freeze({orders:[...resolved.values()],complete:false});
+            }
+            const application = applications[index];
             if (application.linkedTxnType === 'Invoice') {
               for (const order of await resolveInvoice(realmId, application.linkedTxnId)) {
-                resolved.set(order.id, order);
+                if (!resolved.has(order.id)) {
+                  resolved.set(order.id, order);
+                  if (!prioritized.has(order.id)) newOrderCount += 1;
+                }
               }
             }
           }
         }
-        return [...resolved.values()];
+        return Object.freeze({orders:[...resolved.values()],complete:true});
       };
       const addResolved = (orders, source) => {
         const newOrders = orders.filter(order => !prioritized.has(order.id));
@@ -570,10 +592,12 @@ export function createCommerceService({
         return true;
       };
       for (const hint of hints) {
+        const capacity = RECONCILIATION_LIMIT - prioritized.size;
+        if (capacity <= 0) break;
         try {
-          const orders = await resolveEntity(hint);
-          if (addResolved(orders, 'webhook_hint')) {
-            mappedHints.set(hint.hintId, new Set(orders.map(order => order.id)));
+          const resolved = await resolveEntity(hint, capacity);
+          if (addResolved(resolved.orders, 'webhook_hint') && resolved.complete) {
+            mappedHints.set(hint.hintId, new Set(resolved.orders.map(order => order.id)));
           }
         } catch {
           await alertOperator({code:'quickbooks_hint_unavailable'});
@@ -586,12 +610,14 @@ export function createCommerceService({
             changedSince:new Date(at.getTime() - 24 * 60 * 60 * 1000).toISOString(),
           });
           for (const change of changes.changes.slice(0, RECONCILIATION_LIMIT)) {
-            const orders = await resolveEntity({
+            const capacity = RECONCILIATION_LIMIT - prioritized.size;
+            if (capacity <= 0) break;
+            const resolved = await resolveEntity({
               realmId:changes.realmId,
               entityName:change.entityType,
               entityId:change.entityId,
-            });
-            if (!addResolved(orders, 'scheduled')) break;
+            }, capacity);
+            if (!addResolved(resolved.orders, 'scheduled')) break;
             if (prioritized.size >= RECONCILIATION_LIMIT) break;
           }
         } catch {
@@ -614,9 +640,11 @@ export function createCommerceService({
         if (!candidate.providerRefs?.invoiceId) {
           continue;
         }
-        await this.verifyOrderPayment({orderId:candidate.id,source});
-        processedOrderIds.add(candidate.id);
-        verified += 1;
+        const result = await verifyOrderPaymentInternal({orderId:candidate.id,source});
+        if (result.disposition === 'completed' || result.disposition === 'terminal_observed') {
+          processedOrderIds.add(candidate.id);
+          verified += 1;
+        }
       }
       const consumedHintIds = [...mappedHints]
         .filter(([,orderIds]) => [...orderIds].every(orderId => processedOrderIds.has(orderId)))

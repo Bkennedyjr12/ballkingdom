@@ -945,8 +945,8 @@ test('authoritative exact payment evidence fulfills once while an unpaid Invoice
   const paid = await state.service.verifyOrderPayment({orderId:orderResult.orderHandle,source:'scheduled'});
   const duplicate = await state.service.verifyOrderPayment({orderId:orderResult.orderHandle,source:'webhook_hint'});
 
-  assert.equal(paid.status, 'fulfilled');
-  assert.equal(duplicate.status, 'fulfilled');
+  assert.deepEqual(paid, {status:'fulfilled'});
+  assert.deepEqual(duplicate, {status:'fulfilled'});
   assert.equal(state.repository.fulfillmentGrants.size, 1);
 
   const pendingState = fixture();
@@ -1043,9 +1043,70 @@ test('retains a mapped webhook hint when authoritative processing crashes before
   assert.equal(state.repository.webhookHints.size, 1);
 });
 
+test('retains a mapped hint while another worker owns payment verification, then resumes after its crash', async () => {
+  let now = new Date('2026-08-29T18:00:00.000Z');
+  const state = fixture({clock:() => now});
+  const created = await state.service.createDigitalOrder({
+    sku:catalogItem.sku,customerName:'Ada',idempotencyKey:'concurrent-hint-order',
+  }, ownerAuth);
+  const order = state.repository.orders.get(created.orderHandle);
+  order.reconciliationDueAt = new Date('2026-08-30T18:00:00.000Z');
+  let invoiceReads = 0;
+  state.quickbooks.getInvoice = async () => {
+    invoiceReads += 1;
+    return paidEvidence(created.orderHandle);
+  };
+  await state.repository.storeWebhookHints([{id:'d'.repeat(64),hint:{
+    realmId:'realm-1',entityName:'Invoice',entityId:'invoice-1',operation:'Update',
+    lastUpdated:'2026-08-29T18:00:00.000Z',
+  }}]);
+  await state.repository.claimPaymentVerification(created.orderHandle, 'crashed-worker', now);
+
+  const blocked = await state.service.reconcilePendingOrders(
+    new Date('2026-08-29T18:01:00.000Z')
+  );
+
+  assert.equal(blocked.verifiedCount, 0);
+  assert.equal(invoiceReads, 0);
+  assert.equal(state.repository.webhookHints.size, 1);
+  assert.equal(order.status, 'pending_payment');
+
+  now = new Date('2026-08-29T18:05:00.000Z');
+  const resumed = await state.service.reconcilePendingOrders(now);
+
+  assert.equal(resumed.verifiedCount, 1);
+  assert.equal(invoiceReads, 1);
+  assert.equal(state.repository.webhookHints.size, 0);
+  assert.equal(order.status, 'fulfilled');
+  assert.equal(state.repository.fulfillmentGrants.size, 1);
+});
+
+test('retains a mapped hint when authoritative evidence is unavailable and a retry is scheduled', async () => {
+  const state = fixture();
+  const created = await state.service.createDigitalOrder({
+    sku:catalogItem.sku,customerName:'Ada',idempotencyKey:'unavailable-hint-order',
+  }, ownerAuth);
+  const order = state.repository.orders.get(created.orderHandle);
+  order.reconciliationDueAt = new Date('2026-08-30T18:00:00.000Z');
+  state.quickbooks.getInvoice = async () => { throw new Error('synthetic Accounting outage'); };
+  await state.repository.storeWebhookHints([{id:'e'.repeat(64),hint:{
+    realmId:'realm-1',entityName:'Invoice',entityId:'invoice-1',operation:'Update',
+    lastUpdated:'2026-08-29T18:00:00.000Z',
+  }}]);
+
+  const result = await state.service.reconcilePendingOrders(new Date('2026-08-29T18:01:00.000Z'));
+
+  assert.equal(result.verifiedCount, 0);
+  assert.equal(state.repository.webhookHints.size, 1);
+  assert.equal(order.status, 'pending_payment');
+  assert.equal(order.lastErrorCode, 'payment_evidence_unavailable');
+  assert.equal(order.reconciliationDueAt > new Date('2026-08-29T18:01:00.000Z'), true);
+});
+
 test('retains a Payment hint when its mapped invoices do not fit the remaining run budget', async () => {
   const repository = createMemoryRepository();
   const invoiceToOrder = new Map();
+  const mappingLookups = [];
   for (let index = 0; index < 51; index += 1) {
     const orderId = `budget-order-${index}`;
     const invoiceId = `budget-invoice-${index}`;
@@ -1073,9 +1134,16 @@ test('retains a Payment hint when its mapped invoices do not fit the remaining r
     hintId:paymentHintId,realmId:'realm-1',entityName:'Payment',entityId:'budget-payment',
     operation:'Update',lastUpdated:'2026-08-29T18:00:59.000Z',
   });
+  const findOrderByInvoiceId = repository.findOrderByInvoiceId.bind(repository);
+  repository.findOrderByInvoiceId = async (realmId, invoiceId) => {
+    mappingLookups.push(invoiceId);
+    return findOrderByInvoiceId(realmId, invoiceId);
+  };
   let invoiceReads = 0;
+  let paymentReads = 0;
   const state = fixture({repository,quickbooks:{
     async getPayment() {
+      paymentReads += 1;
       return {applications:[49,50].map(index => ({
         linkedTxnType:'Invoice',linkedTxnId:`budget-invoice-${index}`,
       }))};
@@ -1095,9 +1163,94 @@ test('retains a Payment hint when its mapped invoices do not fit the remaining r
 
   const result = await state.service.reconcilePendingOrders(new Date('2026-08-29T18:01:00.000Z'));
 
-  assert.equal(result.verifiedCount, 49);
-  assert.equal(invoiceReads, 49);
+  assert.equal(result.verifiedCount, 50);
+  assert.equal(invoiceReads, 50);
+  assert.equal(paymentReads, 1);
+  assert.equal(mappingLookups.length, 50);
+  assert.equal(mappingLookups.includes('budget-invoice-50'), false);
   assert.deepEqual([...repository.webhookHints.keys()], [paymentHintId]);
+});
+
+test('stops hint provider work at capacity and leaves every later hint unprocessed', async () => {
+  const repository = createMemoryRepository();
+  const invoiceToOrder = new Map();
+  for (let index = 0; index < 59; index += 1) {
+    const orderId = `capacity-order-${index}`;
+    const invoiceId = `capacity-invoice-${index}`;
+    invoiceToOrder.set(invoiceId, orderId);
+    repository.orders.set(orderId, {
+      id:orderId,sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
+      orderType:'digital_product',fulfillmentType:'protected_download',customer:{name:'Ada'},
+      customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,status:'pending_payment',
+      terminal:false,reconciliationDueAt:new Date('2026-08-30T18:00:00.000Z'),
+      providerRefs:{
+        realmId:'realm-1',invoiceId,customerId:'customer-1',providerOrderRef:`bk-order-${orderId}`,
+      },
+      fulfillment:{status:'locked'},
+    });
+  }
+  const hintIds = [];
+  const addHint = (position, hint) => {
+    const hintId = String(position + 1).padStart(64, '0');
+    hintIds.push(hintId);
+    repository.webhookHints.set(hintId, {
+      hintId,realmId:'realm-1',operation:'Update',
+      lastUpdated:`2026-08-29T18:00:${String(position).padStart(2, '0')}.000Z`,
+      ...hint,
+    });
+  };
+  addHint(0, {entityName:'Payment',entityId:'capacity-payment-fill'});
+  for (let position = 1; position <= 40; position += 1) {
+    addHint(position, {entityName:'Invoice',entityId:`capacity-invoice-${position + 9}`});
+  }
+  addHint(41, {entityName:'Payment',entityId:'capacity-payment-trailing'});
+  for (let position = 42; position < 50; position += 1) {
+    addHint(position, {entityName:'Invoice',entityId:`capacity-invoice-${position + 9}`});
+  }
+  const mappingLookups = [];
+  const findOrderByInvoiceId = repository.findOrderByInvoiceId.bind(repository);
+  repository.findOrderByInvoiceId = async (realmId, invoiceId) => {
+    mappingLookups.push(invoiceId);
+    return findOrderByInvoiceId(realmId, invoiceId);
+  };
+  const paymentReads = [];
+  let invoiceReads = 0;
+  let cdcReads = 0;
+  const state = fixture({repository,quickbooks:{
+    async getPayment(paymentId) {
+      paymentReads.push(paymentId);
+      const indexes = paymentId === 'capacity-payment-fill'
+        ? Array.from({length:10}, (_, index) => index)
+        : [50];
+      return {applications:indexes.map(index => ({
+        linkedTxnType:'Invoice',linkedTxnId:`capacity-invoice-${index}`,
+      }))};
+    },
+    async getInvoice(invoiceId) {
+      invoiceReads += 1;
+      const orderId = invoiceToOrder.get(invoiceId);
+      return {
+        realmId:'realm-1',invoice:{
+          invoiceId,providerOrderRef:`bk-order-${orderId}`,totalAmountCents:4900,
+          balanceCents:4900,currency:'USD',entityState:'present',paymentState:'unpaid',
+        },payments:[],
+      };
+    },
+    async getAccountingChanges() {
+      cdcReads += 1;
+      return {realmId:'realm-1',changes:[]};
+    },
+  }});
+
+  const result = await state.service.reconcilePendingOrders(new Date('2026-08-29T18:01:00.000Z'));
+
+  assert.equal(result.verifiedCount, 50);
+  assert.equal(invoiceReads, 50);
+  assert.deepEqual(paymentReads, ['capacity-payment-fill']);
+  assert.equal(mappingLookups.length, 50);
+  assert.equal(mappingLookups.includes('capacity-invoice-50'), false);
+  assert.equal(cdcReads, 0);
+  assert.deepEqual([...repository.webhookHints.keys()], hintIds.slice(41));
 });
 
 test('a Payment hint resolves only its bounded Invoice applications before exact Invoice verification', async () => {
