@@ -8,7 +8,7 @@ export function createIntegrationService({repository, graph, quickbooks, commerc
       const appointment = validateAppointment(rawAppointment);
       if (appointment.status !== 'accepted') return {ignored:true};
       const flags = readFeatureFlags();
-      if (flags.serviceQboSendEnabled === true) {
+      if (flags.serviceQboSendEnabled === true && Number.isInteger(appointment.amountCents)) {
         await commerce.createServiceOrder(appointmentId, appointment);
       }
       if (!await repository.claimConfirmation(appointmentId)) return {duplicate:true};
@@ -43,11 +43,12 @@ export function createIntegrationService({repository, graph, quickbooks, commerc
       if (!auth?.uid || auth.token?.admin !== true) throw new Error('An authenticated administrator is required');
       const appointment = await repository.claimApproval(appointmentId, auth.uid);
       if (!appointment) return {duplicate:true};
+      const approvalClaimId = appointment.approvalClaimId;
       try {
         const flags = readFeatureFlags();
-        if (flags.serviceQboSendEnabled === true) {
+        if (flags.serviceQboSendEnabled === true && Number.isInteger(appointment.amountCents)) {
           const receipt = await commerce.approveServiceInvoice({appointmentId,approvedBy:auth.uid});
-          await repository.completeApproval(appointmentId, {
+          await repository.completeApproval(appointmentId, approvalClaimId, {
             approvedBy:auth.uid,invoiceId:receipt.invoiceId,invoiceNumber:receipt.documentNumber,
             qboSendAccepted:receipt.sendAccepted === true,
           });
@@ -68,12 +69,16 @@ export function createIntegrationService({repository, graph, quickbooks, commerc
           pdf,
           idempotencyKey:`${appointmentId}-invoice-email`,
         });
-        await repository.completeApproval(appointmentId, {
+        await repository.completeApproval(appointmentId, approvalClaimId, {
           approvedBy:auth.uid, invoiceId:invoice.id, invoiceNumber:invoice.number, emailAccepted:email.accepted === true,
         });
         return {invoiceId:invoice.id, invoiceNumber:invoice.number};
       } catch (error) {
-        await repository.failApproval(appointmentId, {message:error.message});
+        if (error?.code === 'ORDER_MANUAL_REVIEW' && repository.quarantineApproval) {
+          await repository.quarantineApproval(appointmentId, approvalClaimId, {code:'invoice_send_unknown'});
+        } else {
+          await repository.failApproval(appointmentId, approvalClaimId, {message:error.message});
+        }
         throw error;
       }
     },

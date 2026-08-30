@@ -16,8 +16,8 @@ function harness(overrides = {}) {
     async failConfirmation(id) { events.push(['failConfirmation',id]); },
     async listAcceptedBefore() { return [{id:'appt-1',...appointment}]; },
     async stageApproval(id, data) { events.push(['stageApproval',id,data]); return true; },
-    async claimApproval(id, uid) { events.push(['claimApproval',id,uid]); return {id,...appointment}; },
-    async completeApproval(id, receipt) { events.push(['completeApproval',id,receipt]); },
+    async claimApproval(id, uid) { events.push(['claimApproval',id,uid]); return {id,...appointment,approvalClaimId:'claim-1'}; },
+    async completeApproval(id, claimId, receipt) { events.push(['completeApproval',id,claimId,receipt]); },
     async failApproval(id) { events.push(['failApproval',id]); },
     ...overrides.repository,
   };

@@ -492,10 +492,14 @@ export function createCommerceService({
           || typeof created.customerId !== 'string' || created.customerId.length < 1) {
           throw commerceError('INVOICE_READBACK_INVALID','Invoice readback was invalid');
         }
-        await repository.completeEffect(appointmentId,'invoice_create',createWorker,createClaim.claimId,{providerRefs:{
+        const providerRefs={
           realmId:readback.realmId,invoiceId:created.invoiceId,customerId:created.customerId,
           providerOrderRef:readback.invoice.providerOrderRef,
-        }});
+        };
+        if (typeof created.documentNumber === 'string' && created.documentNumber.length > 0) {
+          providerRefs.documentNumber=created.documentNumber;
+        }
+        await repository.completeEffect(appointmentId,'invoice_create',createWorker,createClaim.claimId,{providerRefs});
       } catch (error) {
         if (error?.code !== 'PROVIDER_TIMEOUT') await repository.recordEffectFailure(
           appointmentId,'invoice_create',createWorker,createClaim.claimId,{code:'invoice_create_failed'},clock()
@@ -525,8 +529,7 @@ export function createCommerceService({
       if (effect?.status === 'manual_review') throw commerceError('ORDER_MANUAL_REVIEW','Order requires administrator review');
       if (effect?.status !== 'completed') throw commerceError('ORDER_PROCESSING_PENDING','Order processing is pending');
     }
-    const invoiceEvidence = await quickbooks.getInvoice(order.providerRefs.invoiceId);
-    const documentNumber = invoiceEvidence.invoice.documentNumber ?? null;
+    const documentNumber = order.providerRefs.documentNumber ?? null;
     await repository.completeServiceInvoiceApproval(appointmentId,{invoiceId:order.providerRefs.invoiceId,documentNumber,sendAccepted:true});
     return Object.freeze({invoiceId:order.providerRefs.invoiceId,documentNumber,sendAccepted:true});
   }

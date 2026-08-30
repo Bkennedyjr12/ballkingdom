@@ -121,20 +121,43 @@ function firestoreRepository() {
       const appointmentRef = ref(id);
       const snapshot = await transaction.get(appointmentRef);
       const data = snapshot.data();
-      if (!snapshot.exists || data.invoiceApproval?.status !== 'pending') return null;
+      if (!snapshot.exists) return null;
+      const approval=data.invoiceApproval ?? {};
+      const now=Date.now();
+      const leaseExpiresAt=approval.leaseExpiresAt?.toMillis?.() ?? 0;
+      if (approval.status !== 'pending' && !(approval.status === 'processing' && leaseExpiresAt <= now)) return null;
+      const claimId=randomUUID();
       transaction.update(appointmentRef, {
-        'invoiceApproval.status':'processing','invoiceApproval.approvedBy':uid,'invoiceApproval.approvedAt':FieldValue.serverTimestamp(),
+        'invoiceApproval.status':'processing','invoiceApproval.approvedBy':uid,
+        'invoiceApproval.claimId':claimId,'invoiceApproval.claimedAt':Timestamp.fromMillis(now),
+        'invoiceApproval.leaseExpiresAt':Timestamp.fromMillis(now+5*60*1000),
+        'invoiceApproval.approvedAt':FieldValue.serverTimestamp(),
       });
-      transaction.set(auditRef(id), {appointmentId:id,event:'invoice_approval_claimed',approvedBy:uid,createdAt:FieldValue.serverTimestamp()});
-      return {id,...data};
+      transaction.set(auditRef(id), {appointmentId:id,event:'invoice_approval_claimed',approvedBy:uid,claimId,createdAt:FieldValue.serverTimestamp()});
+      return {id,...data,approvalClaimId:claimId};
     }),
-    completeApproval: (id, receipt) => db.runTransaction(async transaction => {
-      transaction.update(ref(id), {'invoiceApproval.status':'completed','invoiceApproval.completedAt':FieldValue.serverTimestamp(),'invoiceApproval.receipt':receipt});
+    completeApproval: (id, claimId, receipt) => db.runTransaction(async transaction => {
+      const appointmentRef=ref(id);
+      const snapshot=await transaction.get(appointmentRef);
+      if (!snapshot.exists || snapshot.data().invoiceApproval?.claimId !== claimId) throw new Error('Invoice approval claim was lost');
+      transaction.update(appointmentRef, {'invoiceApproval.status':'completed','invoiceApproval.claimId':null,'invoiceApproval.leaseExpiresAt':null,'invoiceApproval.completedAt':FieldValue.serverTimestamp(),'invoiceApproval.receipt':receipt});
       transaction.set(auditRef(id), {appointmentId:id,event:'invoice_delivered',receipt,createdAt:FieldValue.serverTimestamp()});
     }),
-    failApproval: (id, error) => db.runTransaction(async transaction => {
-      transaction.update(ref(id), {'invoiceApproval.status':'pending','invoiceApproval.lastError':error.message,'invoiceApproval.failedAt':FieldValue.serverTimestamp()});
+    failApproval: (id, claimId, error) => db.runTransaction(async transaction => {
+      const appointmentRef=ref(id);
+      const snapshot=await transaction.get(appointmentRef);
+      if (!snapshot.exists || snapshot.data().invoiceApproval?.claimId !== claimId) return false;
+      transaction.update(appointmentRef, {'invoiceApproval.status':'pending','invoiceApproval.claimId':null,'invoiceApproval.leaseExpiresAt':null,'invoiceApproval.lastError':error.message,'invoiceApproval.failedAt':FieldValue.serverTimestamp()});
       transaction.set(auditRef(id), {appointmentId:id,event:'invoice_delivery_failed',error:error.message,createdAt:FieldValue.serverTimestamp()});
+      return true;
+    }),
+    quarantineApproval: (id, claimId, error) => db.runTransaction(async transaction => {
+      const appointmentRef=ref(id);
+      const snapshot=await transaction.get(appointmentRef);
+      if (!snapshot.exists || snapshot.data().invoiceApproval?.claimId !== claimId) return false;
+      transaction.update(appointmentRef, {'invoiceApproval.status':'manual_review','invoiceApproval.claimId':null,'invoiceApproval.leaseExpiresAt':null,'invoiceApproval.lastErrorCode':error.code,'invoiceApproval.failedAt':FieldValue.serverTimestamp()});
+      transaction.set(auditRef(id), {appointmentId:id,event:'invoice_delivery_manual_review',errorCode:error.code,createdAt:FieldValue.serverTimestamp()});
+      return true;
     }),
   };
 }

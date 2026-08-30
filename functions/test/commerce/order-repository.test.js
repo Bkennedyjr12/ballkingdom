@@ -259,7 +259,7 @@ test('rejects unsafe or non-identifier providerRefs before any write', async () 
     {refreshCredential: 'credential-shaped'},
     {saleId: 'syntactically-valid-but-unapproved'},
     {paymentReference: 'not-the-task-3-name'},
-    {documentNumber: 'not-an-opaque-identifier'},
+    {documentNumber: 'contains spaces'},
     {providerPaymentRef: {nested: 'not-normalized'}},
   ]) {
     const {firestore, repository} = repositoryFixture();
@@ -280,11 +280,13 @@ test('accepts only the provider identifier names required by current commerce in
       providerOrderRef: 'bk-order-order-allowed-refs',
       invoiceId: 'invoice-7',
       customerId: 'customer-7',
+      documentNumber: '1007',
     },
   }));
 
   assert.deepEqual((await repository.getOrder('order-allowed-refs')).providerRefs, {
     customerId: 'customer-7',
+    documentNumber: '1007',
     invoiceId: 'invoice-7',
     providerOrderRef: 'bk-order-order-allowed-refs',
     providerPaymentRef: 'payment-7',
