@@ -16,6 +16,10 @@ This preflight used only local repository/history inspection and authorized read
 4. **Deployed Firestore original retained:** live release `cloud.firestore` points to Ruleset `2c9d612b-dd17-406f-9a0f-86230c57420c`, created `2026-08-01T18:17:20.210799Z`; its unmodified 10,192-byte `firestore.rules` is retained with SHA-256 `0d700ff33ee25eb5032ce04308e30ffc91d04e5c3a548bf7118bb641c5ae94a5`.
 5. **Deployed Storage original and bucket retained:** live release `firebase.storage/the-ballers-kingdom.firebasestorage.app` points to Ruleset `6a0d2e24-723d-4512-a4e1-7f2288550997`, created `2026-07-25T16:21:33.435711Z`; its unmodified 7,999-byte `storage.rules` is retained with SHA-256 `fb9987658560321e9cb039f0d0bed04c581fe5abe83cba440cbabfac8a1f86ef`. The production bucket is `the-ballers-kingdom.firebasestorage.app` in `US-WEST1`.
 
+Each current Ruleset reports `sourceFileCount: 1`; the complete retained `.source` projections enumerate every filename and content rather than assuming array index zero. The Firestore projection canonical SHA-256 is `3a0dd7432c26fd8ecafe0d9f48bcd8b49956ae2d57dfe701bd314f1c286483b5`; the Storage projection canonical SHA-256 is `828a26842313d88f6903d418ab3304fae0fdd574f8a4645e86f0166307d8c851`. Immediate release readback remained byte-identical.
+
+The separate bucket metadata response confirms name `the-ballers-kingdom.firebasestorage.app`, location `US-WEST1`, metageneration `1`, and uniform bucket-level access disabled. Bucket resources have no object-style generation field; `lockedTime` is absent because UBLA is disabled. Its canonical field-filtered response SHA-256 is `8a27cc5a33407270bc0c7cb06461c60391555933accee378b8a1f4d156805a58`, and no IAM, member, customer, or object-name field was requested.
+
 Durable evidence paths and checksums are indexed in [`docs/operations/evidence/README.md`](evidence/README.md). The structured Intuit observation's canonical JSON SHA-256 is `f93c3264d76cad6065f83d1d6ef22190421633d3a80c22ad226744cb78b49937`.
 
 ## Blockers remaining

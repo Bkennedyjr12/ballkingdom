@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-08-30T22:53:12Z",
+  "account": "lilpelejr12@gmail.com",
+  "project": "the-ballers-kingdom",
+  "retrieval": {
+    "api": "Google Cloud Storage JSON API v1",
+    "method": "GET",
+    "request": "https://storage.googleapis.com/storage/v1/b/the-ballers-kingdom.firebasestorage.app?fields=name,location,metageneration,iamConfiguration(uniformBucketLevelAccess(enabled,lockedTime))",
+    "authorizationBoundary": "existing gcloud user credential with x-goog-user-project=the-ballers-kingdom; token not retained or displayed",
+    "toolVersions": {
+      "gcloudCli": "571.0.0",
+      "curl": "8.7.1",
+      "jq": "1.7.1-apple"
+    }
+  },
+  "retainedSanitizedResponse": "bucket-metadata-response.json",
+  "canonicalSanitizedResponseMethod": "jq -cS over the complete field-filtered response plus LF",
+  "canonicalSanitizedResponseSha256": "8a27cc5a33407270bc0c7cb06461c60391555933accee378b8a1f4d156805a58",
+  "bucket": {
+    "name": "the-ballers-kingdom.firebasestorage.app",
+    "location": "US-WEST1",
+    "metageneration": "1",
+    "generation": null,
+    "generationApplicability": "The Cloud Storage Bucket resource exposes metageneration, not an object-style generation field.",
+    "uniformBucketLevelAccess": {
+      "enabled": false,
+      "lockedTime": null,
+      "lockedTimeApplicability": "The field was absent from the field-filtered API response because uniform bucket-level access is disabled."
+    }
+  },
+  "excludedData": "The field-filtered request retrieved no IAM policy, member, customer identifier, billing identifier, ACL, or object name."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "the-ballers-kingdom.firebasestorage.app",
+  "metageneration": "1",
+  "location": "US-WEST1",
+  "iamConfiguration": {
+    "uniformBucketLevelAccess": {
+      "enabled": false
+    }
+  }
+}
