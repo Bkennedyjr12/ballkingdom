@@ -88,3 +88,17 @@ The authoritative deployed Rules originals and exact bucket are now independentl
 - Static syntax, diff, immutable-original hashes, and candidate-manifest hashes passed unchanged.
 - Secure repository scan again reported only synthetic strings in pre-existing tests; no Task 7 file was flagged.
 - Bare `node --test` also discovered an unrelated untracked stale duplicate named `private-artifact-stream.test 2.js`. It uses the pre-fix contract and failed as expected; it and the unrelated `firestore 2.diff` were preserved untouched and excluded by running the complete Git-tracked test manifest explicitly.
+
+## Rules emulator verification
+
+- Installed approval supplied Java 21 from `/opt/homebrew/opt/openjdk@21` and the test-only dependencies `@firebase/rules-unit-testing@5.0.2` and `firebase@12.18.0`.
+- Loaded the two separate reviewed merge candidates directly into isolated emulators under demo project `demo-ballkingdom-commerce`; the repository-root fragments and `firebase.json` remained unmapped and unchanged.
+- Firestore emulator coverage proves signed-out, ordinary authenticated, correct-owner, wrong-owner, and admin client contexts cannot read, list, or write any server-authoritative commerce collection. It also proves the retained correct-owner client-profile read remains allowed while other identities and all client writes remain denied.
+- Storage emulator coverage proves the same five identity contexts cannot read, list, write, or delete under `private-commerce/**`. It also proves the retained correct-owner inspection-media read/PDF-upload behavior remains allowed while signed-out, ordinary, wrong-owner, and admin contexts remain denied.
+- Emulator result: 10 passed, 0 failed, 0 skipped using Auth, Firestore, and Storage emulators. Each test clears isolated emulator data before and after execution; the demo project prevents production fallback.
+- Complete Git-tracked Functions suite outside the emulators: 337 passed, 0 failed, and the two emulator-only tests skipped conditionally as designed.
+- Functions static checks, `git diff --check`, and the secure repository checker passed. The checker reported only the existing synthetic secret-like strings in pre-existing tests; no Task 7 file was flagged.
+- Both the production-only and complete dependency audits still report the same seven moderate transitive `uuid` findings through the existing Firebase Admin/Google Storage dependency chain. The offered forced remediation is a breaking `firebase-admin` downgrade and was not applied.
+- Candidate hashes remained unchanged: Firestore `78138d8cd5ffd417c932c670bc2327c33886a43c4c880c7de6a3ba33d056f122`; Storage `5d5bc0155f2f2c2a39b0b837714903e4337a0868ec0997375ad4e14d36e03de8`.
+
+This emulator proof removes the former Java/SDK authorization-test blocker only. It does not activate Rules, map a production ruleset, establish live persistence, place a paid artifact, or make fulfillment runtime-ready.

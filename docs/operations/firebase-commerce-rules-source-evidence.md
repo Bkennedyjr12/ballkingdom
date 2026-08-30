@@ -1,6 +1,6 @@
 # Firebase commerce Rules source evidence
 
-Status: **Byte-exact originals retained and separate local merge candidates prepared; unmapped, emulator-unverified, artifact-absent, and not release-ready**
+Status: **Byte-exact originals retained and separate local merge candidates emulator-verified; unmapped, artifact-absent, and not release-ready**
 
 Recorded: 2026-08-30 (America/Los_Angeles)
 
@@ -50,17 +50,18 @@ The following evidence has not been recovered or independently verified:
 1. The reviewed private-object prefix and object placement for each commerce SKU. No paid pilot artifact currently exists in the verified production bucket.
 2. Independent review acceptance of the two local merge candidates.
 3. Exact `firebase.json` Rules mappings to reviewed candidates, under separate release approval.
-4. Auth, Firestore, Storage, and Functions emulator results against the candidates.
-5. An approved paid artifact, exact private object key, verified metadata, and post-placement inventory evidence.
+4. An approved paid artifact, exact private object key, verified metadata, and post-placement inventory evidence.
 
-## Tooling gate
+## Local emulator evidence
 
-- `/usr/bin/java` exists only as the macOS launcher; `java -version` exits 1 with `Unable to locate a Java Runtime`.
-- `@firebase/rules-unit-testing` is absent from `functions/node_modules`.
-- No Java runtime or package was installed during this preflight.
+- Approval supplied Java 21 at `/opt/homebrew/opt/openjdk@21` and test-only dependencies `@firebase/rules-unit-testing@5.0.2` plus `firebase@12.18.0`.
+- An ephemeral local emulator configuration loaded the separate candidate paths directly; it did not modify the root fragments or add a `firebase.json` mapping.
+- Auth, Firestore, and Storage emulators ran under demo project `demo-ballkingdom-commerce`, for which non-emulated service access fails closed.
+- Ten candidate tests passed with zero failures or skips. The identity matrix covered signed-out, ordinary authenticated, correct owner, wrong owner, and admin contexts. Commerce collections and `private-commerce/**` denied every tested direct-client operation, while retained correct-owner client-profile and inspection-media behavior continued to work and inappropriate identities remained denied.
+- Emulator state was cleared around each candidate test. No production call, deployment, dry run, object access, or provider action occurred.
 
 ## Release decision
 
 No Rules mapping was added to `firebase.json`, no paid object path was guessed, and no Rules deployment or dry run was attempted. The candidate files do not replace the repository-root fragments. The fulfillment runtime readiness state is false with zero active artifacts, so the new Firestore and Admin Storage adapters cannot create a customer-facing delivery path.
 
-The production commerce pilot remains blocked even if application unit tests pass. The safe next sequence is: independently review the candidates; approve and place the exact pilot artifact and private key; retain verified object metadata; install Java and the Rules SDK under separate approval; pass the complete emulator matrix; review explicit mappings; and only then request separate scoped dry-run and deployment approvals.
+The production commerce pilot remains blocked even though the local candidate authorization matrix now passes. The safe next sequence is: independently accept the candidates; approve and place the exact pilot artifact and private key; retain verified object metadata; review explicit mappings; and only then request separate scoped dry-run and deployment approvals.
