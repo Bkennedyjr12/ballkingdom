@@ -15,16 +15,16 @@ An authorized read-only Firebase Rules API query on 2026-08-30 independently res
 
 The release names also independently identify the active Storage Rules bucket as `the-ballers-kingdom.firebasestorage.app`. A read-only Cloud Storage listing confirmed that bucket exists in `US-WEST1` with uniform bucket-level access currently false. It contains one object under the existing `owners/` namespace and zero objects whose names match the proposed `private-commerce` prefix, the pilot SKU, study-guide terms, or PDF artifacts. No object contents were read.
 
-The deployed originals were hashed byte-for-byte from the API response and retained without modification under [`docs/operations/evidence/firebase-rules/`](evidence/firebase-rules/). The adjacent [`provenance-manifest.json`](evidence/firebase-rules/provenance-manifest.json) records the immutable release/Ruleset names, retrieval method, immediate matching release readback, and every source filename, size, hash, and retained path. Each Ruleset currently has exactly one source file. The retained `source-projection.json` files cover the complete `.source` object rather than assuming `files[0]`; their canonical hashes exclude only documented non-source server metadata. If a later readback contains more files, every file must be retained before the evidence can pass. The paginated metadata-only bucket evidence is retained separately in [`storage-object-inventory.json`](evidence/firebase-rules/storage-object-inventory.json); its sole private object name is hashed, not disclosed. Bucket-resource facts and their field-filtered response are in [`bucket-metadata-attestation.json`](evidence/firebase-rules/bucket-metadata-attestation.json) and contain no IAM or object names. An exact-content comparison against every `firestore.rules` and `storage.rules` revision reachable from the local Git refs found no match, so no historical repository file is being substituted for the live source. The retained originals are evidence inputs only; they do not overwrite the reviewed local fragments and are not mapped for deployment.
+The deployed originals were hashed byte-for-byte from the API response and retained without modification under [`docs/operations/evidence/firebase-rules/`](evidence/firebase-rules/). The adjacent [`provenance-manifest.json`](evidence/firebase-rules/provenance-manifest.json) records the immutable release/Ruleset names, retrieval method, immediate matching release readback, and every source filename, size, hash, and retained path. Each Ruleset currently has exactly one source file. The retained `source-projection.json` files cover the complete `.source` object rather than assuming `files[0]`; their canonical hashes exclude only documented non-source server metadata. If a later readback contains more files, every file must be retained before the evidence can pass. The paginated metadata-only bucket evidence is retained separately in [`storage-object-inventory.json`](evidence/firebase-rules/storage-object-inventory.json); its sole private object name is hashed, not disclosed. Bucket-resource facts and their field-filtered response are in [`bucket-metadata-attestation.json`](evidence/firebase-rules/bucket-metadata-attestation.json) and contain no IAM or object names. An exact-content comparison against every `firestore.rules` and `storage.rules` revision reachable at recovery time found no match, so no historical repository file was substituted for the live source. The retained originals remain immutable evidence inputs; reviewed derivatives now occupy the mapped repository roots but remain undeployed.
 
-## Verified repository state
+## Current verified repository state
 
-- `firestore.rules` is a local commerce-only deny fragment. Its own header says it is not the authoritative production ruleset, and `firebase.json` intentionally has no `firestore.rules` mapping.
-- `storage.rules` is a local commerce-only deny fragment created for static fail-closed verification. It is not an authoritative production ruleset, and `firebase.json` intentionally has no `storage` block.
-- Both local fragments are excluded from every Hosting manifest entry.
-- Firebase Admin operations would bypass these fragments; no browser or public-object access is authorized by this work.
+- Root `firestore.rules` is byte-identical to the accepted Firestore candidate and `firebase.json` maps it together with `firestore.indexes.json`.
+- Root `storage.rules` is byte-identical to the accepted Storage candidate and `firebase.json` maps it explicitly.
+- Both mapped Rules files remain excluded from every Hosting manifest entry.
+- Firebase Admin operations bypass client Rules. The added commerce matches deny every tested direct-client operation; this repository mapping has not been deployed.
 - The fulfillment service boundary is stream-only and rejects URL-shaped results. It remains intentionally inactive because the verified bucket contains no approved paid artifact; no reusable signed or provider URL is produced.
-- A Firestore fulfillment repository now implements digest-only grant creation and atomic consumption using Firestore transactions. A serialized, Firestore-shaped fake proves the transaction contract locally, including concurrent replay denial and issuing a new grant after a consumed streaming failure. This is not Rules-emulator or live-persistence proof.
+- A Firestore fulfillment repository now implements digest-only grant creation and atomic consumption using Firestore transactions. A serialized, Firestore-shaped fake proves the transaction contract locally, including concurrent replay denial and issuing a new grant after a consumed streaming failure. The Rules authorization matrix is emulator-proven; live persistence remains unproven.
 - An Admin Storage adapter now verifies the exact recovered bucket name, private prefix, object generation, MIME, and size; reselects the immutable generation; validates CRC32C during streaming; counts actual bytes; and streams directly to a server response. Disconnect, overflow, truncation, or metadata mismatch destroys the stream and fails closed. It never calls or returns a signed URL. Runtime readiness remains hard-coded false and the active artifact allowlist remains empty because the retained inventory proves no paid artifact exists.
 
 The pre-mapping root-fragment hashes below identify the superseded local deny-only artifacts. They are **not** production-source or merge evidence:
@@ -55,18 +55,21 @@ After independent candidate and emulator acceptance, the repository roots were r
 
 The Java emulator matrix was rerun from the root `firebase.json` mappings under demo project `demo-ballkingdom-commerce`: 10 passed, 0 failed, 0 skipped. The Firebase CLI loaded the mapped root Firestore and Storage files; the Auth emulator was not configured or required because Rules test contexts supply signed-out and authenticated token states directly. No production service was contacted.
 
+## Historical pre-mapping state
+
+Before accepted review commit `c17d3b5`, the root files were narrow deny-only fragments, `firebase.json` had no Rules mappings, Java/Rules SDK support was unavailable, and authorization-context emulator tests were skipped. The pre-mapping hashes above and the exact compressed patch preserve that chronology. Those facts are historical, not the current repository state.
+
 ## Remaining missing evidence
 
 The following evidence has not been recovered or independently verified:
 
-1. The reviewed private-object prefix and object placement for each commerce SKU. No paid pilot artifact currently exists in the verified production bucket.
-2. An approved paid artifact, exact private object key, verified metadata, and post-placement inventory evidence.
+1. An approved paid artifact, exact private object key, verified metadata, and post-placement inventory evidence. No paid pilot artifact currently exists in the verified production bucket.
 
 ## Local emulator evidence
 
 - Approval supplied Java 21 at `/opt/homebrew/opt/openjdk@21` and test-only dependencies `@firebase/rules-unit-testing@5.0.2` plus `firebase@12.18.0`.
 - The initial isolated review loaded the separate candidate paths directly. After acceptance, the final local matrix loaded the byte-identical mapped root files from `firebase.json`.
-- Auth, Firestore, and Storage emulators ran under demo project `demo-ballkingdom-commerce`, for which non-emulated service access fails closed.
+- Firestore and Storage emulators ran under demo project `demo-ballkingdom-commerce`, for which non-emulated service access fails closed. Rules test contexts supplied the signed-out and authenticated claims; an Auth emulator was neither configured nor required for this matrix.
 - Ten candidate tests passed with zero failures or skips. The identity matrix covered signed-out, ordinary authenticated, correct owner, wrong owner, and admin contexts. Commerce collections and `private-commerce/**` denied every tested direct-client operation, while retained correct-owner client-profile and inspection-media behavior continued to work and inappropriate identities remained denied.
 - Emulator state was cleared around each candidate test. No production call, deployment, dry run, object access, or provider action occurred.
 

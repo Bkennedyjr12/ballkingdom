@@ -8,7 +8,7 @@ Source commit before this evidence: `783a664501a93377bcd8ff6e55fa8dcc2afd73cc`
 
 ## Decision
 
-The local implementation and its injected provider contracts pass under the declared Node 22 runtime, but the production pilot is not release-ready. A later read-only preflight retained byte-exact originals from both current deployed Rulesets and identified the active Storage bucket; those originals remain unmerged and unmapped, while paid artifact/object mapping, Rules emulator proof, and the persistent fulfillment runtime remain missing. A separately approved read-only production check at `2026-08-30T23:30:50Z` proved one OAuth refresh and CompanyInfo read for `The Ballers Kingdom`, but the returned rotated refresh credential was intentionally not retained by the test. The deployment-pinned stored credential then failed, and an approved reconnect added new secret versions. Continuing health remains blocked until rotating-credential persistence is fixed, reviewed, deployed, and followed by a fresh safe read. No Intuit sandbox, entity write, invoice send, payment, or refund/reversal handling was verified. A separate read-only signed-in review verified the owning Intuit Developer workspace and production app, as recorded below.
+The local implementation and its injected provider contracts pass under the declared Node 22 runtime, but the production pilot is not release-ready. The Rules evidence evolved after the original verification: byte-exact deployed originals were retained, reviewed derivatives were mapped at the repository roots, Java/Rules SDK support was installed, and the Firestore/Storage authorization matrix passed 10/10 locally. Those Rules remain undeployed; paid artifact/object placement and active fulfillment runtime remain missing. A separately approved read-only production check at `2026-08-30T23:30:50Z` proved one OAuth refresh and CompanyInfo read for `The Ballers Kingdom`, but the returned rotated refresh credential was intentionally not retained by the test. The deployment-pinned stored credential then failed, and an approved reconnect added new secret versions. Continuing health remains blocked until rotating-credential persistence is fixed, reviewed, deployed, and followed by a fresh safe read. No Intuit sandbox, entity write, invoice send, payment, or refund/reversal handling was verified. A separate read-only signed-in review verified the owning Intuit Developer workspace and production app, as recorded below.
 
 This record does not convert mock results into Intuit sandbox or production truth. It authorizes no deployment, secret creation, email, invoice, payment, refund, webhook configuration, or customer communication.
 
@@ -18,7 +18,7 @@ This record does not convert mock results into Intuit sandbox or production trut
 | --- | --- |
 | Local static/unit/injected-mock tests | Passed as detailed below. |
 | Local browser tests | Passed against a local HTTP server and injected browser mocks. |
-| Firebase emulator | Blocked before emulator startup by the missing Java runtime. Byte-exact deployed Rules originals are now retained as evidence, but reviewed commerce merges, `firebase.json` mappings, `@firebase/rules-unit-testing`, paid-object mapping, and runtime authorization proof remain absent. |
+| Firebase emulator | Current local result: reviewed mapped root Firestore/Storage Rules passed 10/10 authorization tests using Java 21 and `@firebase/rules-unit-testing`. The paid object remains absent and no production Rules deployment occurred. |
 | Intuit sandbox | Not accessed; no sandbox entity was created, read, sent, paid, or refunded. |
 | Signed-in/read-only provider truth | On 2026-08-30, a browser review verified workspace `The Ballers Kingdom`, app `TBK Q.B A.I`, its production marker, and an empty production webhook endpoint. At `2026-08-30T23:30:50Z`, a process-memory-only check received HTTP `200` for OAuth refresh and CompanyInfo and matched CompanyName `The Ballers Kingdom`; the returned rotated refresh credential was intentionally not retained. Reuse of the deployment-pinned stored credential then failed. Brian approved reconnect, the existing callback completed, and enabled version 3 metadata was observed for the refresh-token and realm secrets; older versions remain enabled and no value was read. No fresh health read followed. |
 | Production | No provider or Firebase production mutation, dry run, secret read, customer/entity read, or outbound effect occurred. |
@@ -62,7 +62,7 @@ Result: 222 passed, 0 failed, 0 skipped. The mocks cover the documented Accounti
 
 The local Graph tests inject a fake fetch implementation. The synthetic generated sign-in link stays in memory and the sender-identity check fails closed. The Auth emulator out-of-band completion flow was **not** proven because the emulator suite could not start.
 
-## Emulator gate
+## Historical failed emulator attempt and current result
 
 Attempted exactly:
 
@@ -70,17 +70,17 @@ Attempted exactly:
 firebase emulators:exec --only auth,firestore,storage,functions "npm --prefix functions test" --project the-ballers-kingdom
 ```
 
-Result: failed before startup because `java -version` exited 1 (`Unable to locate a Java Runtime`). No emulator ran and no provider effect was dispatched. No Java software was installed.
+Historical result: this original attempt failed before startup because `java -version` exited 1. No emulator or provider effect ran then. Subsequently, Java 21 and the Rules SDK were installed under approval; the root-mapped Firestore/Storage authorization matrix passed 10/10 under demo project `demo-ballkingdom-commerce` with no production access.
 
-Even with Java, release remains blocked because:
+The following bullets describe the historical state at the failed attempt; current disposition follows each item:
 
-- `firestore.rules` and `storage.rules` are tracked, commerce-only local deny fragments, not the recovered authoritative production policies.
-- `firebase.json` intentionally maps neither file; the mapping assertion exits 1.
+- **Resolved locally:** root Rules now byte-match reviewed derivatives of the recovered production policies.
+- **Resolved locally:** `firebase.json` explicitly maps both Rules files and Firestore indexes.
 - The production Storage bucket is verified as `the-ballers-kingdom.firebasestorage.app`, but the paid-object prefix and per-SKU object placement are unverified and no paid pilot artifact exists there.
-- `@firebase/rules-unit-testing` is absent, and signed-out/ordinary/customer-owner/wrong-customer/admin authorization proof has not run.
+- **Resolved locally:** the Rules SDK is installed and signed-out/ordinary/correct-owner/wrong-owner/admin proof passes.
 - The Functions/Firestore/Storage fulfillment runtime is intentionally unwired pending those facts.
 
-Local fragment hashes, which are **not** production-source evidence:
+Historical pre-mapping fragment hashes, which are **not** current root hashes or production-source evidence:
 
 - `firestore.rules`: `c33aa73684250b52184999a3da0abe1825a5286f65014ebf8287155d47c37504`
 - `storage.rules`: `c5b5a5dd70201822c901e439030b0491fec980424c40c97569c1c3141ddbedcc`
@@ -131,27 +131,26 @@ Functions source/codebase/runtime: functions / ballkingdom-integrations / nodejs
 
 The actual deploy manifest was not generated because every `firebase deploy --dry-run` was intentionally prohibited in this task: Firebase warns that dry runs may enable project APIs, and no production-impact approval was granted. Therefore this review proves configuration and tests, not the exact CLI-produced Hosting/Functions/Rules manifest. No dry run or deployment was attempted.
 
-Current blocking configuration is intentional:
+Current mapped-but-undeployed configuration is intentional:
 
-- Firestore has only `firestore.indexes.json`; there is no Rules mapping.
-- There is no Storage block or bucket/Rules mapping.
+- Firestore maps reviewed `firestore.rules` and `firestore.indexes.json`.
+- Storage maps reviewed `storage.rules`; the production bucket identity is verified, but no paid artifact is present or active.
 - The local target command confirms `public -> ballkingdom-com`.
 - The full codebase dry run remains pending until the exact recipient secret exists under separate approval.
 
 ## Unresolved release blockers
 
-1. Preserve the recovered production Firestore Rules source and hash; merge commerce policy without losing unrelated live policy; map only after review.
-2. Preserve the recovered production Storage Rules source and hash; approve and place the exact paid artifact in the verified bucket, then review its private prefix and SKU object mapping before any Rules/runtime wiring.
-3. Install/verify a Java runtime and the Rules test SDK, then pass the complete Auth/Firestore/Storage/Functions emulator matrix against the merged authoritative policies.
-4. Implement and emulator-prove the real persistent fulfillment runtime and atomic single-use grant redemption against the verified bucket/object mapping.
+1. Rules source preservation, narrow merge review, root mapping, Java/SDK installation, and the client-authorization emulator matrix are complete locally. They remain undeployed and require a separately approved release review.
+2. Approve and place the exact paid artifact in the verified bucket, then retain its metadata/hash and approve its private SKU mapping before runtime activation.
+3. The persistent transaction and private stream adapters are implemented locally, but runtime remains `ready:false`; prove the final exact artifact binding before any activation.
 5. Implement or explicitly defer a documented authoritative QuickBooks refund/reversal reader. Current runtime correctly fails closed, so production refund handling is not complete.
 6. Continuing production Accounting OAuth health is blocked by `rotating_token_persistence_runtime_fix_unreviewed_undeployed`. Preserve the first dated success as historical evidence only. Review and deploy safe rotating-token persistence before any fresh health read; do not treat reconnect callback success or new secret-version metadata as health proof.
 7. Verify Intuit sandbox access and run the no-send sandbox entity/readback matrix. No sandbox truth was established here.
 8. App ownership/access is resolved: read-only verification found workspace `The Ballers Kingdom` and production app `TBK Q.B A.I`. The production webhook endpoint is not configured. Webhook setup remains an optional, separately approved control-plane change; its absence does not block a scheduled-reconciliation-only pilot after every other gate passes and Accounting OAuth works authoritatively. Scheduled reconciliation remains mandatory either way.
 9. Disposition the seven moderate transitive Functions advisories with a supported dependency path; do not use the audit tool's breaking downgrade blindly.
-10. Obtain separate approvals for every scoped Firebase dry run and later deployment. The exact Hosting manifest, release-state parameter load, Rules mappings, and secret prompt behavior remain unverified until then.
+10. Obtain separate approvals for every scoped Firebase dry run and later deployment. The exact CLI-produced manifest, release-state parameter load, and secret prompt behavior remain unverified until then; repository Rules mappings are locally verified but undeployed.
 11. Keep the production recipient secret and both outbound email approvals pending. The Task 11 state remains exactly digital `false`, service `false`.
 
 ## Release recommendation
 
-**HOLD.** The application contracts are locally green and fail closed, but Task 12 must not begin deployment or pilot activation until blockers 1–4 are resolved and every remaining applicable approval/evidence gate is satisfied. Scheduled reconciliation can substitute for an unavailable webhook only after authoritative Accounting and Firebase authorization/fulfillment proof exists; it cannot substitute for missing Rules, bucket mapping, or persistent fulfillment.
+**HOLD.** The application contracts and local Rules matrix are green and fail closed, but deployment or pilot activation must wait for the exact paid artifact evidence, active binding review, Accounting health gates, and every separate approval. Scheduled reconciliation can substitute for an unavailable webhook only after authoritative Accounting and production release proof exists; it cannot substitute for the missing artifact or inactive fulfillment runtime.

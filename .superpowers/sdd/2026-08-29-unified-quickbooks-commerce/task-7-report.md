@@ -1,5 +1,7 @@
 # Task 7 — Protected digital fulfillment
 
+> **Chronology note (current after `c17d3b5`):** Earlier entries below preserve the state observed when each step ran. The authoritative Rules originals are now retained, reviewed derivatives are mapped at the repository roots, Java 21 and the Rules SDK are installed, and the local Firestore/Storage authorization matrix passes. The Rules remain undeployed, no paid artifact exists, and fulfillment runtime remains `ready:false`.
+
 ## Result
 
 Implemented local, dependency-injected protected fulfillment with no production Storage assumptions:

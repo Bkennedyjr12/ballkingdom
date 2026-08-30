@@ -4,6 +4,8 @@ Status: **HOLD — byte-exact deployed Rules originals retained; no production r
 
 Recorded: 2026-08-30 (America/Los_Angeles)
 
+Current-state addendum: the Rules blockers recorded by this earlier preflight were subsequently resolved locally. Accepted commit `c17d3b5` maps byte-exact reviewed derivatives at the repository roots; Java 21 and the Rules SDK are installed; and the root-based Firestore/Storage authorization matrix passes 10/10. Nothing was deployed. The paid artifact remains absent, fulfillment runtime remains `ready:false`, and production release remains on hold.
+
 ## Scope and zero-effect boundary
 
 This preflight used only local repository/history inspection and authorized read-only Firebase Rules, Firebase target, Google Cloud, and Cloud Storage metadata/listing operations. It performed no Firebase deploy or dry run, package or Java installation, secret access or creation, Auth/provider change, webhook change, email, invoice, customer/item/payment/refund creation, production QuickBooks entity read, push, or merge.
@@ -23,11 +25,11 @@ The separate bucket metadata response confirms name `the-ballers-kingdom.firebas
 
 Durable evidence paths and checksums are indexed in [`docs/operations/evidence/README.md`](evidence/README.md). The structured Intuit app observation's canonical JSON SHA-256 is `f93c3264d76cad6065f83d1d6ef22190421633d3a80c22ad226744cb78b49937`; the corrected production Accounting chronology's canonical JSON SHA-256 is `b8f0bfee68a2e0b505ecdbd07a3d5663cc834d8a02cac8fb78db66dee5202e9d`.
 
-## Blockers remaining
+## Historical blockers at preflight time
 
-1. The retained deployed originals are not yet merged with the narrow commerce denies, independently reviewed as merged policies, or mapped in `firebase.json`. The current root-level tracked rules remain local fragments and must not be deployed.
+1. **Resolved locally after this preflight:** the retained originals were merged with narrow commerce denies, accepted, mapped, and emulator-tested. They remain undeployed.
 2. The verified bucket contains no paid pilot artifact or reviewed `private-commerce`/per-SKU object placement. The repository has a local `home-inspection-guide/public/assets/guide.pdf`, but local presence is not authority to publish or select it as the paid artifact.
-3. Java is unavailable (`java -version` exits 1), `@firebase/rules-unit-testing` is absent, and the complete Auth/Firestore/Storage/Functions emulator matrix has not run.
+3. **Resolved locally after this preflight:** Java 21 and `@firebase/rules-unit-testing` are installed, and the root Rules authorization matrix passed. This is not deployment proof.
 4. The persistent production fulfillment adapter and atomic grant consumption remain intentionally unwired pending the approved object mapping and Rules proof.
 5. Continuing production Accounting health is blocked by `rotating_token_persistence_runtime_fix_unreviewed_undeployed`. The current adapter discards future rotated refresh credentials, and `defineSecret` binding remains deployment-version-pinned. No fresh health read was attempted after reconnect; it must wait until safe persistence is implemented, reviewed, and deployed.
 6. Intuit sandbox, refund/reversal authoritative readback, supported dependency disposition, scoped Firebase dry runs/deploys, recipient secret creation, Auth provider configuration, feature-flag activation, and every outbound/pilot effect remain pending under their existing separate gates. The first dated CompanyInfo read and reconnect are not sandbox or entity-write proof.
@@ -35,9 +37,9 @@ Durable evidence paths and checksums are indexed in [`docs/operations/evidence/R
 
 ## Exact safe next actions and approvals
 
-1. In a reviewed source commit, preserve the two recovered live Rules source bodies under their recorded Ruleset IDs/hashes, merge only the commerce denies, and add exact mappings only after independent diff review confirms all unrelated live policy remains. This is source work, not deployment authorization.
+1. **Completed locally, undeployed:** the recovered bodies, narrow merges, independent diff review, exact root hashes, mappings, and emulator evidence are retained.
 2. Brian must approve the exact paid SKU artifact and its private object key before any upload. After that separate approval, upload once, independently read back object metadata/hash, and wire the allowlist only to that verified object.
-3. Obtain approval to install a supported Java runtime and `@firebase/rules-unit-testing`; then run the full local emulator matrix against the merged policies and persistent fulfillment adapter.
+3. **Completed locally:** Java 21 and the Rules test SDK are installed and the mapped root authorization matrix passes. Persistent live fulfillment remains intentionally inactive pending artifact evidence.
 4. Finish and review the rotating-refresh-credential persistence implementation. Prove it writes a new Secret Manager version without logging or persisting a credential elsewhere, handles failure safely, and cannot silently continue on a stale deployment-pinned version. Do not deploy it under this evidence task.
 5. After that runtime fix is reviewed and separately deployed, run one fresh approved read-only health check and retain only statuses and exact company-name match. Then review the enabled old-version lifecycle separately; do not disable versions merely to make the inventory look clean.
 6. After the source, artifact, dependency, emulator, and Accounting-health blockers are resolved, request separate approvals for each production-target dry run and each scoped Rules/Functions/Hosting deployment. Keep both commerce flags false through the fail-closed release proof.

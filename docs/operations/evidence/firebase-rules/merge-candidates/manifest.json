@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "recordedAtUtc": "2026-08-30T23:00:00Z",
-  "status": "local-candidate-only-unmapped-unverified-by-emulator",
+  "status": "accepted-mapped-locally-emulator-verified-undeployed",
   "firestore": {
     "sourceRuleset": "projects/the-ballers-kingdom/rulesets/2c9d612b-dd17-406f-9a0f-86230c57420c",
     "sourcePath": "../firestore/2c9d612b-dd17-406f-9a0f-86230c57420c/firestore.rules",
@@ -28,9 +28,9 @@
     "preservationProof": "Removing the single BEGIN/END LOCAL COMMERCE MERGE CANDIDATE block yields a byte-exact source body."
   },
   "releaseBoundary": {
-    "firebaseMappingsChanged": false,
-    "rootRulesReplaced": false,
-    "emulatorVerified": false,
+    "firebaseMappingsChanged": true,
+    "rootRulesReplaced": true,
+    "emulatorVerified": true,
     "artifactPresent": false,
     "runtimeReady": false
   }

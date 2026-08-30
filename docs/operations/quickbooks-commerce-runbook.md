@@ -60,7 +60,7 @@ npm --prefix functions run check
 
 For an authorized Intuit sandbox, use a sandbox-only company and clearly prefixed test customer, item, invoice, and payment records. Create/read only sandbox entities. Do not send an invoice to a real address and do not issue a live-company refund. Prove exact current Invoice and Payment evidence with read-back from Accounting, not from the local test fixture that wrote it.
 
-The authoritative Firestore and Storage Rules sources, mappings, Java runtime, and emulator suite remain required release gates. A static deny fragment is not runtime authorization proof.
+The authoritative Rules sources have been retained, their reviewed derivatives are mapped locally, Java/Rules SDK support is installed, and the client-authorization emulator matrix passes. These are local release-review inputs only: the Rules remain undeployed, runtime remains fail-closed, and an approved private paid artifact plus exact object metadata are still required before any production pilot review.
 
 ## Approved operator sequence
 
