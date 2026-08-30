@@ -10,6 +10,12 @@ approval or an Intuit production Payments-app capability. No payment endpoint,
 credential, merchant setting, account, or live transaction was accessed or changed
 to create this record.
 
+The public QuickBooks Payments guidance states that "QuickBooks Online doesn't
+currently integrate with a shopping cart." This is documented product context, not
+evidence about the signed-in merchant account. Accordingly, a later merchant
+approval, enabled payment method, or production-app confirmation alone is not proof
+of a supported immediate, server-verifiable storefront payment flow.
+
 Service invoicing is independently supported by the existing Accounting integration.
 It may continue through the approved invoice workflow; it is not evidence that an
 immediate website payment can be created and independently verified.
@@ -61,4 +67,6 @@ is blocked.
 
 These public sources explain available Intuit/QuickBooks capabilities and pricing.
 They do not verify this merchant's approval, its production application access, or
-its enabled payment methods.
+its enabled payment methods. In particular, the cited QuickBooks Payments guidance
+documents the shopping-cart limitation above; it is not evidence about a signed-in
+merchant or a substitute for verifying a supported storefront flow.
