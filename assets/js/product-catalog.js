@@ -19,7 +19,7 @@ const PRODUCTS = Object.freeze([
     delivery: 'instant-download',
     availability: 'coming-soon',
     commerceSku: 'home-inspection-study-guide',
-    priceLabel: 'Price to be announced',
+    priceLabel: '$49 founding price · Checkout coming soon',
     href: 'products.html#home-inspection-study-guide',
     cta: 'Get the Home Inspection Guide',
     disclaimer: 'Learning resource only; it does not replace licensing requirements, supervised field experience, or professional judgment.'

@@ -1,4 +1,16 @@
 import {VERIFIED_COMMERCE_BUCKET} from './private-artifact-stream.js';
+import {getConfiguredCommerceItem} from './catalog.js';
+
+const configuredGuide = getConfiguredCommerceItem('home-inspection-study-guide');
+const PLANNED_ARTIFACTS = Object.freeze({
+  'home-inspection-study-guide':Object.freeze({
+    key:configuredGuide.artifact.objectKey,
+    contentType:configuredGuide.artifact.contentType,
+    maxBytes:configuredGuide.artifact.maxBytes,
+    sha256:configuredGuide.artifact.sha256,
+    verified:configuredGuide.artifact.objectVerified,
+  }),
+});
 
 const READINESS = Object.freeze({
   ready:false,
@@ -9,6 +21,10 @@ const READINESS = Object.freeze({
 
 export function readFulfillmentRuntimeReadiness() {
   return READINESS;
+}
+
+export function readPlannedArtifactDefinitions() {
+  return PLANNED_ARTIFACTS;
 }
 
 export function createFulfillmentRuntime() {

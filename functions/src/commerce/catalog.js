@@ -1,25 +1,83 @@
-const ITEMS = Object.freeze({
-  'home-inspection-study-guide': Object.freeze({
+function deepFreeze(value) {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    for (const nested of Object.values(value)) deepFreeze(nested);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+const ITEMS = deepFreeze({
+  'home-inspection-study-guide': {
     sku: 'home-inspection-study-guide',
     name: 'Home Inspection Study Guide',
-    amountCents: 0,
+    amountCents: 4900,
     currency: 'USD',
     orderType: 'digital_product',
     fulfillmentType: 'protected_download',
-    active: false
-  })
+    delivery: 'electronic_only',
+    physicalCopyIncluded: false,
+    active: false,
+    quickBooks: {
+      itemName: 'Home Inspection Study Guide',
+      itemId: null,
+      itemVerified: false,
+    },
+    tax: {
+      classification: 'ca_electronic_only_non_taxable_proposed',
+      quickBooksTaxCode: 'NON',
+      classificationApproved: true,
+      accountantVerified: false,
+      scope: 'California electronic-only delivery with no tangible copy or storage media',
+    },
+    artifact: {
+      objectKey: 'private-commerce/home-inspection-study-guide/guide-v1.pdf',
+      contentType: 'application/pdf',
+      maxBytes: 71250419,
+      sha256: '2bdf6b760b426cc088ade620334fd8ff735f3276bb0b68589ceaccbc1d93cc9d',
+      objectVerified: false,
+    },
+    release: {
+      ownerPilotApproved: true,
+      priceApproved: true,
+      fulfillmentRuntimeVerified: false,
+      deployApproved: false,
+    },
+    sourceEvidence: {
+      reviewedAt: '2026-08-30',
+      taxSource: {
+        publisher: 'California Department of Tax and Fee Administration',
+        publication: 'Publication 109 — Nontaxable Sales',
+        accessedAt: '2026-08-30',
+        url: 'https://cdtfa.ca.gov/formspubs/pub109/nontaxable-sales.htm',
+      },
+    },
+  }
 });
 
-function isPurchasable(item) {
+export function isCommerceItemPurchasable(item) {
   return item?.active === true
     && Number.isInteger(item.amountCents)
-    && item.amountCents > 0;
+    && item.amountCents > 0
+    && item.quickBooks?.itemVerified === true
+    && typeof item.quickBooks?.itemId === 'string'
+    && item.quickBooks.itemId.length > 0
+    && item.tax?.classificationApproved === true
+    && item.tax?.accountantVerified === true
+    && item.artifact?.objectVerified === true
+    && item.release?.ownerPilotApproved === true
+    && item.release?.priceApproved === true
+    && item.release?.fulfillmentRuntimeVerified === true
+    && item.release?.deployApproved === true;
+}
+
+export function getConfiguredCommerceItem(sku) {
+  return ITEMS[String(sku || '')] ?? null;
 }
 
 export function getCommerceItem(sku) {
   const item = ITEMS[String(sku || '')];
 
-  if (!isPurchasable(item)) {
+  if (!isCommerceItemPurchasable(item)) {
     throw new Error('Commerce item is unavailable');
   }
 
@@ -27,12 +85,12 @@ export function getCommerceItem(sku) {
 }
 
 export function listPublicCommerceItems() {
-  return Object.freeze(Object.values(ITEMS).filter(isPurchasable));
+  return Object.freeze(Object.values(ITEMS).filter(isCommerceItemPurchasable));
 }
 
 export function listCommerceCapabilities() {
   return Object.freeze(Object.values(ITEMS).map(item => Object.freeze({
     sku:item.sku,
-    active:isPurchasable(item),
+    active:isCommerceItemPurchasable(item),
   })));
 }

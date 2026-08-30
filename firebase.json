@@ -45,6 +45,7 @@
         "home-inspection-guide/src/**",
         "home-inspection-guide/input/**",
         "home-inspection-guide/audit/**",
+        "home-inspection-guide/public/assets/guide.pdf",
         "home-inspection-guide/README.md",
         "hosting/**"
       ],
