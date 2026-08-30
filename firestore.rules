@@ -1,0 +1,23 @@
+rules_version = '2';
+
+// Commerce-only deny fragment for local verification. This repository does not
+// contain the authoritative production Firestore ruleset, so firebase.json does
+// not configure this file for deployment. Merge these matches into the verified
+// production rules source before any rules release.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Firebase Admin SDK calls bypass Rules. Browser clients stay denied even
+    // when their Firebase Auth token contains admin: true.
+    match /orders/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /commerceAudit/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /fulfillmentGrants/{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

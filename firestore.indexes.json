@@ -7,6 +7,14 @@
         {"fieldPath": "status", "order": "ASCENDING"},
         {"fieldPath": "startsAt", "order": "ASCENDING"}
       ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "terminal", "order": "ASCENDING"},
+        {"fieldPath": "reconciliationDueAt", "order": "ASCENDING"}
+      ]
     }
   ],
   "fieldOverrides": []
