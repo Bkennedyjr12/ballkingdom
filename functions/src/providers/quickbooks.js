@@ -252,16 +252,24 @@ function isDocumentedInvoiceSendResult(invoice, invoiceId, customerEmail) {
   );
 }
 
-export async function refreshQuickBooksAccessToken({clientId,clientSecret,refreshToken} = {},fetchImpl=fetch) {
+export async function refreshQuickBooksAccessToken({clientId,clientSecret,refreshToken} = {},fetchImpl=fetch,{timeoutMs=10_000}={}) {
   if (![clientId,clientSecret,refreshToken].every(isNonEmptyString)) {
     throw new TypeError('QuickBooks authentication configuration is invalid');
   }
   const credentials=Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-  const response=await fetchImpl('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',{
-    method:'POST',
-    headers:{authorization:`Basic ${credentials}`,'content-type':'application/x-www-form-urlencoded',accept:'application/json'},
-    body:new URLSearchParams({grant_type:'refresh_token',refresh_token:refreshToken}),
-  });
+  let response;
+  try {
+    response=await fetchImpl('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',{
+      method:'POST',
+      headers:{authorization:`Basic ${credentials}`,'content-type':'application/x-www-form-urlencoded',accept:'application/json'},
+      body:new URLSearchParams({grant_type:'refresh_token',refresh_token:refreshToken}),
+      signal:AbortSignal.timeout(timeoutMs),
+    });
+  } catch (cause) {
+    const error=new Error(cause?.name === 'AbortError' ? 'QuickBooks authentication timed out' : 'QuickBooks authentication failed');
+    error.code=cause?.name === 'AbortError' ? 'QBO_REFRESH_TIMEOUT' : 'QBO_REFRESH_FAILED';
+    throw error;
+  }
   let result;
   try { result=await response.json(); } catch { result=null; }
   if (!response.ok) {
@@ -289,6 +297,7 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
       method:'POST',
       headers:{authorization:`Basic ${credentials}`,'content-type':'application/x-www-form-urlencoded',accept:'application/json'},
       body:new URLSearchParams({grant_type:'refresh_token',refresh_token:config.refreshToken}),
+      signal:AbortSignal.timeout(10_000),
     });
     const result = await expectJson(response, 'QuickBooks authentication');
     if (!result.access_token) throw new Error('QuickBooks authentication returned no access token');
@@ -299,11 +308,17 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
 
   async function request(path, {method='GET', body, accept='application/json', contentType='application/json'} = {}) {
     const token = await accessToken();
-    const response = await fetchImpl(`${root}/${encodeURIComponent(config.realmId)}${path}`, {
-      method,
-      headers:{authorization:`Bearer ${token}`,accept,'content-type':contentType},
-      body:body == null ? undefined : contentType === 'application/json' ? JSON.stringify(body) : body,
-    });
+    let response;
+    try {
+      response = await fetchImpl(`${root}/${encodeURIComponent(config.realmId)}${path}`, {
+        method,
+        headers:{authorization:`Bearer ${token}`,accept,'content-type':contentType},
+        body:body == null ? undefined : contentType === 'application/json' ? JSON.stringify(body) : body,
+        signal:AbortSignal.timeout(20_000),
+      });
+    } catch (cause) {
+      throw new Error(cause?.name === 'AbortError' ? 'QuickBooks request timed out' : 'QuickBooks request failed');
+    }
     if (!response.ok) throw new Error(`QuickBooks request failed with provider status ${response.status}`);
     return response;
   }

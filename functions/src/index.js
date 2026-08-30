@@ -29,7 +29,6 @@ const secretManager = new SecretManagerServiceClient();
 
 const QBO_CLIENT_ID = defineSecret('QBO_CLIENT_ID');
 const QBO_CLIENT_SECRET = defineSecret('QBO_CLIENT_SECRET');
-const QBO_REFRESH_TOKEN = defineSecret('QBO_REFRESH_TOKEN');
 const QBO_REALM_ID = defineSecret('QBO_REALM_ID');
 const MS_TENANT_ID = defineSecret('MS_TENANT_ID');
 const MS_CLIENT_ID = defineSecret('MS_CLIENT_ID');
@@ -40,9 +39,9 @@ const QBO_WEBHOOK_VERIFIER_TOKEN = defineSecret('QBO_WEBHOOK_VERIFIER_TOKEN');
 const QBO_REDIRECT_URI = defineString('QBO_REDIRECT_URI',{default:'https://us-west1-the-ballers-kingdom.cloudfunctions.net/quickBooksOAuthCallback'});
 const MS_REDIRECT_URI = defineString('MS_REDIRECT_URI',{default:'https://us-west1-the-ballers-kingdom.cloudfunctions.net/microsoftOAuthCallback'});
 
-const QBO_SECRETS = [QBO_CLIENT_ID,QBO_CLIENT_SECRET,QBO_REFRESH_TOKEN,QBO_REALM_ID];
+const QBO_RUNTIME_SECRETS = [QBO_CLIENT_ID,QBO_CLIENT_SECRET,QBO_REALM_ID];
 const MS_SECRETS = [MS_TENANT_ID,MS_CLIENT_ID,MS_CLIENT_SECRET,MS_REFRESH_TOKEN];
-const ALL_SECRETS = [...QBO_SECRETS,...MS_SECRETS];
+const ALL_SECRETS = [...QBO_RUNTIME_SECRETS,...MS_SECRETS];
 const COMMERCE_QBO_WEBHOOK_ENABLED = false;
 const REFUND_PENDING_REVIEW_LIMIT = 100;
 
@@ -58,7 +57,7 @@ async function addSecretVersion(secretName, value) {
   await secretManager.addSecretVersion({
     parent:secretPath,
     payload:{data:Buffer.from(value,'utf8')},
-  });
+  },{timeout:8000});
 }
 
 function requireAdmin(auth) {
@@ -139,13 +138,18 @@ function graphClient() {
 }
 
 let qboTokenCoordinator;
+let qboRefreshLeaseStore;
+function quickBooksRefreshLeaseStore() {
+  if (!qboRefreshLeaseStore) qboRefreshLeaseStore=createFirestoreQuickBooksRefreshLeaseStore({db});
+  return qboRefreshLeaseStore;
+}
 function quickBooksTokenCoordinator() {
   if (qboTokenCoordinator) return qboTokenCoordinator;
   const projectId=process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
   if (!projectId) throw new Error('Google Cloud project is unavailable');
   qboTokenCoordinator=createQuickBooksTokenCoordinator({
     secretStore:createQuickBooksRefreshSecretStore({client:secretManager,projectId}),
-    leaseStore:createFirestoreQuickBooksRefreshLeaseStore({db}),
+    leaseStore:quickBooksRefreshLeaseStore(),
     refresh:refreshToken=>refreshQuickBooksAccessToken({
       clientId:QBO_CLIENT_ID.value(),clientSecret:QBO_CLIENT_SECRET.value(),refreshToken,
     }),
@@ -437,7 +441,7 @@ export const requestPilotSignInLink = onCall({
 
 export const createDigitalOrder = onCall({
   region:REGION,
-  secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_SECRETS],
+  secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_RUNTIME_SECRETS],
   enforceAppCheck:true,
 }, async request => {
   try {
@@ -468,7 +472,7 @@ export const getBuyerCommerceCapability = onCall({region:REGION,enforceAppCheck:
 
 export const verifyOrderPayment = onCall({
   region:REGION,
-  secrets:QBO_SECRETS,
+  secrets:QBO_RUNTIME_SECRETS,
   enforceAppCheck:true,
 }, async request => {
   requireAdmin(request.auth);
@@ -501,7 +505,7 @@ function adminCommerceContext(request) {
 }
 
 export const requestRefundReview = onCall({
-  region:REGION,secrets:QBO_SECRETS,enforceAppCheck:true,
+  region:REGION,secrets:QBO_RUNTIME_SECRETS,enforceAppCheck:true,
 }, async request => {
   try {
     const service = runtimeCommerceService({withQuickBooks:true});
@@ -512,7 +516,7 @@ export const requestRefundReview = onCall({
 });
 
 export const reconcileOrder = onCall({
-  region:REGION,secrets:QBO_SECRETS,enforceAppCheck:true,
+  region:REGION,secrets:QBO_RUNTIME_SECRETS,enforceAppCheck:true,
 }, async request => {
   try {
     const service = runtimeCommerceService({withQuickBooks:true});
@@ -523,7 +527,7 @@ export const reconcileOrder = onCall({
 });
 
 export const reconcileRefund = onCall({
-  region:REGION,secrets:QBO_SECRETS,enforceAppCheck:true,
+  region:REGION,secrets:QBO_RUNTIME_SECRETS,enforceAppCheck:true,
 }, async request => {
   try {
     const service = runtimeCommerceService({withQuickBooks:true});
@@ -562,7 +566,7 @@ export const quickBooksCommerceWebhook = onRequest({
 
 export const reconcileCommerceOrders = onSchedule({schedule:'every 5 minutes',
   timeZone:'America/Los_Angeles',region:REGION,
-  secrets:QBO_SECRETS,
+  secrets:QBO_RUNTIME_SECRETS,
 }, async () => {
   const service = runtimeCommerceService({withQuickBooks:true});
   await service.reconcilePendingOrders(new Date());
@@ -570,7 +574,7 @@ export const reconcileCommerceOrders = onSchedule({schedule:'every 5 minutes',
 
 export const dispatchCommerceEffects = onSchedule({schedule:'every 5 minutes',
   timeZone:'America/Los_Angeles',region:REGION,
-  secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_SECRETS,...MS_SECRETS],
+  secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_RUNTIME_SECRETS,...MS_SECRETS],
 }, async () => {
   const service = runtimeCommerceService({withPilotEmail:true,withQuickBooks:true,withGraph:true});
   await service.dispatchPendingEffects(new Date());
@@ -620,6 +624,7 @@ export const quickBooksOAuthCallback = onRequest({region:REGION,secrets:[QBO_CLI
     if (!code || !realmId) throw new Error('QuickBooks callback is incomplete');
     const tokens = await exchangeQuickBooksCode({clientId:QBO_CLIENT_ID.value(),clientSecret:QBO_CLIENT_SECRET.value(),redirectUri:QBO_REDIRECT_URI.value(),code});
     await Promise.all([addSecretVersion('QBO_REFRESH_TOKEN',tokens.refreshToken),addSecretVersion('QBO_REALM_ID',realmId)]);
+    await quickBooksRefreshLeaseStore().resetAfterReconnect({nowMs:Date.now()});
     response.status(200).send(connectionHtml('QuickBooks'));
   } catch (error) {
     response.status(400).send('QuickBooks connection failed. Return to the application and try again.');

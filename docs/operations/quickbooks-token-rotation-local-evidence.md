@@ -10,19 +10,21 @@ An approved read-only health check obtained an Intuit access credential and a ro
 
 ## Implemented safety boundary
 
-- Every refresh loads the latest enabled `QBO_REFRESH_TOKEN` version at runtime.
-- A Firestore lease serializes refresh use for at most five minutes and is recoverable after expiry.
+- Every refresh selects the highest numeric enabled `QBO_REFRESH_TOKEN` version at runtime; disabled and destroyed versions are skipped.
+- A Firestore one-attempt claim serializes refresh use for at most five minutes. Only a never-started expired claim is recoverable.
+- Immediately before Intuit, the exact owner atomically records `dispatchStartedAtMs` and `attemptCount:1`. A started claim is never automatically reclaimed after timeout, expiry, crash, or clock skew.
 - The Intuit replacement refresh credential is validated, added as a Secret Manager version, and read back exactly before an access credential can reach the Accounting adapter.
 - A same-runtime concurrent request shares the pending operation. Other runtimes cannot refresh in parallel under an active lease.
-- `invalid_grant`, definite persistence failure, and unresolved ambiguous version-add outcomes are redacted and fail closed before any Accounting request.
+- `invalid_grant` and unknown post-dispatch outcomes become durable `qbo_reconnect_required`; timeout becomes `qbo_refresh_timeout`; unresolved version-add ambiguity becomes `qbo_refresh_persistence_unknown`. All fail closed before Accounting.
 - Firestore receipts contain version metadata only; no access credential, refresh credential, provider body, or authorization header is persisted or returned.
-- OAuth callback storage for the initial/reconnected credential remains unchanged.
+- OAuth callback storage for the initial/reconnected credential remains and explicitly resets the manual-review control only after both credential and realm versions are added.
+- Intuit and all Secret Manager calls have bounded deadlines well below the claim duration. `QBO_REFRESH_TOKEN` is removed from every Firebase secret declaration/binding and is accessed only through explicit secret-scoped runtime IAM.
 
 ## Local proof
 
 The focused suite covers persistence-before-request ordering, same-runtime concurrency, active and stale leases, redacted `invalid_grant`, definite persistence failure, ambiguous add with exact latest-version readback, absence of credential material in lease receipts/errors, Secret Manager exact-version behavior, and no Accounting request after credential failure.
 
-- Node 22 full Functions suite: 352 tests total; 350 passed and 2 emulator-only tests intentionally skipped.
+- Node 22 full Functions suite: 364 tests total; 362 passed and 2 emulator-only tests intentionally skipped.
 - Functions syntax checks plus the new coordinator module syntax check: passed.
 - `git diff --check`: passed.
 - Repository security scan: no production credential identified; reported locations are synthetic test fixtures.

@@ -42,9 +42,9 @@ firebase functions:secrets:set MS_CLIENT_SECRET --project the-ballers-kingdom
 firebase functions:secrets:set MS_REFRESH_TOKEN --project the-ballers-kingdom
 ```
 
-The QuickBooks runtime must have secret-version access plus version-add permission on `QBO_REFRESH_TOKEN`; it reads `versions/latest` at refresh time, writes each Intuit replacement, and reads the exact new version back before any Accounting request is allowed. Grant these permissions only on that secret (for example, a secret-scoped accessor role plus `secretmanager.versions.add` through a narrow custom role). Microsoft currently retains its existing version-add path. Do not grant project-wide Secret Manager administration.
+The QuickBooks runtime must have secret-scoped version list/get/access/add permissions on `QBO_REFRESH_TOKEN`. It explicitly selects the highest enabled numeric version, writes each Intuit replacement, and reads the exact new version back before any Accounting request is allowed. `QBO_REFRESH_TOKEN` is not a Firebase `defineSecret` binding. Microsoft retains its existing version-add path. Do not grant project-wide Secret Manager administration.
 
-QuickBooks refreshes are serialized by `integrationControl/qbo-credential-rotation`. That Firestore document contains only a short owner lease, numeric expiry, and redacted source/stored version receipts—never access or refresh credentials. An active lease is never stolen; an expired lease can be recovered. A secret-version write or readback failure fails closed before the Accounting host is called.
+QuickBooks refreshes are serialized by `integrationControl/qbo-credential-rotation`. Before Intuit is called, the claim records one dispatch attempt. Only an expired never-started claim can be recovered; a started timeout/crash/expiry permanently requires operator reconnect. The control and `integrationAlerts` receipt contain only redacted status/reason/timing/attempt/version metadata—never access or refresh credentials. External operations have bounded deadlines below the claim duration, and a secret-version write or readback failure fails closed before the Accounting host is called.
 
 ## QuickBooks service catalog
 
