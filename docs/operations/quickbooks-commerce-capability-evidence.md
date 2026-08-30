@@ -10,7 +10,7 @@ The unsupported embedded/immediate-checkout assumption is retired. The approved 
 
 This decision does not authorize a production invoice, email, payment, refund, account change, webhook configuration, deployment, or customer pilot. Automatic digital invoice send remains code-only until Brian separately approves the exact production pilot. Service invoicing remains independently gated by the existing authenticated administrator approval.
 
-Ballers Kingdom will not collect payment credentials, expose an inferred invoice pay URL, call a direct PayPal/Venmo API, or depend on a QuickBooks Payments API hosted-checkout/payment-session endpoint. Cards and PayPal/Venmo remain methods presented and processed by QuickBooks.
+Ballers Kingdom will not collect payment credentials, expose an inferred invoice pay URL, call a direct PayPal/Venmo API, or depend on a QuickBooks Payments API hosted-checkout/payment-session endpoint. Cards and PayPal/Venmo remain methods presented and processed by QuickBooks; ACH is an option only when QuickBooks exposes it on the particular invoice.
 
 ## Merchant and app evidence
 
@@ -26,6 +26,7 @@ Ballers Kingdom will not collect payment credentials, expose an inferred invoice
 | Accounting OAuth scope | Confirmed from repository | `com.intuit.quickbooks.accounting` is the only configured QuickBooks scope. This is sufficient for the planned Accounting Invoice/Payment reads and writes; no Payments API scope is assumed. | [`functions/src/providers/oauth.js`](../../functions/src/providers/oauth.js), [`functions/README.md`](../../functions/README.md) |
 | Existing Accounting adapter | Confirmed from repository | The current client creates/fetches customers and items, creates an invoice with a stable `requestid`, and reads invoice PDFs. It does not yet send invoices or normalize Invoice/Payment truth for commerce. | [`functions/src/providers/quickbooks.js`](../../functions/src/providers/quickbooks.js) |
 | Authoritative Firestore Rules source | Blocked | The repository contains only an unconfigured commerce-deny fragment. It is not the verified production ruleset and must not be wired for deploy until the authoritative source is recovered and merged. Java/rules-unit-testing is also unavailable, so runtime auth-context emulator proof is still missing. | [`firestore.rules`](../../firestore.rules), Task 4 implementation report |
+| Authoritative Storage Rules source | Blocked | The repository has no `storage.rules`, and `firebase.json` has no Storage Rules configuration. A new deny policy may be designed locally, but it cannot be represented as the authoritative production policy or deployed until the current production source/bucket mapping is recovered, reviewed, merged, and proven in the emulator. | Repository inventory and [`firebase.json`](../../firebase.json), 2026-08-30 |
 
 ## Supported Accounting boundary
 
@@ -41,24 +42,34 @@ The approved normalized verifier accepts Accounting evidence only after all of t
 1. Exact connected realm.
 2. Exact stored QuickBooks invoice ID.
 3. Exact immutable Ballers Kingdom order reference embedded when the invoice was created.
-4. Exact server-priced invoice amount and uppercase currency.
-5. Zero invoice balance.
-6. Exactly one active Payment whose linked Invoice ID and applied amount equal the expected invoice and total for the first digital pilot.
-7. A normalized `completed` result produced by those checks, never copied from a browser, email, customer assertion, send response, or webhook payload.
+4. Invoice `TotalAmt` equals the exact server-priced amount, uppercase currency matches, and `Balance` is zero.
+5. The documented Invoice entity status/deletion/void/payment-state evidence normalizes to present and paid; deleted, voided, reversed, partially paid, unknown, or missing state fails closed.
+6. Exactly one present Payment has `TotalAmt` equal to the expected amount, `UnappliedAmt` equal to zero, and exactly one line application whose `Amount`, `LinkedTxn.TxnId`, and `LinkedTxn.TxnType` identify the full amount and only the expected Invoice.
+7. The documented Payment entity status/deletion/void evidence is neither deleted nor voided. A missing, unknown, or conflicting state fails closed; no invented `active` Boolean is accepted.
+8. Only after checks 1–7 pass does the application construct Task 3's normalized `completed` value. No Intuit response is assumed to contain that application status, and it is never copied from a browser, email, customer assertion, send response, or webhook payload.
 
-Partial, split, over-, under-, deleted, voided, wrong-realm, wrong-invoice, wrong-reference, or wrong-currency evidence remains locked for manual review. A later decision may deliberately support split payments, but this revision does not silently broaden the verified contract established by completed Tasks 1–4.
+Partial, split, multi-invoice, unapplied, over-, under-, deleted, voided, reversed, unknown-status, wrong-realm, wrong-invoice, wrong-reference, or wrong-currency evidence remains locked for manual review. A later decision may deliberately support split payments, but this revision does not silently broaden the verified contract established by completed Tasks 1–4. These fields and entity-operation semantics must be pinned to the current official [Invoice](https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/invoice), [Payment](https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/payment), and [Intuit-maintained Accounting collection](https://www.postman.com/intuit-developer/intuit-developer-quickbooks-online-accounting-api/overview) before implementation.
+
+## Customer authorization and rollout boundary
+
+The first digital pilot uses Firebase email-link authentication, not an order handle or App Check alone, as the customer authorization contract. `createDigitalOrder` requires a verified-email Firebase ID token plus App Check, derives the email and immutable `customerUid` from that token, and writes the owner mapping before invoice creation. Status, grant creation, and download redemption require the same UID. A 256-bit download nonce is stored only as a SHA-256 digest, bound to one order/customer/SKU, expires in ten minutes, and is atomically consumed once by an authenticated streaming Function; wrong-user, expired, concurrent, and replay attempts fail closed. Direct Storage reads remain denied.
+
+Two deployment-time flags are independent and default false: `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED` and `COMMERCE_SERVICE_QBO_SEND_ENABLED`. The first pilot may enable only the digital flag. The existing service Graph/PDF path stays unchanged until a separately approved service migration enables its flag.
 
 ## Send and webhook safety boundary
 
-Invoice creation and invoice send are separate durable effects. A deterministic Accounting request ID and exact order reference prevent duplicate invoice creation. The send effect is claimed once in Firestore. A confirmed send response records only that QuickBooks accepted the send operation; it is neither inbox-delivery proof nor payment proof. An ambiguous send timeout must not trigger a blind resend and duplicate customer email; reconciliation or manual review decides the next action.
+Invoice creation and invoice send are separate durable effects. A deterministic Accounting request ID and exact order reference prevent duplicate invoice creation. Each effect claim records a claim ID, claim time, and five-minute lease. A stale create claim may recover the exact Invoice before retry. A stale invoice-send claim is ambiguous: scheduled recovery moves it to `manual_review` with `invoice_send_unknown` and never blindly resends. A confirmed send response records only that QuickBooks accepted the send operation; it is neither inbox-delivery proof nor payment proof.
 
-Webhooks are optional acceleration and remain a production blocker because the app is invisible to the signed-in developer identity. Scheduled reconciliation is not optional: it re-reads due nonterminal orders and their authoritative Invoice/Payment entities when webhooks are unavailable, delayed, duplicated, or missed.
+Webhooks are optional acceleration. The invisible owning app blocks only production webhook configuration; it does not by itself block a digital pilot if the existing Accounting OAuth connection is authoritatively working and every identity, Rules, emulator, feature-flag, scoped-release, invoice, and payment gate passes. Scheduled reconciliation is not optional and may support that pilot without webhooks: it re-reads due nonterminal orders, recovers stale claims, and checks authoritative Invoice/Payment entities when webhooks are unavailable, delayed, duplicated, or missed.
 
 ## Release blockers and approval gates
 
-- Identify and obtain approved access to the Intuit Developer app that owns the production Accounting OAuth connection; do not infer ownership from stored credentials or a working connection.
+- Identify and obtain approved access to the Intuit Developer app that owns the production Accounting OAuth connection; do not infer ownership from stored credentials or a working connection. This remains required for webhook configuration, not for a scheduled-reconciliation-only pilot when Accounting OAuth itself is authoritatively verified.
 - Configure no production webhook until that app is visible, its realm/app mapping is verified, the endpoint and verifier token are reviewed, and Brian approves the change.
 - Recover the authoritative production Firestore Rules source, merge the narrow commerce denies, install/verify Java rules-unit-testing, and run the full signed-out/ordinary/admin emulator suite before any rules release.
+- Recover the authoritative production Storage Rules source and bucket mapping, merge the direct-read denial, configure `firebase.json` only against that verified source, and pass signed-out/wrong-user/owner/admin/emulator proof before the separately approved scoped Storage Rules release. If the authoritative source is missing, the pilot is blocked.
+- Confirm Firebase email-link authentication is already enabled or obtain separate approval for that account configuration; prove verified-email UID binding, same-owner status, expired/replayed link denial, and single-use download-grant behavior before the pilot.
+- Keep both commerce feature flags false by default. The pilot may enable only `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED`; `COMMERCE_SERVICE_QBO_SEND_ENABLED` remains false until a separate service release.
 - Confirm the current Invoice send request/response against official documentation in tests; do not invent a path, field, delivery receipt, or pay URL.
 - Approve the exact SKU, price, QuickBooks item, tax treatment, scoped deploys, one QuickBooks invoice send, its customer email recipient, one owner-controlled payment, and any refund as separate production actions.
 - Keep fulfillment locked until Accounting Invoice and Payment evidence passes the exact normalized verifier.

@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add one secure Ballers Kingdom payable-invoice flow that sends digital invoices automatically only after pilot approval, keeps service invoices administrator-gated, and fulfills solely from independently verified QuickBooks Accounting evidence.
+**Goal:** Add one secure Ballers Kingdom payable-invoice flow that sends email-link-authenticated digital invoices automatically only after pilot approval, leaves the current administrator-gated service path unchanged until a separately approved migration, and fulfills solely from independently verified QuickBooks Accounting evidence.
 
 **Architecture:** Firebase Hosting presents a shared order summary and normalized invoice/payment status while Firebase Functions owns server-authoritative pricing, order state, durable invoice-create/send effects, Accounting entity normalization, payment verification, reconciliation, and protected fulfillment. The existing QuickBooks Accounting adapter remains the only provider boundary; QuickBooks webhooks are signed hints that trigger authoritative re-fetch, and scheduled reconciliation is mandatory recovery.
 
-**Tech Stack:** Node.js 22, Firebase Functions v2, Firestore, Firebase Authentication, App Check, Google Secret Manager, QuickBooks Online Accounting API, Microsoft Graph for non-invoice operational messages, Node test runner, Playwright.
+**Tech Stack:** Node.js 22, Firebase Functions v2, Firestore, Firebase Authentication, App Check, Google Secret Manager, QuickBooks Online Accounting API, Microsoft Graph for the unchanged current service invoice path and operational messages until separate service migration, Node test runner, Playwright.
 
 **Spec:** `docs/superpowers/specs/2026-08-29-unified-quickbooks-commerce-design.md`
 
@@ -24,8 +24,10 @@
 - The existing owner approval gate remains mandatory before a service invoice is finalized or sent.
 - Automatic digital invoice send is code-only until a separately approved production pilot.
 - No account change, webhook configuration, invoice, customer email, payment, production deploy, or refund occurs without the applicable explicit approval.
-- The production Accounting app is not visible to the signed-in Intuit Developer identity; app ownership/configuration and production webhooks remain release blockers.
+- The production Accounting app is not visible to the signed-in Intuit Developer identity; this blocks production webhook configuration, but not a scheduled-reconciliation-only pilot when the existing Accounting OAuth connection and every other gate are verified.
 - The repository still lacks the authoritative production Firestore Rules source and working Java rules-unit-testing; the local deny fragment must not be wired for deployment.
+- The repository has no `storage.rules` or configured authoritative Storage Rules source; missing authoritative production Storage policy/bucket mapping and emulator proof blocks the pilot.
+- `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED` and `COMMERCE_SERVICE_QBO_SEND_ENABLED` are independent and default false; the first pilot may enable only the digital flag.
 - Use explicit Firebase identity and target flags: project `the-ballers-kingdom`, account `lilpelejr12@gmail.com`, Hosting target `public`, Functions codebase `ballkingdom-integrations`.
 
 ---
@@ -46,6 +48,7 @@ Tasks 1–4 below are completed historical plan records and remain unchanged. Th
 - `functions/src/commerce/quickbooks-payment-verifier.js` — provider-payload-neutral exact Invoice/Payment evidence policy.
 - `functions/src/providers/quickbooks-webhooks.js` — raw-body Intuit signature verification and normalized webhook hints.
 - `functions/src/commerce/commerce-service.js` — digital invoice, payment verification, reconciliation, and fulfillment orchestration.
+- `functions/src/commerce/feature-flags.js` — independent default-off digital-pilot and service-migration gates.
 - `functions/src/commerce/fulfillment.js` — protected digital-delivery grants and service handoff.
 - `functions/src/commerce/public-errors.js` — safe error codes and redaction.
 - `functions/src/index.js` — thin Firebase trigger/callable/request bindings.
@@ -53,6 +56,7 @@ Tasks 1–4 below are completed historical plan records and remain unchanged. Th
 - `assets/js/commerce-client.js` — public order-summary and normalized status client.
 - `order-status.html` — shared accessible invoice-sent/payment-verification page.
 - `tests/commerce-browser.spec.mjs` — desktop and mobile customer journeys.
+- `storage.rules` — authoritative production Storage policy after source recovery/merge; direct paid-artifact access remains denied.
 - `docs/operations/quickbooks-commerce-runbook.md` — merchant evidence, sandbox, rollout, monitoring, reconciliation, and rollback.
 
 ---
@@ -366,13 +370,18 @@ test('an invoice send response is not normalized as payment proof', async () => 
 - [ ] **Step 3: Write failing exact-evidence tests**
 
 ```js
-test('verifies one exact active payment applied to the expected invoice', () => {
+test('verifies one exact present payment fully applied only to the expected invoice', () => {
   const evidence = {
-    realmId:'realm-7', invoiceId:'invoice-30', providerOrderRef:'bk-order-order-1',
-    invoiceAmountCents:4900, invoiceBalanceCents:0, currency:'USD',
+    realmId:'realm-7',
+    invoice:{
+      invoiceId:'invoice-30', providerOrderRef:'bk-order-order-1',
+      totalAmountCents:4900, balanceCents:0, currency:'USD',
+      entityState:'present', paymentState:'paid',
+    },
     payments:[{
-      providerPaymentRef:'payment-42', linkedInvoiceId:'invoice-30',
-      appliedAmountCents:4900, active:true,
+      providerPaymentRef:'payment-42', entityState:'present',
+      totalAmountCents:4900, unappliedAmountCents:0,
+      applications:[{linkedTxnId:'invoice-30',linkedTxnType:'Invoice',amountCents:4900}],
     }],
   };
   assert.deepEqual(verifyQuickBooksPaymentEvidence(evidence, {
@@ -382,11 +391,11 @@ test('verifies one exact active payment applied to the expected invoice', () => 
 });
 ```
 
-Add explicit rejection cases for the wrong realm, invoice ID, order reference, invoice amount, currency, nonzero balance, no linked Payment, partial amount, split payments, overpayment, inactive/deleted Payment, malformed evidence, and raw provider payload keys.
+Add explicit rejection cases for the wrong realm, invoice ID, order reference, Invoice `TotalAmt`, currency, nonzero `Balance`, missing/unknown/deleted/voided/reversed/partially-paid Invoice state, no linked Payment, Payment `TotalAmt` mismatch, nonzero `UnappliedAmt`, partial/over application, split payments, multiple applications or multiple Invoice IDs, non-`Invoice` `LinkedTxn.TxnType`, missing/unknown/deleted/voided Payment state, malformed evidence, and raw provider payload keys. Assert that no fixture supplies an invented `active` Boolean or a provider `completed` value.
 
 - [ ] **Step 4: Run focused tests and verify failure**
 
-Run: `npm --prefix functions test -- commerce/quickbooks-invoices.test.js commerce/quickbooks-payment-verifier.test.js`
+Run: `npm --prefix functions test -- test/commerce/quickbooks-invoices.test.js test/commerce/quickbooks-payment-verifier.test.js`
 
 Expected: FAIL because the new client methods and verifier do not exist.
 
@@ -399,43 +408,52 @@ Normalize provider entities inside the adapter to this internal shape:
 ```js
 {
   realmId:String(realmId),
-  invoiceId:String(invoiceId),
-  providerOrderRef:String(providerOrderRef),
-  invoiceAmountCents:Number(invoiceAmountCents),
-  invoiceBalanceCents:Number(invoiceBalanceCents),
-  currency:String(currency),
+  invoice:{
+    invoiceId:String(invoiceId),
+    providerOrderRef:String(providerOrderRef),
+    totalAmountCents:Number(totalAmountCents),
+    balanceCents:Number(balanceCents),
+    currency:String(currency),
+    entityState:'present' | 'deleted' | 'voided' | 'unknown',
+    paymentState:'paid' | 'partially_paid' | 'unpaid' | 'voided' | 'reversed' | 'unknown',
+  },
   payments:[{
     providerPaymentRef:String(paymentId),
-    linkedInvoiceId:String(linkedInvoiceId),
-    appliedAmountCents:Number(appliedAmountCents),
-    active:Boolean(active),
+    entityState:'present' | 'deleted' | 'voided' | 'unknown',
+    totalAmountCents:Number(totalAmountCents),
+    unappliedAmountCents:Number(unappliedAmountCents),
+    applications:[{
+      linkedTxnId:String(linkedTxnId),
+      linkedTxnType:String(linkedTxnType),
+      amountCents:Number(amountCents),
+    }],
   }],
 }
 ```
 
-This shape is not an asserted Intuit response schema. Map it only from fields confirmed in the current Invoice and Payment documentation, reject unknown/malformed structures, and never return the raw object. Persist rotated refresh tokens only through the existing Secret Manager version callback; never log them.
+This shape is not an asserted Intuit response schema. Pin its mapping in adapter tests to the current official [Invoice](https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/invoice), [Payment](https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/payment), and [Intuit-maintained Accounting collection](https://www.postman.com/intuit-developer/intuit-developer-quickbooks-online-accounting-api/overview): Invoice `TotalAmt`, `Balance`, currency, and documented status/deletion/void/payment-state evidence; Payment `TotalAmt`, `UnappliedAmt`, documented status/deletion/void evidence; and line `Amount` plus `LinkedTxn.TxnId`/`TxnType`. The adapter normalizes a successful exact entity with no documented deletion/void marker to `present`; any documented deleted/voided marker, unknown/missing required state, 404, or contradictory response fails closed. Do not invent an `active` Boolean. Reject unknown/malformed structures and never return the raw object. Persist rotated refresh tokens only through the existing Secret Manager version callback; never log them.
 
 - [ ] **Step 6: Implement the provider-payload-neutral verifier**
 
-`verifyQuickBooksPaymentEvidence()` must require exactly one active Payment linked to the expected Invoice for the exact full amount, exact realm/order reference/currency, exact invoice total, and zero invoice balance. It must construct the existing Task 3 input and delegate the final completed-state check to `validatePaymentResult()`:
+`verifyQuickBooksPaymentEvidence()` must require exact realm/order reference/currency, a present and paid Invoice with exact `TotalAmt` and zero `Balance`, and exactly one present Payment whose `TotalAmt` is the exact expected amount, `UnappliedAmt` is zero, and sole application has the exact amount, expected Invoice ID, and `TxnType:'Invoice'`. Reject partial, split, multi-invoice, unapplied, over-, under-, deleted, voided, reversed, or unknown evidence. Only after those checks may it construct the existing Task 3 input and delegate the final application-state check to `validatePaymentResult()`:
 
 ```js
 return validatePaymentResult({
   realmId:evidence.realmId,
-  amountCents:payment.appliedAmountCents,
-  currency:evidence.currency,
-  providerOrderRef:evidence.providerOrderRef,
+  amountCents:payment.totalAmountCents,
+  currency:evidence.invoice.currency,
+  providerOrderRef:evidence.invoice.providerOrderRef,
   providerPaymentRef:payment.providerPaymentRef,
   status:'completed',
 }, expected);
 ```
 
-No browser value, send response, webhook payload, customer assertion, or invoice balance by itself may create this normalized completed result.
+`status:'completed'` is an internal conclusion at this final line, not a field copied from Intuit or assigned before evidence verification. No browser value, send response, webhook payload, customer assertion, Payment total alone, or Invoice balance alone may create it.
 
 - [ ] **Step 7: Run tests, dependency audit, and commit**
 
 ```bash
-npm --prefix functions test -- commerce/quickbooks-invoices.test.js commerce/quickbooks-payment-verifier.test.js providers.test.js oauth.test.js
+npm --prefix functions test -- test/commerce/quickbooks-invoices.test.js test/commerce/quickbooks-payment-verifier.test.js test/providers.test.js test/oauth.test.js
 npm --prefix functions audit --omit=dev
 git add functions/src/providers/quickbooks.js functions/src/commerce/quickbooks-payment-verifier.js functions/test/commerce/quickbooks-invoices.test.js functions/test/commerce/quickbooks-payment-verifier.test.js functions/README.md
 git commit -m "feat: verify QuickBooks invoice payments"
@@ -447,8 +465,10 @@ git commit -m "feat: verify QuickBooks invoice payments"
 
 **Files:**
 - Create: `functions/src/commerce/commerce-service.js`
+- Create: `functions/src/commerce/feature-flags.js`
 - Create: `functions/src/providers/quickbooks-webhooks.js`
 - Create: `functions/test/commerce/commerce-service.test.js`
+- Create: `functions/test/commerce/feature-flags.test.js`
 - Create: `functions/test/commerce/quickbooks-webhooks.test.js`
 - Modify: `functions/src/commerce/order-repository.js`
 - Modify: `functions/test/commerce/order-repository.test.js`
@@ -457,20 +477,20 @@ git commit -m "feat: verify QuickBooks invoice payments"
 
 **Interfaces:**
 - Consumes: catalog, existing order state/repository, extended QuickBooks Accounting adapter, `verifyQuickBooksPaymentEvidence()`, and Intuit's current [webhooks contract](https://developer.intuit.com/app/developer/qbo/docs/develop/webhooks).
-- Produces: `createDigitalOrder({sku,customer,idempotencyKey})`, `getOrderStatus({orderHandle})`, `verifyOrderPayment({orderId,source})`, `acceptQuickBooksWebhook({rawBody,signature})`, `reconcilePendingOrders(now)`, and App Check-enforced public/admin Firebase endpoints.
+- Produces: `createDigitalOrder({sku,customerName,idempotencyKey}, authContext)`, `getOrderStatus({orderHandle}, authContext)`, `verifyOrderPayment({orderId,source})`, `acceptQuickBooksWebhook({rawBody,signature})`, `reconcilePendingOrders(now)`, two independent default-off feature flags, and Firebase Auth plus App Check-enforced customer/admin endpoints.
 
 - [ ] **Step 1: Add failing durable-effect repository tests**
 
-Add `claimEffect(orderId,effect,workerId)`, `completeEffect(orderId,effect,workerId,claimId,result)`, and `recordEffectFailure(...)` for `invoice_create` and `invoice_send`. Assert one concurrent claimant, immutable Invoice references, duplicate completion suppression, bounded safe error codes, and no provider payload storage. A failed create may retry with its deterministic request ID. An ambiguous send failure must set `status:'manual_review'` with `lastErrorCode:'invoice_send_unknown'` and must not reopen the send claim for blind retry.
+Add `claimEffect(orderId,effect,workerId,now)`, `completeEffect(orderId,effect,workerId,claimId,result)`, `recordEffectFailure(...)`, and `recoverExpiredEffects(now)` for `invoice_create` and `invoice_send`. Each claim has a unique claim ID, `claimedAt`, and five-minute `leaseExpiresAt`. Assert one concurrent claimant, immutable Invoice references, exact-claim completion, duplicate completion suppression, bounded safe error codes, and no provider payload storage. A stale create lease may recover the Invoice by deterministic request ID/order reference before retry. A stale send lease is ambiguous: scheduled recovery must set `status:'manual_review'` with `lastErrorCode:'invoice_send_unknown'`, permanently close that send claim, and never call `sendInvoice()` again.
 
 - [ ] **Step 2: Write failing digital-order orchestration tests**
 
 ```js
 test('creates and sends one server-priced invoice without returning a pay URL', async () => {
   const result = await service.createDigitalOrder({
-    sku:'home-inspection-study-guide',customer:{name:'A',email:'a@example.com'},
+    sku:'home-inspection-study-guide',customerName:'A',
     amountCents:1,idempotencyKey:'order-1',
-  });
+  }, {uid:'customer-uid',email:'a@example.com',emailVerified:true});
   assert.equal(result.amountCents, catalogPrice);
   assert.equal(result.status, 'payment_verification_pending');
   assert.equal(Object.hasOwn(result, 'url'), false);
@@ -479,7 +499,7 @@ test('creates and sends one server-priced invoice without returning a pay URL', 
 });
 ```
 
-Cover duplicate submission, a recovered existing invoice after create timeout, confirmed send acceptance, send failure, ambiguous send outcome, no fulfillment from create/send responses, exact evidence success, mismatched evidence to `manual_review`, and retry recovery without another invoice or email. Assert service orders are rejected by `createDigitalOrder()` and cannot bypass `approveInvoice`.
+Cover both flags defaulting false; digital order denial while its flag is false; duplicate submission; a recovered existing invoice after create timeout; confirmed send acceptance; send failure; five-minute lease expiry; stale ambiguous send to `manual_review` with no second send; no fulfillment from create/send responses; exact evidence success; mismatched evidence to `manual_review`; and recovery without another invoice or email. Assert service orders are rejected by `createDigitalOrder()` and cannot bypass `approveInvoice`. Keep `COMMERCE_SERVICE_QBO_SEND_ENABLED` false throughout these tests.
 
 - [ ] **Step 3: Write failing webhook tests**
 
@@ -487,13 +507,13 @@ Test the exact raw request bytes with valid and invalid `intuit-signature` fixtu
 
 - [ ] **Step 4: Run focused tests and verify failure**
 
-Run: `npm --prefix functions test -- commerce/order-repository.test.js commerce/commerce-service.test.js commerce/quickbooks-webhooks.test.js`
+Run: `npm --prefix functions test -- test/commerce/order-repository.test.js test/commerce/commerce-service.test.js test/commerce/feature-flags.test.js test/commerce/quickbooks-webhooks.test.js`
 
 Expected: FAIL because durable effects, commerce service, and webhook verification do not exist.
 
 - [ ] **Step 5: Implement digital invoice creation and send**
 
-`createDigitalOrder()` must load the server catalog item, ignore any browser amount, create the Task 3 order, claim `invoice_create`, call `createCommerceInvoice()` with `bk-order-${orderId}`, and persist `realmId`, `invoiceId`, `customerId`, and `providerOrderRef`. It then separately claims `invoice_send` and calls `sendInvoice()` with the stored Invoice ID and normalized customer email. Return only:
+Define `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED=false` and `COMMERCE_SERVICE_QBO_SEND_ENABLED=false` as Firebase Functions Boolean parameters via `defineBoolean`, preserving the default when unset and rejecting non-Boolean test/config input. `createDigitalOrder()` first requires the digital flag, App Check, and a Firebase Auth token containing `uid`, `email`, and `email_verified:true`. It loads the server catalog item, ignores browser amount/UID/email fields, creates the Task 3 order with immutable `customerUid=request.auth.uid` and the normalized token email, and commits that order before `invoice_create` can be claimed. It calls `createCommerceInvoice()` with `bk-order-${orderId}` and persists `realmId`, `invoiceId`, `customerId`, and `providerOrderRef`. It then separately claims `invoice_send` and calls `sendInvoice()` with the stored Invoice ID and verified token email. Return only:
 
 ```js
 {
@@ -505,7 +525,7 @@ Expected: FAIL because durable effects, commerce service, and webhook verificati
 }
 ```
 
-The production call path remains disabled until Task 12 approvals. A known pre-send failure may retry safely; an ambiguous post-request failure must stop in manual review rather than risk a second email.
+The opaque `orderHandle` is routing data, not authorization. The production call path remains disabled until Task 12 approvals. A known pre-send failure may retry only within the still-owned live lease before dispatch. The scheduled worker handles expired claims: deterministic create recovery may retry after exact read-back, but an expired send claim is ambiguous and must stop in manual review rather than risk a second email.
 
 - [ ] **Step 6: Implement authoritative payment verification**
 
@@ -519,16 +539,18 @@ Verify Intuit's signature against the unchanged raw body using the app verifier 
 
 Add `reconcileCommerceOrders` on an explicit schedule. Query only due nonterminal orders, cap each run, use bounded exponential retry metadata, call the documented Accounting change-data-capture operation for Invoice/Payment discovery within its supported look-back window, then re-fetch exact entities before verification. Reconcile stored Invoice IDs directly even when no webhook or CDC match exists. This schedule remains enabled as recovery if webhooks are unavailable, disabled, delayed, duplicated, or missed. Intuit's current [official Accounting CDC collection](https://www.postman.com/intuit-developer/intuit-developer-quickbooks-online-accounting-api/folder/4884662-1a02fcdc-856f-42ee-92da-0513e0b6eca4) defines the capability boundary.
 
+The same schedule calls `recoverExpiredEffects(now)` first. A stale create effect performs exact order-reference/read-back recovery and resumes only if no Invoice exists. A stale invoice-send effect never dispatches: it closes the effect as ambiguous, transitions the order to `manual_review`, records `invoice_send_unknown`, and emits a redacted operator alert. Tests use an injected clock to prove the pre-expiry no-op, post-expiry create recovery, post-expiry send quarantine, and zero resend calls.
+
 - [ ] **Step 9: Add callable/request security tests**
 
-Assert App Check rejection for public order/status callables, schema/length validation, a non-secret opaque order handle, bounded polling, abuse controls, safe public errors, and administrator enforcement for manual reconciliation/refund operations. The webhook endpoint uses signature/realm verification instead of App Check and never returns entity or order details.
+Assert signed-out rejection, unverified-email rejection, App Check rejection, a client-supplied UID/email being ignored, immutable `customerUid` creation before invoice effects, and `getOrderStatus()` requiring `request.auth.uid === order.customerUid`. Cover the correct UID, wrong UID, guessed/modified handle, deleted user/token rejection, Firebase-emulator email-link completion and reused-link denial, schema/length validation, bounded polling, abuse controls, safe public errors, and administrator enforcement for manual reconciliation/refund operations. Status responses contain no customer email or accounting identifiers. The webhook endpoint uses signature/realm verification instead of App Check and never returns entity or order details.
 
 - [ ] **Step 10: Run and commit**
 
 ```bash
-npm --prefix functions test -- commerce/order-repository.test.js commerce/commerce-service.test.js commerce/quickbooks-webhooks.test.js
+npm --prefix functions test -- test/commerce/order-repository.test.js test/commerce/commerce-service.test.js test/commerce/feature-flags.test.js test/commerce/quickbooks-webhooks.test.js
 npm --prefix functions run check
-git add functions/src/commerce/commerce-service.js functions/src/providers/quickbooks-webhooks.js functions/test/commerce/commerce-service.test.js functions/test/commerce/quickbooks-webhooks.test.js functions/src/commerce/order-repository.js functions/test/commerce/order-repository.test.js functions/src/index.js firebase.json
+git add functions/src/commerce/commerce-service.js functions/src/commerce/feature-flags.js functions/src/providers/quickbooks-webhooks.js functions/test/commerce/commerce-service.test.js functions/test/commerce/feature-flags.test.js functions/test/commerce/quickbooks-webhooks.test.js functions/src/commerce/order-repository.js functions/test/commerce/order-repository.test.js functions/src/index.js firebase.json
 git commit -m "feat: orchestrate QuickBooks invoice payments"
 ```
 
@@ -540,34 +562,38 @@ git commit -m "feat: orchestrate QuickBooks invoice payments"
 - Create: `functions/src/commerce/fulfillment.js`
 - Create: `functions/test/commerce/fulfillment.test.js`
 - Modify: `functions/src/commerce/commerce-service.js`
-- Modify: `storage.rules`
-- Test: `functions/test/commerce/storage-rules.test.js`
+- Modify: `functions/src/index.js`
+- Create: `storage.rules`
+- Modify: `firebase.json` (add the verified Storage Rules source and add `storage.rules` to both Hosting ignore lists)
+- Create: `functions/test/commerce/storage-rules.test.js`
 
 **Interfaces:**
 - Consumes: a transactionally claimed `paid` order produced only by Task 6's exact Accounting Invoice/Payment verifier.
-- Produces: `fulfillPaidOrder(order)`, `createDownloadGrant({orderId,customerUid})`, and a short-lived order-bound download response.
+- Produces: `fulfillPaidOrder(order)`, `createDownloadGrant({orderId}, authContext)`, `redeemDownloadGrant({orderId,grant}, authContext)`, and an authenticated one-use order-bound streaming response.
 
 - [ ] **Step 1: Write failing fulfillment tests**
 
-Cover unpaid denial, invoice-created denial, invoice-send-accepted denial, webhook-hint denial, wrong user denial, expired grant denial, one verified paid order producing one grant, retry after delivery failure without another invoice/payment, and path traversal rejection.
+Cover signed-out/App Check denial; unpaid, invoice-created, invoice-send-accepted, and webhook-hint denial; correct owner and wrong UID; client-supplied UID ignored; a guessed handle; 256-bit nonce generation with digest-only persistence; ten-minute boundary; expired, modified, wrong-order, wrong-SKU, concurrent, and replayed grant denial; exactly one successful atomic redemption; retry after a consumed streaming failure by issuing a new authenticated grant without another invoice/payment; and path traversal rejection.
 
 - [ ] **Step 2: Run focused tests and verify failure**
 
-Run: `npm --prefix functions test -- commerce/fulfillment.test.js`
+Run: `npm --prefix functions test -- test/commerce/fulfillment.test.js`
 
 - [ ] **Step 3: Implement private-object delivery**
 
-Keep paid artifacts outside the public Hosting directory. Resolve artifact keys from a server allowlist keyed by SKU. Create short-lived grants bound to `orderId`, authenticated customer UID, SKU, and expiry; never accept a storage path from the browser.
+Keep paid artifacts outside the public Hosting directory. Resolve artifact keys from a server allowlist keyed by SKU. `createDownloadGrant()` derives the caller UID from Firebase Auth, requires App Check and `request.auth.uid === order.customerUid`, then creates a cryptographically random 256-bit nonce. Store only its SHA-256 digest, bound order ID/customer UID/SKU, `expiresAt=issuedAt+10 minutes`, and nullable `consumedAt`; never accept a UID or storage path from the browser. `redeemDownloadGrant()` requires the same Firebase UID and App Check, hashes the submitted nonce, and transactionally changes exactly one matching unexpired grant from unused to consumed before the Function streams the allowlisted object. Concurrent or replayed redemption fails. If streaming fails after consumption, the still-authenticated owner must request a new grant; the nonce is never reopened.
 
 - [ ] **Step 4: Deny direct Storage enumeration and reads**
 
-Storage Rules must deny public artifact reads. Delivery occurs through the validated Function or a narrowly scoped signed URL generated after grant validation.
+The repository currently has no `storage.rules`, no Storage block in `firebase.json`, and no verified production Storage Rules source or bucket mapping. Before writing deployable rules, recover and hash the authoritative production source and document the bucket mapping. Merge the narrow paid-artifact direct-read denial without replacing unrelated live policy. If that source cannot be recovered, stop with both the Storage Rules release and production pilot blocked; do not treat a new local deny file as production truth.
+
+After recovery and review, create the merged `storage.rules`, configure `firebase.json` with `"storage":{"rules":"storage.rules"}`, and add `storage.rules` to both Hosting ignore lists so Hosting cannot serve it. Direct client enumeration, reads, and writes to paid artifacts are denied; only the Admin SDK inside the authenticated redemption Function may read the allowlisted object. Do not return a reusable public signed URL.
 
 - [ ] **Step 5: Run emulator tests and commit**
 
 ```bash
-firebase emulators:exec --only firestore,storage,functions "npm --prefix functions test -- commerce/fulfillment.test.js commerce/storage-rules.test.js" --project the-ballers-kingdom
-git add functions/src/commerce/fulfillment.js functions/test/commerce/fulfillment.test.js functions/test/commerce/storage-rules.test.js functions/src/commerce/commerce-service.js storage.rules
+firebase emulators:exec --only auth,firestore,storage,functions "npm --prefix functions test -- test/commerce/fulfillment.test.js test/commerce/storage-rules.test.js" --project the-ballers-kingdom
+git add functions/src/commerce/fulfillment.js functions/test/commerce/fulfillment.test.js functions/test/commerce/storage-rules.test.js functions/src/commerce/commerce-service.js functions/src/index.js storage.rules firebase.json
 git commit -m "feat: protect paid digital fulfillment"
 ```
 
@@ -577,26 +603,30 @@ git commit -m "feat: protect paid digital fulfillment"
 
 **Files:**
 - Modify: `functions/src/orchestration.js`
+- Modify: `functions/src/index.js`
 - Modify: `functions/src/providers/quickbooks.js`
 - Modify: `functions/src/commerce/commerce-service.js`
-- Test: `functions/test/commerce/service-invoicing.test.js`
+- Modify: `functions/src/commerce/order-repository.js`
+- Modify: `functions/test/orchestration.test.js`
+- Modify: `functions/test/commerce/order-repository.test.js`
+- Create: `functions/test/commerce/service-invoicing.test.js`
 - Modify: `functions/README.md`
 
 **Interfaces:**
 - Consumes: accepted appointments/approved quotes and the existing `approveInvoice` admin gate.
-- Produces: a service order linked to one QuickBooks-sent invoice and the same authoritative Accounting payment state as digital orders.
+- Produces: a default-off, separately approved service migration path. While `COMMERCE_SERVICE_QBO_SEND_ENABLED=false`, the existing service approval and Graph/PDF behavior remains unchanged; when true, an approved service order is linked to one QuickBooks-sent invoice and the same authoritative Accounting payment state as digital orders.
 
 - [ ] **Step 1: Write failing service-flow tests**
 
-Assert that accepted bookings create operational orders, no invoice is created or sent before administrator approval, approval creates or recovers one idempotent invoice, QuickBooks sends it once, Microsoft Graph does not send a duplicate invoice/PDF, enabled payment methods remain QuickBooks-controlled, and exact Accounting evidence reconciles the order without another invoice or payment.
+Assert that both commerce flags default false and are independent. With the service flag false, accepted bookings and `approveInvoice` preserve the existing Graph/PDF path exactly and make no new commerce-order or QuickBooks-send effect. With only the service flag true in a separate test, accepted bookings create operational orders, no invoice is created or sent before administrator approval, approval creates or recovers one idempotent invoice, QuickBooks sends it once, Microsoft Graph does not send a duplicate invoice/PDF, enabled payment methods remain QuickBooks-controlled, and exact Accounting evidence reconciles the order without another invoice or payment. Prove the digital flag cannot enable service migration.
 
 - [ ] **Step 2: Run focused tests and verify failure**
 
-Run: `npm --prefix functions test -- commerce/service-invoicing.test.js`
+Run: `npm --prefix functions test -- test/commerce/service-invoicing.test.js test/orchestration.test.js test/commerce/order-repository.test.js`
 
 - [ ] **Step 3: Reuse order state without weakening approval**
 
-Create service orders in `pending_invoice_approval` while retaining the existing appointment approval fields. The App Check-enforced `approveInvoice` callable remains the only path through `invoice_processing` to `invoiced`. It claims invoice creation and send as separate effects, reuses the stored invoice on retry, and treats an ambiguous send outcome as manual review rather than resending. Task 6's independently re-fetched Accounting evidence is the only path from `invoiced` through `payment_verifying` to `paid`.
+Branch at the existing `approveInvoice` entry point on `COMMERCE_SERVICE_QBO_SEND_ENABLED`, not on the digital pilot flag. When false, execute the current tested service behavior without creating a commerce order or altering its effects. When true after separate approval, create service orders in `pending_invoice_approval` while retaining the existing appointment approval fields. The App Check-enforced `approveInvoice` callable remains the only path through `invoice_processing` to `invoiced`. It claims invoice creation and send as separate leased effects, reuses the stored invoice on retry, and treats an expired/ambiguous send claim as manual review rather than resending. Task 6's independently re-fetched Accounting evidence is the only path from `invoiced` through `payment_verifying` to `paid`.
 
 - [ ] **Step 4: Normalize invoice receipts**
 
@@ -604,13 +634,13 @@ Persist QuickBooks customer ID, invoice ID, document number, order reference, an
 
 - [ ] **Step 5: Preserve the Microsoft operational-mail boundary**
 
-Remove the Graph-delivered invoice PDF from `approveInvoice`; use the documented QuickBooks Accounting invoice-send operation after approval. Preserve `info@ballkingdom.com` for accepted-booking confirmations and other operational messages only. No test may call live Graph or QuickBooks; use injected mocks and assert invoice-email duplicate suppression across both providers.
+Preserve the Graph-delivered invoice PDF in the service-flag-false branch. In the separately enabled branch, suppress that PDF and use the documented QuickBooks Accounting invoice-send operation after approval; preserve `info@ballkingdom.com` for accepted-booking confirmations and other operational messages only. No test may call live Graph or QuickBooks; use injected mocks and assert invoice-email duplicate suppression across both providers and both flag states.
 
 - [ ] **Step 6: Run and commit**
 
 ```bash
-npm --prefix functions test -- commerce/service-invoicing.test.js orchestration.test.js providers.test.js
-git add functions/src/orchestration.js functions/src/providers/quickbooks.js functions/src/commerce/commerce-service.js functions/test/commerce/service-invoicing.test.js functions/README.md
+npm --prefix functions test -- test/commerce/service-invoicing.test.js test/orchestration.test.js test/commerce/order-repository.test.js test/providers.test.js
+git add functions/src/orchestration.js functions/src/index.js functions/src/providers/quickbooks.js functions/src/commerce/commerce-service.js functions/src/commerce/order-repository.js functions/test/orchestration.test.js functions/test/commerce/order-repository.test.js functions/test/commerce/service-invoicing.test.js functions/README.md
 git commit -m "feat: send approved service invoices with QuickBooks"
 ```
 
@@ -630,7 +660,7 @@ git commit -m "feat: send approved service invoices with QuickBooks"
 - Modify: `playwright.config.mjs`
 
 **Interfaces:**
-- Consumes: `createDigitalOrder()` and `getOrderStatus()` endpoints from Task 6.
+- Consumes: Firebase email-link authentication, `createDigitalOrder()` and owner-authorized `getOrderStatus()` endpoints from Task 6, and owner-authorized single-use fulfillment grants from Task 7.
 - Produces: accessible `Buy`, order summary, invoice-send-pending, payment-verification-pending, paid, fulfillment-delayed, fulfilled, cancelled, and manual-support views with no provider URL.
 
 - [ ] **Step 1: Write failing browser tests**
@@ -659,11 +689,11 @@ Run: `npx playwright test tests/commerce-browser.spec.mjs`
 
 - [ ] **Step 3: Implement the shared purchase and order summary**
 
-Render item name, server-returned price, currency, customer name/email fields, fulfillment terms, refund/cancellation links, and `Send payment instructions`. Explain before submission that QuickBooks will email the payable invoice and that Ballers Kingdom will verify payment before delivery. Never render or collect card, bank, PayPal, or Venmo credentials.
+Render item name, server-returned price, currency, customer name/email fields, fulfillment terms, refund/cancellation links, and `Send payment instructions`. Complete Firebase email-link sign-in before calling `createDigitalOrder`; after authentication, treat the verified token email as authoritative and do not let the browser substitute another UID/email. Handle a consumed, expired, modified, or reused email link as signed out and require a fresh link. Explain before submission that QuickBooks will email the payable invoice and that Ballers Kingdom will verify payment before delivery. Never render or collect card, bank, PayPal, or Venmo credentials.
 
 - [ ] **Step 4: Implement status polling with bounded retries**
 
-Poll only the normalized Firebase order-status endpoint using a non-secret order handle. Stop on terminal state or timeout. Render `QuickBooks sent payment instructions to your email. Payment verification is pending.` after confirmed send acceptance and `We have verified your payment; delivery is delayed` for paid fulfillment failures. Ignore query parameters, browser callbacks, and customer assertions as state authority.
+Poll only the normalized Firebase order-status endpoint using the Firebase ID token, App Check token, and non-secret order handle. The Function must authorize the token UID against the immutable order `customerUid`; the handle never authorizes a read. Stop on terminal state or timeout. Render `QuickBooks sent payment instructions to your email. Payment verification is pending.` after confirmed send acceptance and `We have verified your payment; delivery is delayed` for paid fulfillment failures. Ignore query parameters, browser callbacks, and customer assertions as state authority.
 
 The public response allowlist is:
 
@@ -673,11 +703,11 @@ The public response allowlist is:
   status:'invoice_send_pending' | 'payment_verification_pending' | 'paid' |
     'fulfillment_delayed' | 'fulfilled' | 'cancelled' | 'manual_support',
   message:String(publicMessage),
-  downloadUrl:status === 'fulfilled' ? String(shortLivedOrderBoundUrl) : null,
+  downloadReady:status === 'fulfilled',
 }
 ```
 
-Reject any unexpected `url`, `providerUrl`, raw Invoice/Payment field, or accounting identifier before rendering.
+Reject any unexpected `url`, `providerUrl`, raw Invoice/Payment field, customer email, or accounting identifier before rendering. When `downloadReady` is true, an explicit Download action obtains a ten-minute, owner-bound single-use grant and immediately redeems it through Task 7's authenticated streaming Function. Do not put the nonce in a query string, log, persistent browser storage, analytics event, or reusable public URL; clear it after the one attempt. Wrong-UID, expired, and replay errors return to the safe fulfilled view so the authenticated owner can request a new grant.
 
 - [ ] **Step 5: Preserve fail-closed product buttons**
 
@@ -685,7 +715,7 @@ Enable each purchase button only when the server exposes the matching active SKU
 
 - [ ] **Step 6: Run accessibility, mobile, and Hosting-boundary tests**
 
-Confirm keyboard flow, visible focus, labels, error announcements, 390px mobile layout, and that Functions/tests/private artifacts remain excluded from Hosting.
+Confirm keyboard flow, visible focus, labels, error announcements, 390px mobile layout, signed-out/wrong-user status denial, email-link replay denial, single-use download-grant replay denial, and that Functions/tests/private artifacts and both Rules files remain excluded from Hosting.
 
 - [ ] **Step 7: Commit**
 
@@ -715,7 +745,7 @@ Test unauthenticated rejection, non-admin rejection, App Check rejection, excess
 
 - [ ] **Step 2: Run focused tests and verify failure**
 
-Run: `npm --prefix functions test -- commerce/refunds.test.js`
+Run: `npm --prefix functions test -- test/commerce/refunds.test.js`
 
 - [ ] **Step 3: Implement admin-only review and reconciliation controls**
 
@@ -728,7 +758,7 @@ Include identities, scoped commands, sandbox setup, secret names without values,
 - [ ] **Step 5: Run and commit**
 
 ```bash
-npm --prefix functions test -- commerce/refunds.test.js
+npm --prefix functions test -- test/commerce/refunds.test.js
 git add functions/src/commerce/commerce-service.js functions/test/commerce/refunds.test.js functions/src/index.js docs/operations/quickbooks-commerce-runbook.md
 git commit -m "feat: add commerce reconciliation controls"
 ```
@@ -756,7 +786,7 @@ npm --prefix functions run check
 firebase emulators:exec --only auth,firestore,storage,functions "npm --prefix functions test" --project the-ballers-kingdom
 ```
 
-The final emulator command is a required release gate, but it is currently blocked: this repository has only an unconfigured commerce-deny fragment rather than the authoritative production Firestore Rules source, and Java/rules-unit-testing is unavailable. Do not represent the static fragment test as runtime authorization proof. Recover and merge the authoritative rules source, install/verify Java, then run the full signed-out/ordinary/admin rules suite before any Firestore Rules release.
+The final emulator command is a required release gate, but it is currently blocked: this repository has only an unconfigured commerce-deny fragment rather than the authoritative production Firestore Rules source, has no `storage.rules` or configured Storage Rules source, and lacks the required Java/rules-unit-testing proof. Do not represent a static fragment or newly created local deny file as runtime authorization proof. Recover and merge both authoritative production Rules sources and bucket mapping, install/verify Java, then run the full signed-out/ordinary/customer-owner/wrong-customer/admin suite before either Rules release. Missing authoritative Firestore or Storage Rules source is a pilot release blocker.
 
 - [ ] **Step 2: Run dependency and secret checks**
 
@@ -775,11 +805,22 @@ Use injected mocks for the documented Invoice send operation and assert its exac
 
 - [ ] **Step 4: Verify webhook hints and mandatory recovery**
 
-Run published-shape local webhook fixtures for valid signature, invalid signature, changed raw bytes, wrong realm, replay, Invoice hint, and Payment hint. Prove that an accepted webhook does not transition payment until mocked authoritative entity re-fetch passes. Disable the webhook path and prove scheduled reconciliation reaches the same result; then simulate delayed, duplicated, and missed events. Production webhook configuration remains blocked until the owning Intuit Developer app is visible and access/configuration is separately approved.
+Run published-shape local webhook fixtures for valid signature, invalid signature, changed raw bytes, wrong realm, replay, Invoice hint, and Payment hint. Prove that an accepted webhook does not transition payment until mocked authoritative entity re-fetch passes. Disable the webhook path and prove scheduled reconciliation reaches the same result; then simulate delayed, duplicated, and missed events plus an expired invoice-send claim. Prove that stale send recovery produces `manual_review`/`invoice_send_unknown` and zero additional send calls. Production webhook configuration remains blocked until the owning Intuit Developer app is visible and access/configuration is separately approved; app invisibility does not by itself block a scheduled-reconciliation-only pilot when Accounting OAuth and every other gate pass.
 
 - [ ] **Step 5: Review Firebase packaging**
 
-Run the repository release guard/dry run with explicit `--project the-ballers-kingdom --account lilpelejr12@gmail.com`. Confirm Hosting maps `public -> ballkingdom-com`, Functions maps only `ballkingdom-integrations`, and no private artifact, test fixture, backend source, or secret file enters the Hosting manifest.
+This repository has no release-guard script. Use these concrete preflight commands and record their output:
+
+```bash
+git status --short
+git rev-parse HEAD
+firebase target --project the-ballers-kingdom --account lilpelejr12@gmail.com
+firebase deploy --only functions:ballkingdom-integrations --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run
+firebase deploy --only storage --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run
+firebase deploy --only hosting:public --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run
+```
+
+The Firebase CLI warns that a dry run may enable target-project APIs, so obtain production-impact approval before running these production-targeted preflights. Confirm Hosting maps `public -> ballkingdom-com`, Functions maps only `ballkingdom-integrations`, Storage resolves only the reviewed bucket/rules source, and no private artifact, test fixture, backend source, Rules source, or secret file enters the Hosting manifest.
 
 - [ ] **Step 6: Write verification evidence and commit**
 
@@ -788,11 +829,11 @@ git add docs/operations/quickbooks-commerce-verification.md
 git commit -m "docs: verify QuickBooks commerce release"
 ```
 
-The evidence must distinguish mocked, local, emulator, Intuit sandbox, signed-in read-only, and production truth. It must list the missing authoritative Firestore Rules/Java emulator proof and invisible developer app/webhook ownership as unresolved production blockers.
+The evidence must distinguish mocked, local, emulator, Intuit sandbox, signed-in read-only, and production truth. It must list the missing authoritative Firestore and Storage Rules sources/emulator proof as pilot blockers. It must list invisible developer-app ownership specifically as a webhook-configuration blocker, not as a blocker to scheduled reconciliation when the existing Accounting OAuth connection is authoritatively working.
 
 ---
 
-### Task 12: Release One Owner-Controlled Pilot
+### Task 12: Release One Owner-Controlled Digital Pilot
 
 **Files:**
 - Modify: `docs/operations/quickbooks-commerce-verification.md`
@@ -800,54 +841,67 @@ The evidence must distinguish mocked, local, emulator, Intuit sandbox, signed-in
 
 **Interfaces:**
 - Consumes: approved verification evidence and explicit production authorization.
-- Produces: one monitored, reversible production pilot with independent QuickBooks and Firebase proof.
+- Produces: one monitored, reversible digital-only production pilot with independent QuickBooks and Firebase proof; no service migration.
 
 - [ ] **Step 1: Obtain explicit approvals**
 
-Require Brian's separate approval for the exact SKU and price/tax/item mapping, production app/webhook configuration if proposed, secret/IAM changes, authoritative Firestore Rules release, scoped Functions deployment, scoped Hosting deployment, one QuickBooks invoice send, the exact customer email recipient, one low-value owner payment, and any refund. One approval does not imply another. Automatic digital invoice send remains disabled until these pilot approvals are recorded.
+Require Brian's separate approval for the exact SKU and price/tax/item mapping, Firebase email-link provider configuration if it is not already enabled, production app/webhook configuration if proposed, secret/IAM changes, authoritative Firestore Rules release, authoritative Storage Rules release, scoped Functions deployment, scoped Hosting deployment, enabling only the digital pilot flag, one QuickBooks invoice send, the exact customer email recipient, one low-value owner payment, and any refund. One approval does not imply another. Automatic digital invoice send remains disabled until these pilot approvals are recorded; the service migration flag remains false.
 
 - [ ] **Step 2: Verify identity, target, commit, and rollback**
 
-Read back Firebase account/project/targets, QuickBooks company/realm, the visible owning Intuit app if webhooks are part of the pilot, Git commit, authoritative Rules source/hash, Java emulator evidence, clean source packaging, existing live versions, and rollback commands before mutation. If the production app is still invisible or Rules proof is incomplete, do not deploy the pilot.
+Read back Firebase account/project/targets, Firebase email-link provider state, QuickBooks company/realm and working Accounting OAuth read, the visible owning Intuit app only if webhooks are part of the pilot, Git commit, authoritative Firestore and Storage Rules sources/hashes and bucket mapping, Java emulator evidence, both false-by-default flag values, clean source packaging, existing live versions, and rollback commands before mutation. If either authoritative Rules source or emulator proof is incomplete, do not deploy the pilot. If the production app is still invisible, do not configure or deploy the webhook, but the pilot may proceed with mandatory scheduled reconciliation when Accounting OAuth and every other gate passes.
 
-- [ ] **Step 3: Deploy Functions only after approval**
+- [ ] **Step 3: Deploy Rules separately only after their approvals**
 
-Use the repository release guard and explicit scoped command for `functions:ballkingdom-integrations`. Deploy no webhook verifier-token binding or endpoint configuration unless the owning app is visible and the exact configuration is approved. Smoke-test unauthenticated/App Check denial before enabling any product.
+After the matching authoritative-source hashes and emulator evidence are recorded, use separate approvals and separate scoped commands:
 
-- [ ] **Step 4: Enable one pilot SKU and deploy Hosting only after approval**
+```bash
+firebase deploy --only firestore:rules --project the-ballers-kingdom --account lilpelejr12@gmail.com
+firebase deploy --only storage --project the-ballers-kingdom --account lilpelejr12@gmail.com
+```
 
-Activate only the approved SKU, rerun the entire relevant test set, and deploy only `hosting:public` to `ballkingdom-com`.
+Before each command, confirm its Firebase CLI dry run and exact diff. After each command, read back/emulator-smoke-test the intended signed-out, customer-owner, wrong-customer, and admin behavior before continuing. The Storage deployment is not implied by Firestore approval. If the authoritative production Storage Rules source/bucket mapping is missing or Storage emulator proof is incomplete, stop: the pilot is blocked, and no Rules release or digital enablement may be claimed.
 
-- [ ] **Step 5: Send one approved QuickBooks invoice and customer email**
+- [ ] **Step 4: Deploy Functions only after approval**
 
-Submit the approved digital order once and verify one server-priced QuickBooks Invoice, one stored invoice ID/order reference, one documented QuickBooks invoice-send response, and one customer email at the exact approved address. The response and email prove neither delivery nor payment. If the send outcome is ambiguous, stop in manual review and do not resend blindly.
+Run the exact approved preflight and scoped command for `functions:ballkingdom-integrations`. Deploy with `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED` still false and `COMMERCE_SERVICE_QBO_SEND_ENABLED=false`. Deploy no webhook verifier-token binding or endpoint configuration unless the owning app is visible and the exact configuration is approved. Smoke-test signed-out, wrong-UID, unverified-email, and App Check denial plus scheduled reconciliation before enabling any product.
 
-- [ ] **Step 6: Run one approved low-value owner payment**
+- [ ] **Step 5: Enable one pilot SKU and digital flag; deploy Hosting only after approval**
 
-Pay through the method QuickBooks presents in its invoice email. Verify the exact realm, Invoice, order reference, total, currency, zero balance, one active linked Payment for the full amount, Firebase state/audit, and protected fulfillment from independent sources. Also inspect QuickBooks Payments and the settlement/deposit view. Do not treat the website, email, webhook, Invoice send response, or Invoice balance alone as confirmation.
+Activate only the approved SKU and set only `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED=true`; leave `COMMERCE_SERVICE_QBO_SEND_ENABLED=false` so existing service behavior remains unchanged. Rerun the entire relevant test set, run and review the approved `firebase deploy --only functions:ballkingdom-integrations --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run`, then perform the separately approved scoped Functions deploy that applies the digital flag. Run and review the concrete approved `firebase deploy --only hosting:public --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run`, then deploy only `hosting:public` to `ballkingdom-com`. Confirm `storage.rules` and private artifacts are absent from the Hosting manifest, read back both flag values, and prove the service path still uses its existing behavior before submitting the digital order.
 
-- [ ] **Step 7: Execute an approved refund if requested**
+- [ ] **Step 6: Send one approved QuickBooks invoice and customer email**
+
+Authenticate the approved customer with Firebase email link, submit the approved digital order once, and verify the immutable `customerUid`/verified-email mapping exists before the invoice effect. Verify one server-priced QuickBooks Invoice, one stored invoice ID/order reference, one documented QuickBooks invoice-send response, and one customer email at the exact approved address. The response and email prove neither delivery nor payment. If the send outcome is ambiguous or its five-minute claim expires, confirm scheduled recovery puts it in `manual_review` with `invoice_send_unknown` and do not resend blindly.
+
+- [ ] **Step 7: Run one approved low-value owner payment**
+
+Pay through a method QuickBooks presents in its invoice email; use ACH only if QuickBooks exposes it on that invoice. Verify exact realm, Invoice ID/order reference/`TotalAmt`/currency/zero `Balance`/present-paid state and exactly one present Payment with exact `TotalAmt`, zero `UnappliedAmt`, no deleted/voided status, and one full `LinkedTxn` application only to that Invoice. Then verify Firebase state/audit plus authenticated, same-UID, ten-minute, single-use protected fulfillment from independent sources. Also inspect QuickBooks Payments and the settlement/deposit view. Do not treat the website, email, webhook, Invoice send response, Invoice balance alone, or an invented provider `completed` value as confirmation.
+
+- [ ] **Step 8: Execute an approved refund if requested**
 
 Perform the refund in QuickBooks only after its separate approval. Verify it independently in QuickBooks Payments, QuickBooks accounting, Firebase audit state, and the original payment method. If Accounting entities cannot prove the refund under the documented contract, retain manual review and do not manufacture `refunded`. Do not refund automatically merely because the owner payment succeeded.
 
-- [ ] **Step 8: Record the measured result**
+- [ ] **Step 9: Record the measured result**
 
-Update the verification document with non-secret timestamps, identifiers truncated to safe suffixes, observed behavior, rollback status, and remaining rollout gates. Commit the evidence without private customer or payment data.
+Update the verification document with non-secret timestamps, identifiers truncated to safe suffixes, observed behavior, both feature-flag values, scheduled-reconciliation evidence, authenticated grant expiry/replay results, rollback status, and remaining rollout gates. Commit the evidence without private customer or payment data. Keep the service flag false until a separately approved release.
 
 ---
 
 ## Completion Criteria
 
 - The existing Accounting adapter creates one deterministic invoice, invokes only the documented Invoice send operation, and returns no provider pay URL.
-- Digital products cannot fulfill until exact realm, Invoice, order reference, amount, currency, zero balance, and one active full linked Payment are independently re-fetched and verified.
-- Services retain Brian's invoice creation/send approval gate and reconcile paid invoices through the same verifier.
+- Digital products cannot fulfill until exact realm, Invoice ID/order reference/total/currency/balance/status and Payment total/unapplied amount/status/sole full Invoice application are independently re-fetched and verified.
+- Customer order status and downloads require the immutable Firebase email-link-authenticated `customerUid`; App Check and a non-secret order handle alone are insufficient. Download grants are ten-minute, digest-only, and atomically single-use.
+- Services retain Brian's invoice creation/send approval gate and current Graph/PDF path while the service migration flag is false; a separately approved migration may reconcile paid invoices through the same verifier.
 - PayPal/Venmo remain QuickBooks-presented methods; no standalone wallet pipeline exists.
 - QuickBooks remains the authoritative accounting record.
 - All direct commerce collections and paid artifacts are denied to public clients.
 - Valid webhooks create hints only; invalid signatures/realms are rejected; every transition uses authoritative re-fetch.
 - Scheduled reconciliation recovers correctly with webhooks unavailable, delayed, duplicated, or missed.
-- App Check, admin authorization, invoice/effect idempotency, replay protection, redaction, reconciliation, and refund-review limits pass automated tests.
-- The authoritative production Firestore Rules source is recovered/merged and the Java rules-unit-testing emulator suite passes; the current fragment/static check is insufficient.
-- The owning Intuit Developer app is visible and approved before any production webhook configuration; otherwise scheduled reconciliation is the only enabled recovery path.
+- Firebase Auth ownership, App Check, admin authorization, five-minute invoice/effect leases, stale-send quarantine/no-resend, grant replay protection, redaction, reconciliation, and refund-review limits pass automated tests.
+- The authoritative production Firestore and Storage Rules sources/bucket mapping are recovered/merged and the Java rules-unit-testing emulator suite passes; the current Firestore fragment, absent Storage source, and static checks are insufficient.
+- The owning Intuit Developer app is visible and approved before any production webhook configuration; otherwise scheduled reconciliation is the enabled recovery path and may support the digital pilot when Accounting OAuth and every other gate pass.
+- Both rollout flags default false; Task 12 enables only the digital flag and leaves service behavior unchanged until separately approved.
 - Mocked, local, emulator, Accounting sandbox, dependency, secret, Hosting-boundary, and browser verification pass without an unapproved invoice/email/payment/refund.
 - Production remains fail-closed until each scoped deployment, one QuickBooks invoice send/customer email, owner payment, and optional refund receives its own explicit approval and independent verification.
