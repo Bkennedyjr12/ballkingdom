@@ -56,6 +56,30 @@ const TRANSITIONS = Object.freeze({
   cancelled: Object.freeze({}),
   refunded: Object.freeze({}),
 });
+const RECONCILIATION_TERMINAL_STATUSES = new Set([
+  'fulfilled',
+  'cancelled',
+  'refunded',
+  'manual_review',
+]);
+const FINAL_ORDER_STATUSES = new Set(['cancelled', 'refunded']);
+
+export function isOrderStatus(value) {
+  return ORDER_STATUSES.has(value);
+}
+
+export function isAllowedOrderStatusTransition(currentStatus, nextStatus) {
+  return Object.hasOwn(TRANSITIONS, currentStatus)
+    && Object.values(TRANSITIONS[currentStatus]).includes(nextStatus);
+}
+
+export function isReconciliationTerminalStatus(status) {
+  return RECONCILIATION_TERMINAL_STATUSES.has(status);
+}
+
+export function isFinalOrderStatus(status) {
+  return FINAL_ORDER_STATUSES.has(status);
+}
 
 function invalidOrder() {
   const error = new Error('Invalid order');

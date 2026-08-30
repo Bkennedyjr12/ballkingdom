@@ -137,6 +137,7 @@ function digitalOrder(overrides = {}) {
 
 function repositoryFixture(clock = () => new Date('2026-08-29T18:00:00.000Z')) {
   const firestore = createFakeFirestore();
+  let claimSequence = 0;
   return {
     firestore,
     repository: createOrderRepository({
@@ -144,6 +145,7 @@ function repositoryFixture(clock = () => new Date('2026-08-29T18:00:00.000Z')) {
       fieldValue,
       Timestamp,
       clock,
+      claimIdFactory: () => `claim-${++claimSequence}`,
     }),
   };
 }
@@ -211,7 +213,12 @@ test('rejects unsafe or non-identifier providerRefs before any write', async () 
     {bankReference: 'secret'},
     {accountNumber: 'secret'},
     {rawPayload: 'secret'},
-    {paymentReference: {nested: 'not-normalized'}},
+    {clientSecret: 'credential-shaped'},
+    {refreshCredential: 'credential-shaped'},
+    {saleId: 'syntactically-valid-but-unapproved'},
+    {paymentReference: 'not-the-task-3-name'},
+    {documentNumber: 'not-an-opaque-identifier'},
+    {providerPaymentRef: {nested: 'not-normalized'}},
   ]) {
     const {firestore, repository} = repositoryFixture();
     await assert.rejects(
@@ -220,6 +227,27 @@ test('rejects unsafe or non-identifier providerRefs before any write', async () 
     );
     assert.equal(firestore.document('orders/order-unsafe'), undefined);
   }
+});
+
+test('accepts only the provider identifier names required by current commerce interfaces', async () => {
+  const {repository} = repositoryFixture();
+  await repository.createOrder('order-allowed-refs', digitalOrder({
+    providerRefs: {
+      realmId: 'realm-7',
+      providerPaymentRef: 'payment-7',
+      providerOrderRef: 'bk-order-order-allowed-refs',
+      invoiceId: 'invoice-7',
+      customerId: 'customer-7',
+    },
+  }));
+
+  assert.deepEqual((await repository.getOrder('order-allowed-refs')).providerRefs, {
+    customerId: 'customer-7',
+    invoiceId: 'invoice-7',
+    providerOrderRef: 'bk-order-order-allowed-refs',
+    providerPaymentRef: 'payment-7',
+    realmId: 'realm-7',
+  });
 });
 
 test('only one worker can claim payment verification', async () => {
@@ -232,9 +260,11 @@ test('only one worker can claim payment verification', async () => {
   ]);
 
   assert.equal(results.filter(Boolean).length, 1);
+  assert.deepEqual(results[0], {claimId: 'claim-1', revision: 1});
   const stored = firestore.document('orders/order-1');
   assert.equal(stored.status, 'payment_verifying');
   assert.equal(stored.activeTransition.workerId, 'worker-a');
+  assert.equal(stored.activeTransition.claimId, 'claim-1');
   assert.equal(stored.activeTransition.claimedAt, SERVER_TIMESTAMP);
 });
 
@@ -254,29 +284,29 @@ test('permits explicit refund claims from reconciliation-terminal orders', async
   await repository.createOrder('order-fulfilled', digitalOrder({status: 'fulfilled'}));
   await repository.createOrder('order-review', digitalOrder({status: 'manual_review'}));
 
-  assert.equal(await repository.claimTransition(
+  assert.deepEqual(await repository.claimTransition(
     'order-fulfilled', 'refunded', 'refund-worker'
-  ), true);
-  assert.equal(await repository.claimTransition(
+  ), {claimId: 'claim-1', revision: 1});
+  assert.deepEqual(await repository.claimTransition(
     'order-review', 'refunded', 'refund-worker'
-  ), true);
+  ), {claimId: 'claim-2', revision: 1});
 });
 
 test('completes only the matching claim and appends a redacted audit receipt', async () => {
   const {firestore, repository} = repositoryFixture();
   await repository.createOrder('order-1', digitalOrder());
-  await repository.claimTransition('order-1', 'payment_verifying', 'worker-a');
+  const claim = await repository.claimTransition('order-1', 'payment_verifying', 'worker-a');
 
   await assert.rejects(
-    repository.completeTransition('order-1', 'payment_verifying', 'worker-a', {
+    repository.completeTransition('order-1', 'payment_verifying', 'worker-a', claim.claimId, {
       providerRefs: {accessToken: 'must-not-be-stored'},
     }),
     {code: 'UNSAFE_PROVIDER_REFS'}
   );
 
   await assert.rejects(
-    repository.completeTransition('order-1', 'payment_verifying', 'worker-b', {
-      providerRefs: {paymentReference: 'pay-123'},
+    repository.completeTransition('order-1', 'payment_verifying', 'worker-b', claim.claimId, {
+      providerRefs: {providerPaymentRef: 'pay-123'},
     }),
     {code: 'TRANSITION_CLAIM_LOST'}
   );
@@ -284,15 +314,17 @@ test('completes only the matching claim and appends a redacted audit receipt', a
     'order-1',
     'payment_verifying',
     'worker-a',
-    {providerRefs: {paymentReference: 'pay-123', realmId: 'realm-7'}}
+    claim.claimId,
+    {providerRefs: {providerPaymentRef: 'pay-123', realmId: 'realm-7'}}
   ), true);
 
   const stored = firestore.document('orders/order-1');
   assert.equal(stored.activeTransition, null);
-  assert.deepEqual(stored.providerRefs, {paymentReference: 'pay-123', realmId: 'realm-7'});
+  assert.deepEqual(stored.providerRefs, {providerPaymentRef: 'pay-123', realmId: 'realm-7'});
   const receipt = firestore.collection('commerceAudit').at(-1);
   assert.equal(receipt.event, 'transition_completed');
   assert.equal(receipt.workerId, 'worker-a');
+  assert.equal(receipt.claimId, claim.claimId);
   assert.equal(JSON.stringify(receipt).includes('pay-123'), false);
 });
 
@@ -300,12 +332,13 @@ test('records only a safe failure code and restores the pre-claim state for retr
   const retryAt = new Date('2026-08-29T18:15:00.000Z');
   const {firestore, repository} = repositoryFixture();
   await repository.createOrder('order-1', digitalOrder());
-  await repository.claimTransition('order-1', 'payment_verifying', 'worker-a');
+  const claim = await repository.claimTransition('order-1', 'payment_verifying', 'worker-a');
 
   assert.equal(await repository.recordFailure(
     'order-1',
     'payment_verifying',
     'worker-a',
+    claim.claimId,
     {code: 'provider_timeout', providerPayload: {secret: true}, retryAt}
   ), true);
 
@@ -314,9 +347,167 @@ test('records only a safe failure code and restores the pre-claim state for retr
   assert.equal(stored.activeTransition, null);
   assert.equal(stored.lastErrorCode, 'provider_timeout');
   assert.equal(stored.reconciliationDueAt.toDate().toISOString(), retryAt.toISOString());
+  assert.equal(stored.retry.attemptCount, 1);
+  assert.equal(stored.retry.dueAt.toDate().toISOString(), retryAt.toISOString());
   const receipt = firestore.collection('commerceAudit').at(-1);
   assert.equal(receipt.errorCode, 'provider_timeout');
   assert.equal(JSON.stringify(receipt).includes('secret'), false);
+});
+
+test('rejects a delayed result after the same worker releases and reclaims the transition', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createOrder('order-1', digitalOrder());
+  const firstClaim = await repository.claimTransition(
+    'order-1', 'payment_verifying', 'worker-a'
+  );
+  await repository.recordFailure(
+    'order-1',
+    'payment_verifying',
+    'worker-a',
+    firstClaim.claimId,
+    {code: 'provider_timeout'}
+  );
+
+  const secondClaim = await repository.claimTransition(
+    'order-1', 'payment_verifying', 'worker-a'
+  );
+
+  assert.notEqual(secondClaim.claimId, firstClaim.claimId);
+  assert.equal(secondClaim.revision, 2);
+  await assert.rejects(
+    repository.completeTransition(
+      'order-1', 'payment_verifying', 'worker-a', firstClaim.claimId
+    ),
+    {code: 'TRANSITION_CLAIM_LOST'}
+  );
+  assert.equal(firestore.document('orders/order-1').activeTransition.claimId, secondClaim.claimId);
+  assert.equal(await repository.completeTransition(
+    'order-1', 'payment_verifying', 'worker-a', secondClaim.claimId
+  ), true);
+});
+
+test('provider references are append-only and identical repeats remain idempotent', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createOrder('order-1', digitalOrder({
+    providerRefs: {providerOrderRef: 'bk-order-order-1'},
+  }));
+  const verifyingClaim = await repository.claimTransition(
+    'order-1', 'payment_verifying', 'worker-a'
+  );
+  await repository.completeTransition(
+    'order-1',
+    'payment_verifying',
+    'worker-a',
+    verifyingClaim.claimId,
+    {providerRefs: {providerOrderRef: 'bk-order-order-1', realmId: 'realm-7'}}
+  );
+  const paidClaim = await repository.claimTransition('order-1', 'paid', 'worker-a');
+
+  await assert.rejects(
+    repository.completeTransition('order-1', 'paid', 'worker-a', paidClaim.claimId, {
+      providerRefs: {providerOrderRef: 'different-order'},
+    }),
+    {code: 'PROVIDER_REF_CONFLICT'}
+  );
+  assert.deepEqual(firestore.document('orders/order-1').providerRefs, {
+    providerOrderRef: 'bk-order-order-1',
+    realmId: 'realm-7',
+  });
+  assert.equal(await repository.completeTransition(
+    'order-1',
+    'paid',
+    'worker-a',
+    paidClaim.claimId,
+    {
+      providerRefs: {
+        providerOrderRef: 'bk-order-order-1',
+        realmId: 'realm-7',
+        providerPaymentRef: 'payment-7',
+      },
+    }
+  ), true);
+  assert.deepEqual(firestore.document('orders/order-1').providerRefs, {
+    providerOrderRef: 'bk-order-order-1',
+    providerPaymentRef: 'payment-7',
+    realmId: 'realm-7',
+  });
+  assert.equal(await repository.completeTransition(
+    'order-1',
+    'paid',
+    'worker-a',
+    paidClaim.claimId,
+    {
+      providerRefs: {
+        providerOrderRef: 'bk-order-order-1',
+        realmId: 'realm-7',
+        providerPaymentRef: 'payment-7',
+      },
+    }
+  ), false);
+});
+
+test('keeps a claimed terminal transition discoverable until the claim completes', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createOrder('order-1', digitalOrder({status: 'fulfilling'}));
+  const claim = await repository.claimTransition('order-1', 'fulfilled', 'worker-a');
+
+  assert.equal(firestore.document('orders/order-1').terminal, false);
+  assert.deepEqual(
+    (await repository.listReconciliationCandidates(
+      new Date('2026-08-29T19:00:00.000Z')
+    )).map(order => order.id),
+    ['order-1']
+  );
+
+  await repository.completeTransition('order-1', 'fulfilled', 'worker-a', claim.claimId);
+
+  assert.equal(firestore.document('orders/order-1').terminal, true);
+  assert.deepEqual(await repository.listReconciliationCandidates(
+    new Date('2026-08-29T19:00:00.000Z')
+  ), []);
+
+  const refundClaim = await repository.claimTransition('order-1', 'refunded', 'worker-a');
+  assert.equal(
+    firestore.document('orders/order-1').reconciliationDueAt.toDate().toISOString(),
+    '2026-08-29T18:00:00.000Z'
+  );
+  assert.deepEqual(
+    (await repository.listReconciliationCandidates(
+      new Date('2026-08-29T19:00:00.000Z')
+    )).map(order => order.id),
+    ['order-1']
+  );
+  assert.equal(refundClaim.claimId, 'claim-2');
+});
+
+test('successful completion clears stale failure and retry metadata', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createOrder('order-1', digitalOrder());
+  const firstClaim = await repository.claimTransition(
+    'order-1', 'payment_verifying', 'worker-a'
+  );
+  await repository.recordFailure(
+    'order-1',
+    'payment_verifying',
+    'worker-a',
+    firstClaim.claimId,
+    {code: 'provider_timeout', retryAt: new Date('2026-08-29T18:15:00.000Z')}
+  );
+  const retryClaim = await repository.claimTransition(
+    'order-1', 'payment_verifying', 'worker-a'
+  );
+
+  await repository.completeTransition(
+    'order-1', 'payment_verifying', 'worker-a', retryClaim.claimId
+  );
+
+  const stored = firestore.document('orders/order-1');
+  assert.equal(stored.lastErrorCode, null);
+  assert.equal(stored.retry, null);
+  assert.equal(
+    stored.reconciliationDueAt.toDate().toISOString(),
+    '2026-08-29T18:00:00.000Z'
+  );
 });
 
 test('lists due nonterminal reconciliation candidates in due-time order', async () => {

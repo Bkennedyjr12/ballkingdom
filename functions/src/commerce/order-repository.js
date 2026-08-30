@@ -1,38 +1,20 @@
-import {createHash} from 'node:crypto';
+import {createHash, randomUUID} from 'node:crypto';
 import {FieldValue, Timestamp as FirestoreTimestamp} from 'firebase-admin/firestore';
+import {
+  isAllowedOrderStatusTransition,
+  isFinalOrderStatus,
+  isOrderStatus,
+  isReconciliationTerminalStatus,
+} from './order-state.js';
 
-const ORDER_STATUSES = new Set([
-  'created',
-  'pending_payment',
-  'payment_verifying',
-  'pending_invoice_approval',
-  'invoice_processing',
-  'invoiced',
-  'paid',
-  'fulfilling',
-  'fulfilled',
-  'cancelled',
-  'refunded',
-  'manual_review',
+const UNSAFE_PROVIDER_KEY = /token|card|bank|accountNumber|payload|secret|credential/i;
+const ALLOWED_PROVIDER_KEYS = new Set([
+  'realmId',
+  'providerPaymentRef',
+  'providerOrderRef',
+  'invoiceId',
+  'customerId',
 ]);
-const TERMINAL_STATUSES = new Set(['fulfilled', 'cancelled', 'refunded', 'manual_review']);
-const FINAL_STATUSES = new Set(['cancelled', 'refunded']);
-const ALLOWED_TRANSITIONS = Object.freeze({
-  created: new Set(['pending_payment', 'pending_invoice_approval', 'cancelled']),
-  pending_payment: new Set(['payment_verifying', 'manual_review', 'cancelled']),
-  payment_verifying: new Set(['paid', 'pending_payment', 'manual_review', 'cancelled']),
-  pending_invoice_approval: new Set(['invoice_processing', 'cancelled']),
-  invoice_processing: new Set(['invoiced', 'pending_invoice_approval']),
-  invoiced: new Set(['payment_verifying', 'cancelled']),
-  paid: new Set(['fulfilling', 'refunded']),
-  fulfilling: new Set(['fulfilled', 'paid', 'refunded']),
-  fulfilled: new Set(['refunded']),
-  manual_review: new Set(['cancelled', 'refunded']),
-  cancelled: new Set(),
-  refunded: new Set(),
-});
-const UNSAFE_PROVIDER_KEY = /token|card|bank|accountNumber|payload/i;
-const PROVIDER_KEY = /^[a-z][A-Za-z0-9]{1,63}(?:Id|Ref|Reference)$/;
 const PROVIDER_VALUE = /^[A-Za-z0-9._:/-]{1,200}$/;
 const DOCUMENT_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const WORKER_ID = /^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$/;
@@ -70,12 +52,22 @@ function normalizeProviderRefs(value) {
   }
   const entries = Object.entries(value).sort(([left], [right]) => left.localeCompare(right));
   for (const [key, reference] of entries) {
-    if (UNSAFE_PROVIDER_KEY.test(key) || !PROVIDER_KEY.test(key)
+    if (UNSAFE_PROVIDER_KEY.test(key) || !ALLOWED_PROVIDER_KEYS.has(key)
       || typeof reference !== 'string' || !PROVIDER_VALUE.test(reference)) {
       throw repositoryError('UNSAFE_PROVIDER_REFS', 'Provider references are invalid');
     }
   }
   return Object.freeze(Object.fromEntries(entries));
+}
+
+function mergeProviderRefs(existing, incoming) {
+  const current = normalizeProviderRefs(existing);
+  for (const [key, value] of Object.entries(incoming)) {
+    if (Object.hasOwn(current, key) && current[key] !== value) {
+      throw repositoryError('PROVIDER_REF_CONFLICT', 'Provider reference cannot be changed');
+    }
+  }
+  return {...current, ...incoming};
 }
 
 function normalizeCustomer(value) {
@@ -88,7 +80,7 @@ function normalizeCustomer(value) {
 function normalizeOrder(order) {
   if (!plainObject(order)) throw repositoryError('ORDER_INVALID', 'order is invalid');
   const status = requiredText(order.status, 'status', 64);
-  if (!ORDER_STATUSES.has(status)) throw repositoryError('ORDER_INVALID', 'status is invalid');
+  if (!isOrderStatus(status)) throw repositoryError('ORDER_INVALID', 'status is invalid');
   if (!Number.isInteger(order.amountCents) || order.amountCents <= 0) {
     throw repositoryError('ORDER_INVALID', 'amountCents is invalid');
   }
@@ -134,6 +126,8 @@ function auditReceipt(fields, fieldValue) {
     'fromStatus',
     'toStatus',
     'workerId',
+    'claimId',
+    'revision',
     'errorCode',
   ];
   return Object.fromEntries([
@@ -147,11 +141,13 @@ export function createOrderRepository({
   fieldValue = FieldValue,
   Timestamp = FirestoreTimestamp,
   clock = () => new Date(),
+  claimIdFactory = randomUUID,
 } = {}) {
   if (!db?.collection || !db?.runTransaction) {
     throw new TypeError('Firestore db is required');
   }
-  if (!fieldValue?.serverTimestamp || !Timestamp?.fromDate || typeof clock !== 'function') {
+  if (!fieldValue?.serverTimestamp || !Timestamp?.fromDate || typeof clock !== 'function'
+    || typeof claimIdFactory !== 'function') {
     throw new TypeError('Firestore timestamp dependencies are required');
   }
 
@@ -160,9 +156,10 @@ export function createOrderRepository({
   const orderRef = orderId => orders.doc(requiredId(orderId, 'orderId'));
   const auditRef = () => audits.doc();
 
-  function matchingClaim(order, transition, workerId) {
+  function matchingClaim(order, transition, workerId, claimId) {
     return order.activeTransition?.transition === transition
-      && order.activeTransition?.workerId === workerId;
+      && order.activeTransition?.workerId === workerId
+      && order.activeTransition?.claimId === claimId;
   }
 
   return Object.freeze({
@@ -196,7 +193,7 @@ export function createOrderRepository({
           idempotencyFingerprint,
           activeTransition: null,
           revision: 0,
-          terminal: TERMINAL_STATUSES.has(order.status),
+          terminal: isReconciliationTerminalStatus(order.status),
           reconciliationDueAt,
           createdAt: timestamp,
           updatedAt: timestamp,
@@ -220,7 +217,9 @@ export function createOrderRepository({
       const id = requiredId(orderId, 'orderId');
       const nextStatus = requiredText(transition, 'transition', 64);
       const worker = requiredId(workerId, 'workerId', WORKER_ID);
-      if (!ORDER_STATUSES.has(nextStatus)) {
+      const claimId = requiredId(claimIdFactory(), 'claimId');
+      const claimedReconciliationAt = Timestamp.fromDate(dateValue(clock(), 'clock'));
+      if (!isOrderStatus(nextStatus)) {
         throw repositoryError('ORDER_INVALID', 'transition is invalid');
       }
       const reference = orderRef(id);
@@ -231,24 +230,28 @@ export function createOrderRepository({
         if (!snapshot.exists) throw repositoryError('ORDER_NOT_FOUND', 'Order was not found');
         const order = snapshot.data();
         if (order.activeTransition != null || order.status === nextStatus
-          || FINAL_STATUSES.has(order.status)) {
+          || isFinalOrderStatus(order.status)) {
           return false;
         }
-        if (!ALLOWED_TRANSITIONS[order.status]?.has(nextStatus)) {
+        if (!isAllowedOrderStatusTransition(order.status, nextStatus)) {
           throw repositoryError('INVALID_ORDER_TRANSITION', 'Order transition is invalid');
         }
         const timestamp = fieldValue.serverTimestamp();
+        const revision = Number(order.revision ?? 0) + 1;
         transaction.set(reference, {
           ...order,
           status: nextStatus,
-          terminal: TERMINAL_STATUSES.has(nextStatus),
+          terminal: false,
+          reconciliationDueAt: claimedReconciliationAt,
           activeTransition: {
+            claimId,
             transition: nextStatus,
             previousStatus: order.status,
             workerId: worker,
+            revision,
             claimedAt: timestamp,
           },
-          revision: Number(order.revision ?? 0) + 1,
+          revision,
           updatedAt: timestamp,
         });
         transaction.create(receipt, auditReceipt({
@@ -257,16 +260,23 @@ export function createOrderRepository({
           fromStatus: order.status,
           toStatus: nextStatus,
           workerId: worker,
+          claimId,
+          revision,
         }, fieldValue));
-        return true;
+        return Object.freeze({claimId, revision});
       });
     },
 
-    async completeTransition(orderId, transition, workerId, result = {}) {
+    async completeTransition(orderId, transition, workerId, rawClaimId, result = {}) {
       const id = requiredId(orderId, 'orderId');
       const nextStatus = requiredText(transition, 'transition', 64);
       const worker = requiredId(workerId, 'workerId', WORKER_ID);
+      const claimId = requiredId(rawClaimId, 'claimId');
       const providerRefs = normalizeProviderRefs(result.providerRefs);
+      const nextReconciliationAt = Timestamp.fromDate(dateValue(
+        result.reconciliationDueAt ?? clock(),
+        'reconciliationDueAt'
+      ));
       const reference = orderRef(id);
       const receipt = auditRef();
 
@@ -274,20 +284,30 @@ export function createOrderRepository({
         const snapshot = await transaction.get(reference);
         if (!snapshot.exists) throw repositoryError('ORDER_NOT_FOUND', 'Order was not found');
         const order = snapshot.data();
-        if (!matchingClaim(order, nextStatus, worker)) {
+        const mergedProviderRefs = mergeProviderRefs(order.providerRefs, providerRefs);
+        if (!matchingClaim(order, nextStatus, worker, claimId)) {
           if (order.activeTransition == null
             && order.lastTransition?.transition === nextStatus
-            && order.lastTransition?.workerId === worker) return false;
+            && order.lastTransition?.workerId === worker
+            && order.lastTransition?.claimId === claimId) return false;
           throw repositoryError('TRANSITION_CLAIM_LOST', 'Transition claim is no longer held');
         }
         const timestamp = fieldValue.serverTimestamp();
         transaction.set(reference, {
           ...order,
-          providerRefs: {...(order.providerRefs ?? {}), ...providerRefs},
+          providerRefs: mergedProviderRefs,
+          terminal: isReconciliationTerminalStatus(nextStatus),
           activeTransition: null,
+          lastErrorCode: null,
+          retry: null,
+          reconciliationDueAt: isReconciliationTerminalStatus(nextStatus)
+            ? null
+            : nextReconciliationAt,
           lastTransition: {
+            claimId,
             transition: nextStatus,
             workerId: worker,
+            revision: order.activeTransition.revision,
             completedAt: timestamp,
           },
           updatedAt: timestamp,
@@ -297,15 +317,18 @@ export function createOrderRepository({
           event: 'transition_completed',
           toStatus: nextStatus,
           workerId: worker,
+          claimId,
+          revision: order.activeTransition.revision,
         }, fieldValue));
         return true;
       });
     },
 
-    async recordFailure(orderId, transition, workerId, failure = {}) {
+    async recordFailure(orderId, transition, workerId, rawClaimId, failure = {}) {
       const id = requiredId(orderId, 'orderId');
       const nextStatus = requiredText(transition, 'transition', 64);
       const worker = requiredId(workerId, 'workerId', WORKER_ID);
+      const claimId = requiredId(rawClaimId, 'claimId');
       const errorCode = typeof failure.code === 'string' && SAFE_ERROR_CODE.test(failure.code)
         ? failure.code
         : 'operation_failed';
@@ -317,7 +340,7 @@ export function createOrderRepository({
         const snapshot = await transaction.get(reference);
         if (!snapshot.exists) throw repositoryError('ORDER_NOT_FOUND', 'Order was not found');
         const order = snapshot.data();
-        if (!matchingClaim(order, nextStatus, worker)) {
+        if (!matchingClaim(order, nextStatus, worker, claimId)) {
           throw repositoryError('TRANSITION_CLAIM_LOST', 'Transition claim is no longer held');
         }
         const restoredStatus = order.activeTransition.previousStatus;
@@ -325,10 +348,14 @@ export function createOrderRepository({
         transaction.set(reference, {
           ...order,
           status: restoredStatus,
-          terminal: TERMINAL_STATUSES.has(restoredStatus),
+          terminal: isReconciliationTerminalStatus(restoredStatus),
           activeTransition: null,
           lastErrorCode: errorCode,
           reconciliationDueAt: retryAt,
+          retry: {
+            attemptCount: Number(order.retry?.attemptCount ?? 0) + 1,
+            dueAt: retryAt,
+          },
           updatedAt: timestamp,
         });
         transaction.create(receipt, auditReceipt({
@@ -337,6 +364,8 @@ export function createOrderRepository({
           fromStatus: nextStatus,
           toStatus: restoredStatus,
           workerId: worker,
+          claimId,
+          revision: order.activeTransition.revision,
           errorCode,
         }, fieldValue));
         return true;

@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newOrder, transitionOrder} from '../../src/commerce/order-state.js';
+import {
+  isAllowedOrderStatusTransition,
+  isFinalOrderStatus,
+  isOrderStatus,
+  isReconciliationTerminalStatus,
+  newOrder,
+  transitionOrder,
+} from '../../src/commerce/order-state.js';
 import {publicCommerceError} from '../../src/commerce/public-errors.js';
 
 const digitalItem = {
@@ -135,4 +142,43 @@ test('requires invoice approval before a service payment can be verified', () =>
   assert.equal(invoiced.status, 'invoiced');
   assert.equal(verifying.status, 'payment_verifying');
   assert.equal(paid.status, 'paid');
+});
+
+test('exports storage-safe status metadata from the same transition source', () => {
+  assert.equal(isOrderStatus('payment_verifying'), true);
+  assert.equal(isOrderStatus('invented'), false);
+  assert.equal(isAllowedOrderStatusTransition('pending_payment', 'payment_verifying'), true);
+  assert.equal(isAllowedOrderStatusTransition('pending_payment', 'fulfilled'), false);
+  assert.equal(isReconciliationTerminalStatus('manual_review'), true);
+  assert.equal(isReconciliationTerminalStatus('paid'), false);
+  assert.equal(isFinalOrderStatus('refunded'), true);
+  assert.equal(isFinalOrderStatus('fulfilled'), false);
+});
+
+test('shared storage predicate has exhaustive parity with the Task 3 transition graph', () => {
+  const expectedTargets = {
+    created: ['pending_payment', 'pending_invoice_approval', 'cancelled'],
+    pending_payment: ['payment_verifying', 'manual_review', 'cancelled'],
+    payment_verifying: ['paid', 'pending_payment', 'manual_review', 'cancelled'],
+    pending_invoice_approval: ['invoice_processing', 'cancelled'],
+    invoice_processing: ['invoiced', 'pending_invoice_approval'],
+    invoiced: ['payment_verifying', 'cancelled'],
+    paid: ['fulfilling', 'refunded'],
+    fulfilling: ['fulfilled', 'paid', 'refunded'],
+    fulfilled: ['refunded'],
+    manual_review: ['cancelled', 'refunded'],
+    cancelled: [],
+    refunded: [],
+  };
+  const statuses = Object.keys(expectedTargets);
+
+  for (const currentStatus of statuses) {
+    for (const nextStatus of statuses) {
+      assert.equal(
+        isAllowedOrderStatusTransition(currentStatus, nextStatus),
+        expectedTargets[currentStatus].includes(nextStatus),
+        `${currentStatus} -> ${nextStatus}`
+      );
+    }
+  }
 });
