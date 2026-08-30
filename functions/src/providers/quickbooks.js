@@ -162,6 +162,36 @@ function normalizeInvoiceEntity(invoice, expectedId) {
   };
 }
 
+function normalizeDocumentNumber(value) {
+  if (value == null) return null;
+  if (!isNonEmptyString(value)) throw invalidResponse('Invoice create');
+  return value;
+}
+
+function assertCommerceInvoiceReadback(providerInvoice, normalizedInvoice, expected) {
+  const salesLines = Array.isArray(providerInvoice?.Line)
+    ? providerInvoice.Line.filter(line => line?.DetailType === 'SalesItemLineDetail')
+    : [];
+  const line = salesLines[0];
+  const detail = line?.SalesItemLineDetail;
+  if (
+    salesLines.length !== 1 ||
+    providerInvoice.CustomerRef?.value !== expected.customerId ||
+    normalizedInvoice.providerOrderRef !== expected.providerOrderRef ||
+    normalizedInvoice.totalAmountCents !== expected.amountCents ||
+    normalizedInvoice.balanceCents !== expected.amountCents ||
+    normalizedInvoice.currency !== expected.currency ||
+    normalizedInvoice.entityState !== 'present' ||
+    normalizedInvoice.paymentState !== 'unpaid' ||
+    detail?.ItemRef?.value !== expected.itemId ||
+    detail.Qty !== 1 ||
+    providerMoneyToCents(line.Amount, 'Invoice') !== expected.amountCents ||
+    providerMoneyToCents(detail.UnitPrice, 'Invoice') !== expected.amountCents
+  ) {
+    throw invalidResponse('Invoice create readback');
+  }
+}
+
 function normalizeCdcResponse(data, realmId) {
   if (!data || typeof data !== 'object' || !Array.isArray(data.CDCResponse)) {
     throw invalidResponse('change data capture');
@@ -201,6 +231,26 @@ function normalizeCdcResponse(data, realmId) {
   return {realmId:String(realmId),changes};
 }
 
+function isDocumentedInvoiceSendResult(invoice, invoiceId, customerEmail) {
+  return (
+    invoice !== null &&
+    typeof invoice === 'object' &&
+    !Array.isArray(invoice) &&
+    invoice.Id === invoiceId &&
+    invoice.EmailStatus === 'EmailSent' &&
+    invoice.BillEmail !== null &&
+    typeof invoice.BillEmail === 'object' &&
+    !Array.isArray(invoice.BillEmail) &&
+    invoice.BillEmail.Address === customerEmail &&
+    invoice.DeliveryInfo !== null &&
+    typeof invoice.DeliveryInfo === 'object' &&
+    !Array.isArray(invoice.DeliveryInfo) &&
+    invoice.DeliveryInfo.DeliveryType === 'Email' &&
+    isNonEmptyString(invoice.DeliveryInfo.DeliveryTime) &&
+    !Number.isNaN(Date.parse(invoice.DeliveryInfo.DeliveryTime))
+  );
+}
+
 export function createQuickBooksClient(config, fetchImpl = fetch) {
   const root = config.sandbox ? SANDBOX_ROOT : PROD_ROOT;
   let cachedAccessToken = null;
@@ -238,18 +288,32 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
 
   async function query(entity, field, value) {
     const statement = `select * from ${entity} where ${field} = '${qboString(value)}' maxresults 1`;
-    const response = await request(`/query?query=${encodeURIComponent(statement)}&minorversion=${MINOR_VERSION}`);
-    const data = await response.json();
-    return data.QueryResponse?.[entity]?.[0] ?? null;
+    const data = await requestJson(
+      `/query?query=${encodeURIComponent(statement)}&minorversion=${MINOR_VERSION}`,
+      undefined,
+      `${entity} query`,
+    );
+    if (!data?.QueryResponse || typeof data.QueryResponse !== 'object' || Array.isArray(data.QueryResponse)) {
+      throw invalidResponse(`${entity} query`);
+    }
+    const matches = data.QueryResponse[entity];
+    if (matches === undefined) return null;
+    if (!Array.isArray(matches)) throw invalidResponse(`${entity} query`);
+    return matches[0] ?? null;
   }
 
   async function ensureCustomer({customerName, customerEmail}) {
     const existing = await query('Customer', 'PrimaryEmailAddr', customerEmail);
     if (existing) return existing;
-    const response = await request(`/customer?minorversion=${MINOR_VERSION}`, {
-      method:'POST', body:{DisplayName:customerName,PrimaryEmailAddr:{Address:customerEmail}},
-    });
-    return (await response.json()).Customer;
+    const data = await requestJson(
+      `/customer?minorversion=${MINOR_VERSION}`,
+      {method:'POST',body:{DisplayName:customerName,PrimaryEmailAddr:{Address:customerEmail}}},
+      'Customer create',
+    );
+    if (!data?.Customer || typeof data.Customer !== 'object' || Array.isArray(data.Customer)) {
+      throw invalidResponse('Customer create');
+    }
+    return data.Customer;
   }
 
   async function readPayment(paymentId) {
@@ -260,6 +324,16 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
       'Payment read',
     );
     return normalizePaymentEntity(data?.Payment, paymentId);
+  }
+
+  async function readInvoiceEntity(invoiceId) {
+    const data = await requestJson(
+      `/invoice/${encodeURIComponent(invoiceId)}?minorversion=${MINOR_VERSION}`,
+      undefined,
+      'Invoice read',
+    );
+    const normalized = normalizeInvoiceEntity(data?.Invoice, invoiceId);
+    return {providerInvoice:data.Invoice,...normalized};
   }
 
   return {
@@ -319,13 +393,26 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
         {method:'POST',body:payload},
         'Invoice create',
       );
-      if (!data?.Invoice || !isNonEmptyString(data.Invoice.Id) || !isNonEmptyString(data.Invoice.DocNumber)) {
+      if (!data?.Invoice || !isNonEmptyString(data.Invoice.Id)) {
         throw invalidResponse('Invoice create');
+      }
+      const documentNumber = normalizeDocumentNumber(data.Invoice.DocNumber);
+      try {
+        const readback = await readInvoiceEntity(data.Invoice.Id);
+        assertCommerceInvoiceReadback(readback.providerInvoice, readback.invoice, {
+          customerId:customer.Id,
+          itemId:item.Id,
+          providerOrderRef,
+          amountCents:normalizedOrder.amountCents,
+          currency:normalizedOrder.currency,
+        });
+      } catch {
+        throw new Error('QuickBooks Invoice create readback was invalid');
       }
       return {
         customerId:customer.Id,
         invoiceId:data.Invoice.Id,
-        documentNumber:data.Invoice.DocNumber,
+        documentNumber,
       };
     },
 
@@ -339,18 +426,15 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
         {method:'POST',contentType:'application/octet-stream'},
         'Invoice send',
       );
-      if (!data?.Invoice || data.Invoice.Id !== invoiceId) throw invalidResponse('Invoice send');
+      if (!isDocumentedInvoiceSendResult(data?.Invoice, invoiceId, customerEmail)) {
+        throw invalidResponse('Invoice send');
+      }
       return {invoiceId,sendAccepted:true};
     },
 
     async getInvoice(invoiceId) {
       if (!isNonEmptyString(invoiceId)) throw unusable('Invoice');
-      const data = await requestJson(
-        `/invoice/${encodeURIComponent(invoiceId)}?minorversion=${MINOR_VERSION}`,
-        undefined,
-        'Invoice read',
-      );
-      const normalized = normalizeInvoiceEntity(data?.Invoice, invoiceId);
+      const normalized = await readInvoiceEntity(invoiceId);
       const payments = [];
       for (const paymentId of normalized.paymentIds) payments.push(await readPayment(paymentId));
       return {realmId:String(config.realmId),invoice:normalized.invoice,payments};
