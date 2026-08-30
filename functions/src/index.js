@@ -152,7 +152,105 @@ function lazyQuickBooksClient() {
 }
 
 function commerceRepository() {
-  return createOrderRepository({db,fieldValue:FieldValue,Timestamp});
+  const repository = createOrderRepository({db,fieldValue:FieldValue,Timestamp});
+  const reviews = db.collection('commerceRefundReviews');
+  const reviewTotals = db.collection('commerceRefundReviewTotals');
+  const orders = db.collection('orders');
+  const audits = db.collection('commerceAudit');
+  const safeId = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value);
+  const safeDigest = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+  const audit = fields => ({...fields,createdAt:FieldValue.serverTimestamp()});
+  return Object.freeze({
+    ...repository,
+    async recordRefundReview(input = {}) {
+      if (!safeId(input.orderId) || !safeId(input.adminUid) || !safeDigest(input.idempotencyKey)
+        || !Number.isSafeInteger(input.amountCents) || input.amountCents <= 0
+        || !Number.isSafeInteger(input.verifiedUnrefundedAmountCents)
+        || input.verifiedUnrefundedAmountCents < input.amountCents
+        || typeof input.reason !== 'string' || input.reason.length < 1 || input.reason.length > 500
+        || input.reason !== input.reason.trim()) {
+        throw new Error('Refund review is invalid');
+      }
+      const reference = reviews.doc(input.idempotencyKey);
+      const totalReference = reviewTotals.doc(input.orderId);
+      const receipt = audits.doc();
+      return db.runTransaction(async transaction => {
+        const [existing,totalSnapshot] = await Promise.all([
+          transaction.get(reference),transaction.get(totalReference),
+        ]);
+        if (existing.exists) {
+          const data = existing.data();
+          return {reviewId:reference.id,amountCents:data.amountCents,status:data.status,duplicate:true};
+        }
+        const pendingAmountCents = Number(totalSnapshot.data()?.pendingAmountCents ?? 0);
+        if (!Number.isSafeInteger(pendingAmountCents)
+          || pendingAmountCents + input.amountCents > input.verifiedUnrefundedAmountCents) {
+          const error = new Error('Refund amount is invalid');
+          error.code = 'REFUND_AMOUNT_INVALID';
+          throw error;
+        }
+        transaction.create(reference, {
+          orderId:input.orderId,amountCents:input.amountCents,reason:input.reason,
+          requestedByUid:input.adminUid,status:'pending_operator_action',
+          createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp(),
+        });
+        transaction.set(totalReference, {
+          orderId:input.orderId,pendingAmountCents:pendingAmountCents + input.amountCents,
+          updatedAt:FieldValue.serverTimestamp(),
+        });
+        transaction.create(receipt,audit({
+          orderId:input.orderId,event:'refund_review_requested',amountCents:input.amountCents,
+          actorUid:input.adminUid,
+        }));
+        return {reviewId:reference.id,amountCents:input.amountCents,status:'pending_operator_action',duplicate:false};
+      });
+    },
+    async recordRefundManualReview({orderId,adminUid,errorCode} = {}) {
+      if (!safeId(orderId) || !safeId(adminUid)
+        || typeof errorCode !== 'string' || !/^[a-z0-9_-]{1,64}$/.test(errorCode)) {
+        throw new Error('Refund reconciliation is invalid');
+      }
+      const reference = orders.doc(orderId);
+      const receipt = audits.doc();
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists || !['paid','fulfilled'].includes(snapshot.data().status)) return false;
+        transaction.update(reference,{
+          refundReconciliation:{status:'manual_review',errorCode,updatedAt:FieldValue.serverTimestamp()},
+          updatedAt:FieldValue.serverTimestamp(),
+        });
+        transaction.create(receipt,audit({orderId,event:'refund_manual_review',errorCode,actorUid:adminUid}));
+        return true;
+      });
+    },
+    async completeRefundReconciliation({orderId,amountCents,adminUid,evidenceId} = {}) {
+      if (!safeId(orderId) || !safeId(adminUid) || !safeDigest(evidenceId)
+        || !Number.isSafeInteger(amountCents) || amountCents <= 0) {
+        throw new Error('Refund reconciliation is invalid');
+      }
+      const reference = orders.doc(orderId);
+      const receipt = audits.doc();
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists) throw new Error('Order was not found');
+        const order = snapshot.data();
+        if (order.status === 'refunded' && order.refundEvidenceId === evidenceId) return false;
+        const unrefunded = Number(order.amountCents) - Number(order.refundedAmountCents ?? 0);
+        if (!['paid','fulfilled'].includes(order.status) || amountCents !== unrefunded) {
+          throw new Error('Refund reconciliation state is invalid');
+        }
+        transaction.update(reference,{
+          status:'refunded',terminal:true,refundedAmountCents:amountCents,
+          refundEvidenceId:evidenceId,refundReconciliation:{status:'exact_accounting_refund'},
+          activeTransition:null,reconciliationDueAt:null,updatedAt:FieldValue.serverTimestamp(),
+        });
+        transaction.create(receipt,audit({
+          orderId,event:'refund_reconciled',amountCents,actorUid:adminUid,evidenceId,
+        }));
+        return true;
+      });
+    },
+  });
 }
 
 function commerceHttpsError(error) {
@@ -164,7 +262,9 @@ function commerceHttpsError(error) {
     return new HttpsError('permission-denied','This operation is not permitted');
   }
   if (error?.code === 'ORDER_NOT_FOUND') return new HttpsError('not-found','Order was not found');
-  if (error?.code === 'ORDER_INVALID') return new HttpsError('invalid-argument','Request data is invalid');
+  if (['ORDER_INVALID','REFUND_AMOUNT_INVALID','REFUND_REASON_INVALID'].includes(error?.code)) {
+    return new HttpsError('invalid-argument','Request data is invalid');
+  }
   if (error?.code === 'RATE_LIMITED') return new HttpsError('resource-exhausted','Try again later');
   return new HttpsError('failed-precondition','Commerce operation could not be completed');
 }
@@ -262,6 +362,43 @@ export const getCommerceReleaseState = onCall({region:REGION,enforceAppCheck:tru
       token:request.auth?.token,
       app:request.app,
     });
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
+function adminCommerceContext(request) {
+  return {uid:request.auth?.uid,token:request.auth?.token,app:request.app};
+}
+
+export const requestRefundReview = onCall({
+  region:REGION,secrets:QBO_SECRETS,enforceAppCheck:true,
+}, async request => {
+  try {
+    const service = runtimeCommerceService({withQuickBooks:true});
+    return await service.requestRefundReview(request.data, adminCommerceContext(request));
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
+export const reconcileOrder = onCall({
+  region:REGION,secrets:QBO_SECRETS,enforceAppCheck:true,
+}, async request => {
+  try {
+    const service = runtimeCommerceService({withQuickBooks:true});
+    return await service.reconcileOrder(request.data, adminCommerceContext(request));
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
+export const reconcileRefund = onCall({
+  region:REGION,secrets:QBO_SECRETS,enforceAppCheck:true,
+}, async request => {
+  try {
+    const service = runtimeCommerceService({withQuickBooks:true});
+    return await service.reconcileRefund(request.data, adminCommerceContext(request));
   } catch (error) {
     throw commerceHttpsError(error);
   }

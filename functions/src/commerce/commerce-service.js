@@ -10,6 +10,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SAFE_IDEMPOTENCY_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const RECONCILIATION_LIMIT = 50;
 const RECONCILIATION_HINT_TTL_MS = 24 * 60 * 60 * 1000;
+const REFUND_REASON_MAXIMUM = 500;
 
 function commerceError(code, message) {
   const error = new Error(message);
@@ -37,6 +38,65 @@ function recipientBinding(email) {
 
 function rateLimitKey(value) {
   return createHash('sha256').update(`rate\0${value}`).digest('hex');
+}
+
+function requireAdminContext(authContext) {
+  if (!authContext?.app) throw commerceError('APP_CHECK_REQUIRED', 'App Check is required');
+  if (typeof authContext?.uid !== 'string' || authContext.uid.length < 1) {
+    throw commerceError('AUTH_REQUIRED', 'Authentication is required');
+  }
+  if ((authContext.admin ?? authContext.token?.admin) !== true) {
+    throw commerceError('ADMIN_REQUIRED', 'An administrator is required');
+  }
+  return authContext.uid;
+}
+
+function refundRequest(input, {reasonRequired = false} = {}) {
+  if (!record(input)) throw commerceError('ORDER_INVALID', 'Refund request is invalid');
+  const allowed = reasonRequired ? ['amountCents','orderId','reason'] : ['amountCents','orderId'];
+  if (Object.keys(input).some(key => !allowed.includes(key))
+    || typeof input.orderId !== 'string' || !SAFE_IDEMPOTENCY_KEY.test(input.orderId)
+    || !Number.isSafeInteger(input.amountCents) || input.amountCents <= 0) {
+    throw commerceError('REFUND_AMOUNT_INVALID', 'Refund request is invalid');
+  }
+  if (reasonRequired && (typeof input.reason !== 'string'
+    || input.reason !== input.reason.trim()
+    || input.reason.length < 1 || input.reason.length > REFUND_REASON_MAXIMUM)) {
+    throw commerceError('REFUND_REASON_INVALID', 'Refund reason is invalid');
+  }
+  return input;
+}
+
+function refundReviewIdempotencyKey({orderId,amountCents,reason}, adminUid) {
+  return createHash('sha256')
+    .update(`refund-review\0${orderId}\0${amountCents}\0${reason}\0${adminUid}`)
+    .digest('hex');
+}
+
+function exactRefundEvidence(evidence, paymentEvidence, order, amountCents) {
+  const refund = evidence?.refund;
+  const payment = paymentEvidence?.payments?.[0];
+  return record(evidence)
+    && Object.keys(evidence).sort().join(',') === [
+      'currency','invoiceId','providerOrderRef','providerPaymentRef','realmId','refund',
+    ].sort().join(',')
+    && record(refund)
+    && Object.keys(refund).sort().join(',') === [
+      'amountCents','currency','entityState','invoiceId','providerOrderRef','providerPaymentRef','refundId','status',
+    ].sort().join(',')
+    && evidence.realmId === order.providerRefs.realmId
+    && evidence.invoiceId === order.providerRefs.invoiceId
+    && evidence.providerOrderRef === order.providerRefs.providerOrderRef
+    && evidence.providerPaymentRef === payment?.providerPaymentRef
+    && evidence.currency === order.currency
+    && typeof refund.refundId === 'string' && refund.refundId.length > 0
+    && refund.entityState === 'present'
+    && refund.status === 'completed'
+    && refund.amountCents === amountCents
+    && refund.invoiceId === evidence.invoiceId
+    && refund.providerOrderRef === evidence.providerOrderRef
+    && refund.providerPaymentRef === evidence.providerPaymentRef
+    && refund.currency === evidence.currency;
 }
 
 function approvedRecipient(candidate, approved) {
@@ -803,6 +863,122 @@ export function createCommerceService({
         manualReviewCount:recovered.manualReviewOrderIds.length
           + recovered.manualReviewPilotAuthBindings.length,
       });
+    },
+
+    async requestRefundReview(input, authContext) {
+      const adminUid = requireAdminContext(authContext);
+      const request = refundRequest(input, {reasonRequired:true});
+      const order = await repository.getOrder(request.orderId);
+      if (!order || !['paid','fulfilled'].includes(order.status)
+        || !order.providerRefs?.invoiceId || !order.providerRefs?.realmId) {
+        throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
+      }
+      let evidence;
+      try {
+        evidence = await quickbooks?.getInvoice?.(order.providerRefs.invoiceId);
+        verifyQuickBooksPaymentEvidence(evidence, {
+          realmId:order.providerRefs.realmId,
+          invoiceId:order.providerRefs.invoiceId,
+          providerOrderRef:order.providerRefs.providerOrderRef,
+          amountCents:order.amountCents,
+          currency:order.currency,
+        });
+      } catch {
+        throw commerceError('REFUND_EVIDENCE_UNAVAILABLE', 'Refund amount cannot be verified');
+      }
+      const verifiedUnrefundedAmountCents = order.amountCents - Number(order.refundedAmountCents ?? 0);
+      if (request.amountCents > verifiedUnrefundedAmountCents) {
+        throw commerceError('REFUND_AMOUNT_INVALID', 'Refund amount is invalid');
+      }
+      if (typeof repository.recordRefundReview !== 'function') {
+        throw commerceError('COMMERCE_CONFIGURATION_INVALID', 'Commerce is unavailable');
+      }
+      const recorded = await repository.recordRefundReview({
+        orderId:request.orderId,
+        amountCents:request.amountCents,
+        reason:request.reason,
+        adminUid,
+        verifiedUnrefundedAmountCents,
+        idempotencyKey:refundReviewIdempotencyKey(request, adminUid),
+      });
+      return Object.freeze({
+        reviewHandle:createHash('sha256').update(`refund-review-handle\0${recorded.reviewId}`).digest('hex'),
+        status:'pending_operator_action',
+        duplicate:recorded.duplicate === true,
+      });
+    },
+
+    async reconcileOrder(input, authContext) {
+      requireAdminContext(authContext);
+      if (!record(input) || Object.keys(input).some(key => key !== 'orderId')
+        || typeof input.orderId !== 'string' || !SAFE_IDEMPOTENCY_KEY.test(input.orderId)) {
+        throw commerceError('ORDER_INVALID', 'Order is invalid');
+      }
+      const order = await repository.getOrder(input.orderId);
+      if (!order || !['paid','fulfilled'].includes(order.status)
+        || !order.providerRefs?.invoiceId || !order.providerRefs?.realmId) {
+        throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
+      }
+      try {
+        const evidence = await quickbooks?.getInvoice?.(order.providerRefs.invoiceId);
+        verifyQuickBooksPaymentEvidence(evidence, {
+          realmId:order.providerRefs.realmId,
+          invoiceId:order.providerRefs.invoiceId,
+          providerOrderRef:order.providerRefs.providerOrderRef,
+          amountCents:order.amountCents,
+          currency:order.currency,
+        });
+      } catch {
+        throw commerceError('PAYMENT_EVIDENCE_UNAVAILABLE', 'Accounting evidence is unavailable');
+      }
+      return Object.freeze({orderHandle:order.id,status:order.status,evidence:'exact_accounting_payment'});
+    },
+
+    async reconcileRefund(input, authContext) {
+      const adminUid = requireAdminContext(authContext);
+      const request = refundRequest(input);
+      const order = await repository.getOrder(request.orderId);
+      if (!order || !['paid','fulfilled'].includes(order.status)
+        || !order.providerRefs?.invoiceId || !order.providerRefs?.realmId) {
+        throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
+      }
+      const preserveForManualReview = async errorCode => {
+        if (typeof repository.recordRefundManualReview === 'function') {
+          await repository.recordRefundManualReview({orderId:order.id,adminUid,errorCode});
+        }
+        return Object.freeze({orderHandle:order.id,status:order.status,reconciliation:'manual_review'});
+      };
+      let paymentEvidence;
+      let refundEvidence;
+      try {
+        paymentEvidence = await quickbooks?.getInvoice?.(order.providerRefs.invoiceId);
+        verifyQuickBooksPaymentEvidence(paymentEvidence, {
+          realmId:order.providerRefs.realmId,
+          invoiceId:order.providerRefs.invoiceId,
+          providerOrderRef:order.providerRefs.providerOrderRef,
+          amountCents:order.amountCents,
+          currency:order.currency,
+        });
+        if (typeof quickbooks?.getRefundEvidence !== 'function') {
+          return preserveForManualReview('refund_evidence_unsupported');
+        }
+        refundEvidence = await quickbooks.getRefundEvidence(order.providerRefs.invoiceId);
+      } catch {
+        return preserveForManualReview('refund_evidence_unavailable');
+      }
+      if (!exactRefundEvidence(refundEvidence, paymentEvidence, order, request.amountCents)) {
+        return preserveForManualReview('refund_evidence_mismatch');
+      }
+      if (typeof repository.completeRefundReconciliation !== 'function') {
+        return preserveForManualReview('refund_reconciliation_unavailable');
+      }
+      await repository.completeRefundReconciliation({
+        orderId:order.id,amountCents:request.amountCents,adminUid,
+        evidenceId:createHash('sha256').update(
+          `refund-evidence\0${refundEvidence.refund.refundId}\0${refundEvidence.providerPaymentRef}`
+        ).digest('hex'),
+      });
+      return Object.freeze({orderHandle:order.id,status:'refunded',reconciliation:'exact_accounting_refund'});
     },
 
     async getCommerceReleaseState(authContext) {
