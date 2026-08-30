@@ -23,6 +23,13 @@ The implementation is intentionally not wired to a production Storage bucket in 
 - Clarified across this report and the Rules evidence that redemption atomicity is a required repository contract demonstrated by a mock. No real Firestore transaction, persistence implementation, or emulator proof is claimed.
 - The intentionally unwired runtime, bucket, and Rules boundary remains unchanged.
 
+## Fix round 2
+
+- Each server-owned SKU artifact definition now supplies the private object key, exact expected MIME type, and maximum byte count.
+- Stream receipts must report that exact MIME type and a nonnegative safe-integer `bytesWritten` no larger than the per-SKU ceiling.
+- Malformed, parameterized, oversized, control-character, or wrong MIME values fail closed. Excessive byte counts, unknown receipt keys, URL-shaped fields, and body returns also fail closed.
+- The exact maximum-byte boundary is accepted. This remains a local stream-contract test; production object metadata, bucket mapping, and persistent streaming are still unwired and blocked.
+
 ## Rules boundary
 
 - Added an unmapped, deny-only local `storage.rules` fragment for static verification.
@@ -34,7 +41,7 @@ The implementation is intentionally not wired to a production Storage bucket in 
 
 ## Verification
 
-- `npm --prefix functions test -- test/commerce/fulfillment.test.js`: 10 passed after fix round 1.
+- `npm --prefix functions test -- test/commerce/fulfillment.test.js`: 11 passed after fix round 2.
 - `npm --prefix functions test -- test/commerce/firestore-rules.test.js test/commerce/storage-rules.test.js`: 6 passed, 2 explicit environment skips.
 - `npm --prefix functions test`: 274 passed, 2 explicit environment skips.
 - `npm --prefix functions run check`: passed.

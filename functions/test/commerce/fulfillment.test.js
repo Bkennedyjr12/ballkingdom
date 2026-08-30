@@ -6,6 +6,9 @@ import {createFulfillmentService} from '../../src/commerce/fulfillment.js';
 const NOW = new Date('2026-08-30T12:00:00.000Z');
 const SKU = 'home-inspection-study-guide';
 const ARTIFACT = 'private-commerce/home-inspection-study-guide.pdf';
+const ARTIFACT_CONFIG = Object.freeze({
+  key:ARTIFACT,contentType:'application/pdf',maxBytes:10_000_000,
+});
 
 function fixture({status = 'fulfilled', uid = 'customer-1'} = {}) {
   const orders = new Map([['order-1', {
@@ -41,10 +44,13 @@ function fixture({status = 'fulfilled', uid = 'customer-1'} = {}) {
   const opened = [];
   const service = createFulfillmentService({
     repository,
-    artifactKeys:{[SKU]:ARTIFACT},
+    artifactKeys:{[SKU]:ARTIFACT_CONFIG},
     randomBytes:() => Buffer.alloc(32, ++randomCounter),
     clock:() => new Date(NOW),
-    streamArtifact:async key => { opened.push(key); return {streamed:true}; },
+    streamArtifact:async key => {
+      opened.push(key);
+      return {streamed:true,contentType:'application/pdf',bytesWritten:100};
+    },
   });
   return {service,orders,entitlements,grants,persisted,opened};
 }
@@ -135,8 +141,8 @@ test('rejects modified, wrong-order, wrong-SKU, wrong-owner, and boundary-expire
           || new Date(NOW.getTime()+600000).getTime() >= saved.expiresAt.getTime()) return null;
         return saved;
       },
-    },artifactKeys:{[SKU]:ARTIFACT},clock:() => new Date(NOW.getTime()+600000),
-    streamArtifact:async () => ({streamed:true}),
+    },artifactKeys:{[SKU]:ARTIFACT_CONFIG},clock:() => new Date(NOW.getTime()+600000),
+    streamArtifact:async () => ({streamed:true,contentType:'application/pdf',bytesWritten:100}),
   });
   await assert.rejects(boundaryService.redeemDownloadGrant({orderId:'order-1',grant:issued.grant}, auth()), /invalid or expired/i);
 });
@@ -165,10 +171,10 @@ test('a consumed streaming failure remains consumed while a new authenticated gr
         saved.consumedAt = now;
         return saved;
       },
-    },artifactKeys:{[SKU]:ARTIFACT},randomBytes:() => Buffer.alloc(32, state.grants.size + 10),
+    },artifactKeys:{[SKU]:ARTIFACT_CONFIG},randomBytes:() => Buffer.alloc(32, state.grants.size + 10),
     clock:() => new Date(NOW),streamArtifact:async () => {
       if (fail) { fail = false; throw new Error('stream failed'); }
-      return {streamed:true};
+      return {streamed:true,contentType:'application/pdf',bytesWritten:100};
     },
   });
   const first = await service.createDownloadGrant({orderId:'order-1'}, auth());
@@ -199,7 +205,7 @@ test('rejects reusable URL-shaped artifact delivery results', async () => {
           return saved;
         },
       },
-      artifactKeys:{[SKU]:ARTIFACT},randomBytes:() => Buffer.alloc(32, 7),clock:() => new Date(NOW),
+      artifactKeys:{[SKU]:ARTIFACT_CONFIG},randomBytes:() => Buffer.alloc(32, 7),clock:() => new Date(NOW),
       streamArtifact:async () => unsafe,
     });
     const {grant} = await service.createDownloadGrant({orderId:'order-1'}, auth());
@@ -207,6 +213,39 @@ test('rejects reusable URL-shaped artifact delivery results', async () => {
       service.redeemDownloadGrant({orderId:'order-1',grant}, auth()),
       /streaming contract/i,
     );
+  }
+});
+
+test('bounds stream MIME and byte metadata to the server SKU definition', async () => {
+  const cases = [
+    [{streamed:true,contentType:'text/html',bytesWritten:100}, false],
+    [{streamed:true,contentType:'application/pdf; charset=utf-8',bytesWritten:100}, false],
+    [{streamed:true,contentType:`application/${'x'.repeat(200)}`,bytesWritten:100}, false],
+    [{streamed:true,contentType:'application/pdf\nX-Evil: yes',bytesWritten:100}, false],
+    [{streamed:true,contentType:'application/pdf',bytesWritten:10_000_001}, false],
+    [{streamed:true,contentType:'application/pdf',bytesWritten:10_000_000,unknown:true}, false],
+    [{streamed:true,contentType:'application/pdf',bytesWritten:10_000_000}, true],
+  ];
+  for (const [receipt, valid] of cases) {
+    const state = fixture();
+    const service = createFulfillmentService({
+      repository:{
+        getOrder:async id => state.orders.get(id) ?? null,
+        getEntitlement:async id => state.entitlements.get(id) ?? null,
+        createDownloadGrant:async grant => state.grants.set(`${grant.orderId}:${grant.digest}`, structuredClone(grant)),
+        consumeDownloadGrant:async ({orderId,digest}) => {
+          const saved = state.grants.get(`${orderId}:${digest}`);
+          if (!saved || saved.consumedAt) return null;
+          saved.consumedAt = NOW;
+          return saved;
+        },
+      },artifactKeys:{[SKU]:ARTIFACT_CONFIG},randomBytes:() => Buffer.alloc(32, 8),
+      clock:() => new Date(NOW),streamArtifact:async () => receipt,
+    });
+    const {grant} = await service.createDownloadGrant({orderId:'order-1'}, auth());
+    const redemption = service.redeemDownloadGrant({orderId:'order-1',grant}, auth());
+    if (valid) assert.deepEqual(await redemption, receipt);
+    else await assert.rejects(redemption, /streaming contract/i);
   }
 });
 

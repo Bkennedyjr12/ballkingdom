@@ -3,6 +3,7 @@ import {createHash, randomBytes as secureRandomBytes} from 'node:crypto';
 const ORDER_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const GRANT_NONCE = /^[A-Za-z0-9_-]{43}$/;
 const DIGEST = /^[a-f0-9]{64}$/;
+const MIME_TYPE = /^[a-z0-9][a-z0-9!#$&^_.+-]{0,63}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,63}$/;
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
 function fulfillmentError(code, message) {
@@ -31,14 +32,20 @@ function requireOrderId(input) {
   return input.orderId;
 }
 
-function artifactKeyFor(artifactKeys, sku) {
-  const key = artifactKeys[sku];
+function artifactDefinitionFor(artifactKeys, sku) {
+  const definition = artifactKeys[sku];
+  const key = definition?.key;
   if (typeof key !== 'string' || key.length < 1 || key.length > 512
     || key.startsWith('/') || key.includes('\\')
-    || key.split('/').some(segment => !segment || segment === '.' || segment === '..')) {
+    || key.split('/').some(segment => !segment || segment === '.' || segment === '..')
+    || typeof definition.contentType !== 'string' || definition.contentType.length > 127
+    || !MIME_TYPE.test(definition.contentType)
+    || !Number.isSafeInteger(definition.maxBytes) || definition.maxBytes < 1) {
     throw fulfillmentError('FULFILLMENT_NOT_AVAILABLE', 'Digital fulfillment is not available');
   }
-  return key;
+  return Object.freeze({
+    key,contentType:definition.contentType,maxBytes:definition.maxBytes,
+  });
 }
 
 function requireOwnedFulfillment(order, entitlement, uid, artifactKeys) {
@@ -54,7 +61,7 @@ function requireOwnedFulfillment(order, entitlement, uid, artifactKeys) {
     || entitlement?.sku !== order.sku) {
     throw fulfillmentError('FULFILLMENT_NOT_AVAILABLE', 'Digital fulfillment is not available');
   }
-  return artifactKeyFor(artifactKeys, order.sku);
+  return artifactDefinitionFor(artifactKeys, order.sku);
 }
 
 export function createFulfillmentService({
@@ -78,8 +85,8 @@ export function createFulfillmentService({
     const [order, entitlement] = await Promise.all([
       repository.getOrder(orderId), repository.getEntitlement(orderId),
     ]);
-    const artifactKey = requireOwnedFulfillment(order, entitlement, uid, allowlist);
-    return {order,artifactKey};
+    const artifact = requireOwnedFulfillment(order, entitlement, uid, allowlist);
+    return {order,artifact};
   }
 
   return Object.freeze({
@@ -90,7 +97,7 @@ export function createFulfillmentService({
         || typeof order.customerUid !== 'string' || order.customerUid.length < 1) {
         throw fulfillmentError('FULFILLMENT_NOT_ELIGIBLE', 'Order is not eligible for fulfillment');
       }
-      artifactKeyFor(allowlist, order.sku);
+      artifactDefinitionFor(allowlist, order.sku);
       if (typeof repository.activateEntitlement !== 'function') {
         throw fulfillmentError('FULFILLMENT_CONFIGURATION_INVALID', 'Fulfillment is unavailable');
       }
@@ -128,7 +135,7 @@ export function createFulfillmentService({
         || typeof input.grant !== 'string' || !GRANT_NONCE.test(input.grant)) {
         throw fulfillmentError('FULFILLMENT_INPUT_INVALID', 'Fulfillment request is invalid');
       }
-      const {order,artifactKey} = await loadOwned(orderId, uid);
+      const {order,artifact} = await loadOwned(orderId, uid);
       const digest = createHash('sha256').update(input.grant).digest('hex');
       if (!DIGEST.test(digest)) throw fulfillmentError('FULFILLMENT_INPUT_INVALID', 'Fulfillment request is invalid');
       const now = new Date(clock());
@@ -139,13 +146,13 @@ export function createFulfillmentService({
         throw fulfillmentError('FULFILLMENT_GRANT_INVALID', 'Download grant is invalid or expired');
       }
       const result = await streamArtifact(
-        artifactKey,Object.freeze({orderId,sku:order.sku,customerUid:uid})
+        artifact.key,Object.freeze({orderId,sku:order.sku,customerUid:uid})
       );
       if (!isRecord(result) || result.streamed !== true
         || Object.keys(result).some(key => !['streamed','contentType','bytesWritten'].includes(key))
-        || (Object.hasOwn(result, 'contentType') && typeof result.contentType !== 'string')
-        || (Object.hasOwn(result, 'bytesWritten')
-          && (!Number.isSafeInteger(result.bytesWritten) || result.bytesWritten < 0))) {
+        || result.contentType !== artifact.contentType
+        || !Number.isSafeInteger(result.bytesWritten) || result.bytesWritten < 0
+        || result.bytesWritten > artifact.maxBytes) {
         throw fulfillmentError(
           'FULFILLMENT_STREAM_INVALID','Artifact streaming contract was not satisfied'
         );
