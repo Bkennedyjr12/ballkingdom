@@ -8,7 +8,7 @@ Source commit before this evidence: `783a664501a93377bcd8ff6e55fa8dcc2afd73cc`
 
 ## Decision
 
-The local implementation and its injected provider contracts pass under the declared Node 22 runtime, but the production pilot is not release-ready. The authoritative production Firestore and Storage Rules sources, reviewed Storage bucket/object mapping, and Rules emulator proof are missing. The production fulfillment runtime is intentionally unwired. No current Intuit sandbox run, production Accounting OAuth read, owning developer-app/webhook access, or documented refund/reversal reader was verified in this task.
+The local implementation and its injected provider contracts pass under the declared Node 22 runtime, but the production pilot is not release-ready. The authoritative production Firestore and Storage Rules sources, reviewed Storage bucket/object mapping, and Rules emulator proof are missing. The production fulfillment runtime is intentionally unwired. No current Intuit sandbox run, production Accounting OAuth read, configured production webhook, or documented refund/reversal reader was verified in this task. A separate read-only signed-in review verified the owning Intuit Developer workspace and production app, as recorded below.
 
 This record does not convert mock results into Intuit sandbox or production truth. It authorizes no deployment, secret creation, email, invoice, payment, refund, webhook configuration, or customer communication.
 
@@ -20,7 +20,7 @@ This record does not convert mock results into Intuit sandbox or production trut
 | Local browser tests | Passed against a local HTTP server and injected browser mocks. |
 | Firebase emulator | Blocked before emulator startup by the missing Java runtime; authoritative Rules and Storage mapping are independently absent. |
 | Intuit sandbox | Not accessed; no sandbox entity was created, read, sent, paid, or refunded. |
-| Signed-in read-only provider truth | Not re-verified in this task. Existing capability evidence must not be treated as a current Accounting OAuth, app-ownership, or webhook readback. |
+| Signed-in read-only provider truth | On 2026-08-30, a separate read-only browser review verified Intuit Developer workspace `The Ballers Kingdom`, app `TBK Q.B A.I`, and its `IN PRODUCTION` marker. The Production Webhooks tab was accessible; its endpoint input was empty (`configured:false`, length 0) and Save was disabled. No verifier token, credential, or secret value was viewed, and no setting was changed or saved. This does not prove current Accounting OAuth or sandbox capability. |
 | Production | No provider or Firebase production mutation, dry run, secret read, customer/entity read, or outbound effect occurred. |
 
 ## Reproducible local results
@@ -148,7 +148,7 @@ Current blocking configuration is intentional:
 5. Implement or explicitly defer a documented authoritative QuickBooks refund/reversal reader. Current runtime correctly fails closed, so production refund handling is not complete.
 6. Obtain current, independently verified Accounting OAuth read evidence before pilot release. This task used mocks only.
 7. Verify Intuit sandbox access and run the no-send sandbox entity/readback matrix. No sandbox truth was established here.
-8. Verify the owning Intuit Developer app and webhook configuration access. Until ownership is verified, production webhook configuration is blocked. A later scheduled-reconciliation-only pilot could omit webhooks only after every other gate passes and Accounting OAuth works authoritatively.
+8. App ownership/access is resolved: read-only verification found workspace `The Ballers Kingdom` and production app `TBK Q.B A.I`. The production webhook endpoint is not configured. Webhook setup remains an optional, separately approved control-plane change; its absence does not block a scheduled-reconciliation-only pilot after every other gate passes and Accounting OAuth works authoritatively. Scheduled reconciliation remains mandatory either way.
 9. Disposition the seven moderate transitive Functions advisories with a supported dependency path; do not use the audit tool's breaking downgrade blindly.
 10. Obtain separate approvals for every scoped Firebase dry run and later deployment. The exact Hosting manifest, release-state parameter load, Rules mappings, and secret prompt behavior remain unverified until then.
 11. Keep the production recipient secret and both outbound email approvals pending. The Task 11 state remains exactly digital `false`, service `false`.
