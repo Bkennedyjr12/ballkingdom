@@ -58,6 +58,16 @@ Before live approval, add two service items with no fixed sales price:
 
 Appointments must use these names exactly. Training appointments may omit `amountCents`; the QuickBooks catalog price is then used. Consulting and inspection appointments require a positive integer `amountCents`.
 
+## QuickBooks commerce invoices and payment evidence
+
+Commerce invoices stay entirely on the QuickBooks Online Accounting API and use only the `com.intuit.quickbooks.accounting` scope. The adapter uses the documented Invoice create/read/send operations, Payment read operation, and Invoice/Payment change-data-capture query. It does not call an Intuit Payments API host and does not construct a customer payment URL.
+
+Each commerce Invoice stores `bk-order-${orderId}` in `PrivateNote`. Invoice creation uses a deterministic `requestid`; long order references are shortened only for that provider idempotency parameter, while the complete order reference remains on the Invoice. The send method returns only `{invoiceId,sendAccepted:true}`. That result means QuickBooks accepted the documented send operation; it is not inbox-delivery or payment evidence.
+
+Payment completion requires a fresh exact Invoice read and its linked Payment read. Provider amounts are converted to integer cents inside the adapter, and raw QuickBooks payloads do not leave it. Verification accepts only one present Invoice with the expected realm, order reference, currency, `TotalAmt`, and zero `Balance`, plus exactly one present Payment with the exact `TotalAmt`, zero `UnappliedAmt`, and one full application to that Invoice. Deleted, voided, partial, reversed, split, overpaid, underpaid, unapplied, missing, contradictory, or unknown evidence fails closed. `completed` is an internal conclusion made only after those checks; it is not an Intuit status field.
+
+Change data capture is a polling aid only. Its normalized Invoice/Payment IDs must be refetched through the exact read methods before verification. No webhook is assumed or configured by this package.
+
 ## Appointment example
 
 ```js
