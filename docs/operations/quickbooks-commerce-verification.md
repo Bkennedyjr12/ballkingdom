@@ -8,7 +8,7 @@ Source commit before this evidence: `783a664501a93377bcd8ff6e55fa8dcc2afd73cc`
 
 ## Decision
 
-The local implementation and its injected provider contracts pass under the declared Node 22 runtime, but the production pilot is not release-ready. The authoritative production Firestore and Storage Rules sources, reviewed Storage bucket/object mapping, and Rules emulator proof are missing. The production fulfillment runtime is intentionally unwired. No current Intuit sandbox run, production Accounting OAuth read, configured production webhook, or documented refund/reversal reader was verified in this task. A separate read-only signed-in review verified the owning Intuit Developer workspace and production app, as recorded below.
+The local implementation and its injected provider contracts pass under the declared Node 22 runtime, but the production pilot is not release-ready. A later read-only preflight recovered both authoritative deployed Rules sources and the active Storage bucket; the commerce merges, paid artifact/object mapping, Rules emulator proof, and persistent fulfillment runtime remain missing. No current Intuit sandbox run, production Accounting OAuth read, configured production webhook, or documented refund/reversal reader was verified in this task. A separate read-only signed-in review verified the owning Intuit Developer workspace and production app, as recorded below.
 
 This record does not convert mock results into Intuit sandbox or production truth. It authorizes no deployment, secret creation, email, invoice, payment, refund, webhook configuration, or customer communication.
 
@@ -74,10 +74,9 @@ Result: failed before startup because `java -version` exited 1 (`Unable to locat
 
 Even with Java, release remains blocked because:
 
-- `firestore.rules` is a tracked, commerce-only local deny fragment, not the authoritative production policy.
-- `storage.rules` is a tracked, commerce-only local deny fragment, not the authoritative production policy.
+- `firestore.rules` and `storage.rules` are tracked, commerce-only local deny fragments, not the recovered authoritative production policies.
 - `firebase.json` intentionally maps neither file; the mapping assertion exits 1.
-- The production Storage bucket, paid-object prefix, and per-SKU object placement are unverified.
+- The production Storage bucket is verified as `the-ballers-kingdom.firebasestorage.app`, but the paid-object prefix and per-SKU object placement are unverified and no paid pilot artifact exists there.
 - `@firebase/rules-unit-testing` is absent, and signed-out/ordinary/customer-owner/wrong-customer/admin authorization proof has not run.
 - The Functions/Firestore/Storage fulfillment runtime is intentionally unwired pending those facts.
 
@@ -141,8 +140,8 @@ Current blocking configuration is intentional:
 
 ## Unresolved release blockers
 
-1. Recover and hash the authoritative production Firestore Rules source; merge commerce policy without losing unrelated live policy; map only after review.
-2. Recover and hash the authoritative production Storage Rules source; independently verify the production bucket, object prefix, and SKU object placement; map only after review.
+1. Preserve the recovered production Firestore Rules source and hash; merge commerce policy without losing unrelated live policy; map only after review.
+2. Preserve the recovered production Storage Rules source and hash; approve and place the exact paid artifact in the verified bucket, then review its private prefix and SKU object mapping before any Rules/runtime wiring.
 3. Install/verify a Java runtime and the Rules test SDK, then pass the complete Auth/Firestore/Storage/Functions emulator matrix against the merged authoritative policies.
 4. Implement and emulator-prove the real persistent fulfillment runtime and atomic single-use grant redemption against the verified bucket/object mapping.
 5. Implement or explicitly defer a documented authoritative QuickBooks refund/reversal reader. Current runtime correctly fails closed, so production refund handling is not complete.
