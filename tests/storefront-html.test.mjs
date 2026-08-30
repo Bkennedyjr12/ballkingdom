@@ -42,3 +42,11 @@ test('career intake remains fail closed until Phase 2', async () => {
   assert.doesNotMatch(html, /<input[^>]+type=["']file["']/i);
   assert.doesNotMatch(html, /quickbooks|intuit|\.pdf/i);
 });
+
+test('custom solutions page states scope and avoids promises', async () => {
+  const html = await read('custom-solutions.html');
+  assert.match(html, /customized guides, reports, and opportunity maps/i);
+  assert.match(html, /scope, price, timeline, and feasibility/i);
+  assert.match(html, /contact\.html\?interest=custom-solution/);
+  assert.doesNotMatch(html, /guaranteed results|we can build anything/i);
+});

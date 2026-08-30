@@ -937,3 +937,11 @@ body.theme-training .training-hero::before {
 .human-service-panel h2 { max-width: 900px; color: #fff; font-size: clamp(2.5rem, 6vw, 5.4rem); }
 .human-service-panel p { max-width: 760px; }
 @media (max-width: 780px) { .career-route, .snapshot-sheet__grid, .blueprint-locks { grid-template-columns: 1fr; } }
+.solution-capabilities { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2.5rem; }
+.solution-capability { padding: 2rem; border-top: 3px solid var(--gold); background: #111; color: #c9c9c9; }
+.solution-capability span { color: var(--gold); font-family: var(--font-display); letter-spacing: .15em; text-transform: uppercase; }
+.solution-capability h3 { color: #fff; }
+.solution-process { margin: 2.5rem 0; padding: 0; list-style: none; counter-reset: solution-step; }
+.solution-process li { display: grid; grid-template-columns: minmax(160px, .55fr) 1.45fr; gap: 2rem; padding: 1.4rem 0; border-top: 1px solid #3b3b3b; counter-increment: solution-step; }
+.solution-process strong::before { content: counter(solution-step, decimal-leading-zero) " / "; color: var(--gold); font-family: var(--font-display); }
+@media (max-width: 780px) { .solution-capabilities { grid-template-columns: 1fr; } .solution-process li { grid-template-columns: 1fr; gap: .5rem; } }
