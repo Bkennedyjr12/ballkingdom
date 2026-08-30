@@ -319,7 +319,10 @@ export const dispatchCommerceEffects = onSchedule({schedule:'every 5 minutes',
 export const confirmAcceptedBooking = onDocumentWritten({document:'appointments/{appointmentId}',region:REGION,secrets:MS_SECRETS}, async event => {
   const data = event.data?.after?.data();
   if (!data) return;
-  const service = createIntegrationService({repository:firestoreRepository(),graph:graphClient(),quickbooks:null});
+  const service = createIntegrationService({
+    repository:firestoreRepository(),graph:graphClient(),quickbooks:null,
+    commerce:runtimeCommerceService(),readFeatureFlags:readCommerceFeatureFlags,
+  });
   await service.confirmAcceptedBooking(event.params.appointmentId, data);
 });
 
@@ -332,7 +335,10 @@ export const approveInvoice = onCall({region:REGION,secrets:ALL_SECRETS,enforceA
   const appointmentId = String(request.data?.appointmentId ?? '').trim();
   if (!appointmentId) throw new HttpsError('invalid-argument','appointmentId is required');
   try {
-    const service = createIntegrationService({repository:firestoreRepository(),graph:graphClient(),quickbooks:quickBooksClient()});
+    const service = createIntegrationService({
+      repository:firestoreRepository(),graph:graphClient(),quickbooks:quickBooksClient(),
+      commerce:runtimeCommerceService({withQuickBooks:true}),readFeatureFlags:readCommerceFeatureFlags,
+    });
     return await service.approveInvoice({appointmentId,auth:request.auth});
   } catch (error) {
     if (/administrator/.test(error.message)) throw new HttpsError('permission-denied',error.message);

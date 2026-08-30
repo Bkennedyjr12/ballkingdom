@@ -627,6 +627,47 @@ test('atomically reserves one recipient and SKU order with both durable invoice 
   assert.equal(JSON.stringify(effects).includes(RECIPIENT_BINDING), false);
 });
 
+test('creates one service order with durable invoice effects and an opaque completion receipt', async () => {
+  const {firestore,repository}=repositoryFixture();
+  const order={
+    sku:'service-inspection',name:'Home Inspection',amountCents:45000,currency:'USD',
+    orderType:'service',fulfillmentType:'scheduled_service',
+    customer:{name:'Ada',email:'ada@example.com'},status:'pending_invoice_approval',
+  };
+  assert.deepEqual(await repository.createServiceOrder('appt-1',order),{orderId:'appt-1',duplicate:false});
+  assert.equal((await repository.createServiceOrder('appt-1',order)).duplicate,true);
+  assert.equal(firestore.document('commerceEffects/appt-1-invoice_create').status,'pending');
+  assert.equal(firestore.document('commerceEffects/appt-1-invoice_send').status,'pending');
+  assert.equal(await repository.beginServiceInvoiceApproval('appt-1'),'invoice_processing');
+  await repository.completeServiceInvoiceApproval('appt-1',{
+    invoiceId:'invoice-1',documentNumber:'1001',sendAccepted:true,
+    pdf:Buffer.from('forbidden'),url:'https://provider.test/invoice',raw:{secret:true},
+  });
+  const stored=firestore.document('orders/appt-1');
+  assert.equal(stored.status,'invoiced');
+  assert.deepEqual(stored.serviceInvoiceReceipt,{
+    invoiceId:'invoice-1',documentNumber:'1001',sendAccepted:true,
+  });
+  assert.equal(JSON.stringify(stored).includes('provider.test'),false);
+  assert.equal(JSON.stringify(stored).includes('forbidden'),false);
+});
+
+test('authoritative payment claim reconciles an invoiced service order to paid without a fulfillment grant', async () => {
+  const {firestore,repository}=repositoryFixture();
+  await repository.createOrder('service-paid',{
+    sku:'service-inspection',name:'Home Inspection',amountCents:45000,currency:'USD',
+    orderType:'service',fulfillmentType:'scheduled_service',customer:{name:'Ada',email:'ada@example.com'},
+    status:'invoiced',providerRefs:{realmId:'realm-1',invoiceId:'invoice-1',customerId:'customer-1',providerOrderRef:'bk-order-service-paid'},
+  });
+  const claim=await repository.claimPaymentVerification('service-paid','worker-1',new Date('2026-08-29T18:00:00Z'));
+  assert.ok(claim);
+  await repository.completeVerifiedServiceOrder('service-paid','worker-1',claim.claimId,{
+    realmId:'realm-1',providerOrderRef:'bk-order-service-paid',providerPaymentRef:'payment-1',
+  });
+  assert.equal(firestore.document('orders/service-paid').status,'paid');
+  assert.equal(firestore.document('fulfillmentGrants/service-paid'),undefined);
+});
+
 test('reserved digital orders persist only the authorized binding and never the approved email or comparison digests', async () => {
   const {firestore, repository} = repositoryFixture();
   const approvedEmail = 'approved-pilot@example.test';

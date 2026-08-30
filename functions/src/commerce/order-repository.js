@@ -27,7 +27,7 @@ const WEBHOOK_ENTITY = new Set(['Invoice', 'Payment']);
 const WEBHOOK_OPERATION = new Set(['Create', 'Update', 'Delete', 'Merge', 'Void']);
 const RATE_LIMIT_SCOPE = new Set(['pilot_auth', 'order_status']);
 const PAYMENT_RECOVERY_STATUSES = new Set([
-  'pending_payment', 'payment_verifying', 'paid', 'fulfilling',
+  'pending_payment', 'payment_verifying', 'invoiced', 'paid', 'fulfilling',
 ]);
 
 function repositoryError(code, message) {
@@ -311,6 +311,70 @@ export function createOrderRepository({
           toStatus: order.status,
         }, fieldValue));
         return {orderId: id, idempotencyKey, duplicate: false};
+      });
+    },
+
+    async createServiceOrder(orderId, rawOrder) {
+      const id = requiredId(orderId, 'orderId');
+      const order = normalizeOrder(rawOrder);
+      if (order.orderType !== 'service' || order.status !== 'pending_invoice_approval') {
+        throw repositoryError('ORDER_INVALID', 'Service order is invalid');
+      }
+      const reference = orderRef(id);
+      const createEffect = effectRef(id, 'invoice_create');
+      const sendEffect = effectRef(id, 'invoice_send');
+      const receipt = auditRef();
+      return db.runTransaction(async transaction => {
+        const existing = await transaction.get(reference);
+        if (existing.exists) {
+          if (existing.data().idempotencyFingerprint !== fingerprint(order)) {
+            throw repositoryError('ORDER_IDEMPOTENCY_CONFLICT', 'Service order changed');
+          }
+          return {orderId:id,duplicate:true};
+        }
+        transaction.create(reference, orderDocument(order,id));
+        transaction.create(createEffect, pendingEffect(id,'invoice_create'));
+        transaction.create(sendEffect, pendingEffect(id,'invoice_send'));
+        transaction.create(receipt, auditReceipt({orderId:id,event:'order_created',toStatus:order.status},fieldValue));
+        return {orderId:id,duplicate:false};
+      });
+    },
+
+    async beginServiceInvoiceApproval(orderId) {
+      const id = requiredId(orderId,'orderId');
+      const reference = orderRef(id);
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists) throw repositoryError('ORDER_NOT_FOUND','Order was not found');
+        const order = snapshot.data();
+        if (order.orderType !== 'service') throw repositoryError('ORDER_INVALID','Service order is invalid');
+        if (['invoice_processing','invoiced','manual_review'].includes(order.status)) return order.status;
+        if (order.status !== 'pending_invoice_approval') throw repositoryError('INVALID_ORDER_TRANSITION','Approval is invalid');
+        transaction.set(reference,{...order,status:'invoice_processing',revision:Number(order.revision ?? 0)+1,updatedAt:fieldValue.serverTimestamp()});
+        return 'invoice_processing';
+      });
+    },
+
+    async completeServiceInvoiceApproval(orderId, receipt = {}) {
+      const id = requiredId(orderId,'orderId');
+      const reference = orderRef(id);
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists) throw repositoryError('ORDER_NOT_FOUND','Order was not found');
+        const order = snapshot.data();
+        if (order.status === 'invoiced') return false;
+        if (order.orderType !== 'service' || order.status !== 'invoice_processing') {
+          throw repositoryError('INVALID_ORDER_TRANSITION','Invoice completion is invalid');
+        }
+        const normalizedReceipt = {
+          invoiceId:requiredId(receipt.invoiceId,'invoiceId',PROVIDER_VALUE),
+          documentNumber:receipt.documentNumber == null ? null : requiredId(receipt.documentNumber,'documentNumber',PROVIDER_VALUE),
+          sendAccepted:receipt.sendAccepted === true,
+        };
+        transaction.set(reference,{...order,status:'invoiced',serviceInvoiceReceipt:normalizedReceipt,
+          revision:Number(order.revision ?? 0)+1,reconciliationDueAt:Timestamp.fromDate(dateValue(clock(),'clock')),
+          updatedAt:fieldValue.serverTimestamp()});
+        return true;
       });
     },
 
@@ -1202,6 +1266,30 @@ export function createOrderRepository({
       });
     },
 
+    async completeVerifiedServiceOrder(orderId, workerId, rawClaimId, rawProviderRefs = {}) {
+      const id=requiredId(orderId,'orderId');
+      const worker=requiredId(workerId,'workerId',WORKER_ID);
+      const claimId=requiredId(rawClaimId,'claimId');
+      const providerRefs=normalizeProviderRefs(rawProviderRefs);
+      if (!Object.hasOwn(providerRefs,'providerPaymentRef')) throw repositoryError('UNSAFE_PROVIDER_REFS','Payment reference is required');
+      const reference=orderRef(id);
+      return db.runTransaction(async transaction=>{
+        const snapshot=await transaction.get(reference);
+        if (!snapshot.exists) throw repositoryError('ORDER_NOT_FOUND','Order was not found');
+        const order=snapshot.data();
+        if (order.status==='paid' && order.lastPaymentVerificationClaimId===claimId) return false;
+        if (order.paymentVerificationClaim?.claimId!==claimId || order.paymentVerificationClaim?.workerId!==worker) {
+          throw repositoryError('PAYMENT_CLAIM_LOST','Payment verification claim is no longer held');
+        }
+        if (order.orderType!=='service') throw repositoryError('INVALID_ORDER_TRANSITION','Service payment is not allowed');
+        transaction.set(reference,{...order,status:'paid',terminal:false,activeTransition:null,
+          paymentVerificationClaim:null,lastPaymentVerificationClaimId:claimId,
+          providerRefs:mergeProviderRefs(order.providerRefs,providerRefs),lastErrorCode:null,retry:null,
+          reconciliationDueAt:null,updatedAt:fieldValue.serverTimestamp()});
+        return true;
+      });
+    },
+
     async completePaymentVerification(orderId, workerId, rawClaimId, result = {}) {
       const id = requiredId(orderId, 'orderId');
       const worker = requiredId(workerId, 'workerId', WORKER_ID);
@@ -1227,7 +1315,9 @@ export function createOrderRepository({
         }
         const status = outcome === 'manual_review'
           ? 'manual_review'
-          : outcome === 'pending' ? 'pending_payment' : claim.previousStatus;
+          : outcome === 'pending'
+            ? (order.orderType === 'service' ? 'invoiced' : 'pending_payment')
+            : claim.previousStatus;
         const timestamp = fieldValue.serverTimestamp();
         transaction.set(reference, {
           ...order,status,activeTransition:null,paymentVerificationClaim:null,

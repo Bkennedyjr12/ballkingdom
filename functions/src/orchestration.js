@@ -1,10 +1,16 @@
 import {buildInvoiceRequest, isApprovalDue, validateAppointment} from './domain/workflow.js';
 
-export function createIntegrationService({repository, graph, quickbooks, clock = () => new Date()}) {
+export function createIntegrationService({repository, graph, quickbooks, commerce = null,
+  readFeatureFlags = () => ({digitalInvoicePilotEnabled:false,serviceQboSendEnabled:false}),
+  clock = () => new Date()}) {
   return {
     async confirmAcceptedBooking(appointmentId, rawAppointment) {
       const appointment = validateAppointment(rawAppointment);
       if (appointment.status !== 'accepted') return {ignored:true};
+      const flags = readFeatureFlags();
+      if (flags.serviceQboSendEnabled === true) {
+        await commerce.createServiceOrder(appointmentId, appointment);
+      }
       if (!await repository.claimConfirmation(appointmentId)) return {duplicate:true};
       try {
         const receipt = await graph.sendConfirmation({
@@ -38,6 +44,15 @@ export function createIntegrationService({repository, graph, quickbooks, clock =
       const appointment = await repository.claimApproval(appointmentId, auth.uid);
       if (!appointment) return {duplicate:true};
       try {
+        const flags = readFeatureFlags();
+        if (flags.serviceQboSendEnabled === true) {
+          const receipt = await commerce.approveServiceInvoice({appointmentId,approvedBy:auth.uid});
+          await repository.completeApproval(appointmentId, {
+            approvedBy:auth.uid,invoiceId:receipt.invoiceId,invoiceNumber:receipt.documentNumber,
+            qboSendAccepted:receipt.sendAccepted === true,
+          });
+          return {invoiceId:receipt.invoiceId,invoiceNumber:receipt.documentNumber};
+        }
         const invoiceRequest = buildInvoiceRequest(appointment);
         const invoice = await quickbooks.createInvoice({
           ...invoiceRequest,

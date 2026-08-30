@@ -397,7 +397,7 @@ export function createCommerceService({
         disposition:'terminal_observed',
       });
     }
-    if (!['pending_payment','payment_verifying','paid','fulfilling'].includes(order.status)
+    if (!['pending_payment','payment_verifying','invoiced','paid','fulfilling'].includes(order.status)
       || !order.providerRefs?.invoiceId) {
       return Object.freeze({status:safeOrderStatus(order.status),disposition:'deferred'});
     }
@@ -430,17 +430,20 @@ export function createCommerceService({
         amountCents:order.amountCents,
         currency:order.currency,
       });
-      await repository.completeVerifiedDigitalOrder(orderId, workerId, verifying.claimId, {
+      const completeVerified = order.orderType === 'service'
+        ? repository.completeVerifiedServiceOrder.bind(repository)
+        : repository.completeVerifiedDigitalOrder.bind(repository);
+      await completeVerified(orderId, workerId, verifying.claimId, {
         realmId:verified.realmId,
         providerOrderRef:verified.providerOrderRef,
         providerPaymentRef:verified.providerPaymentRef,
       });
-      return Object.freeze({status:'fulfilled',disposition:'completed'});
+      return Object.freeze({status:order.orderType === 'service' ? 'paid' : 'fulfilled',disposition:'completed'});
     } catch (error) {
       if (error?.code !== 'PAYMENT_VERIFICATION_MISMATCH') throw error;
     }
 
-    if (isExactlyUnpaid(evidence, order) && ['pending_payment','payment_verifying'].includes(order.status)) {
+    if (isExactlyUnpaid(evidence, order) && ['pending_payment','payment_verifying','invoiced'].includes(order.status)) {
       await repository.completePaymentVerification(orderId, workerId, verifying.claimId, {
         outcome:'pending',retryAt:retryAt(order, clock()),
       });
@@ -452,7 +455,98 @@ export function createCommerceService({
     return Object.freeze({status:'manual_review',disposition:'completed'});
   }
 
+  async function approveServiceInvoiceInternal({appointmentId} = {}) {
+    const flags = readFlags();
+    if (flags.serviceQboSendEnabled !== true) {
+      throw commerceError('COMMERCE_DISABLED','Service invoicing is unavailable');
+    }
+    if (!quickbooks?.createCommerceInvoice || !quickbooks?.getInvoice || !quickbooks?.sendInvoice) {
+      throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable');
+    }
+    await repository.beginServiceInvoiceApproval(appointmentId);
+    let order = await repository.getOrder(appointmentId);
+    if (!order || order.orderType !== 'service') throw commerceError('ORDER_NOT_FOUND','Order was not found');
+    if (order.status === 'manual_review') throw commerceError('ORDER_MANUAL_REVIEW','Order requires administrator review');
+    if (order.status === 'invoiced') {
+      return Object.freeze({...order.serviceInvoiceReceipt,duplicate:true});
+    }
+
+    const createWorker = workerIdFactory('service-invoice-create');
+    const createClaim = await repository.claimEffect(appointmentId,'invoice_create',createWorker,clock());
+    if (createClaim) {
+      try {
+        let created;
+        let readback;
+        if (order.providerRefs?.invoiceId) {
+          readback = await quickbooks.getInvoice(order.providerRefs.invoiceId);
+          created = {invoiceId:order.providerRefs.invoiceId,customerId:order.providerRefs.customerId};
+        } else {
+          created = await quickbooks.createCommerceInvoice(order);
+          readback = await quickbooks.getInvoice(created.invoiceId);
+        }
+        if (readback?.invoice?.invoiceId !== created.invoiceId
+          || readback.invoice.providerOrderRef !== `bk-order-${appointmentId}`
+          || readback.invoice.totalAmountCents !== order.amountCents
+          || readback.invoice.currency !== order.currency
+          || readback.invoice.entityState !== 'present'
+          || typeof created.customerId !== 'string' || created.customerId.length < 1) {
+          throw commerceError('INVOICE_READBACK_INVALID','Invoice readback was invalid');
+        }
+        await repository.completeEffect(appointmentId,'invoice_create',createWorker,createClaim.claimId,{providerRefs:{
+          realmId:readback.realmId,invoiceId:created.invoiceId,customerId:created.customerId,
+          providerOrderRef:readback.invoice.providerOrderRef,
+        }});
+      } catch (error) {
+        if (error?.code !== 'PROVIDER_TIMEOUT') await repository.recordEffectFailure(
+          appointmentId,'invoice_create',createWorker,createClaim.claimId,{code:'invoice_create_failed'},clock()
+        );
+        throw commerceError('ORDER_PROCESSING_PENDING','Order processing is pending');
+      }
+    } else {
+      const effect = await waitForEffect(appointmentId,'invoice_create');
+      if (effect?.status !== 'completed') throw commerceError('ORDER_PROCESSING_PENDING','Order processing is pending');
+    }
+
+    order = await repository.getOrder(appointmentId);
+    const sendWorker = workerIdFactory('service-invoice-send');
+    const sendClaim = await repository.claimEffect(appointmentId,'invoice_send',sendWorker,clock());
+    if (sendClaim) {
+      await repository.markEffectDispatchStarted(appointmentId,'invoice_send',sendWorker,sendClaim.claimId,clock());
+      try {
+        const sent = await quickbooks.sendInvoice({invoiceId:order.providerRefs.invoiceId,customerEmail:order.customer.email});
+        if (sent?.sendAccepted !== true || sent.invoiceId !== order.providerRefs.invoiceId) throw new Error('invalid send');
+      } catch {
+        await repository.recordEffectFailure(appointmentId,'invoice_send',sendWorker,sendClaim.claimId,{code:'invoice_send_unknown'},clock());
+        throw commerceError('ORDER_MANUAL_REVIEW','Order requires administrator review');
+      }
+      await repository.completeEffect(appointmentId,'invoice_send',sendWorker,sendClaim.claimId);
+    } else {
+      const effect = await waitForEffect(appointmentId,'invoice_send');
+      if (effect?.status === 'manual_review') throw commerceError('ORDER_MANUAL_REVIEW','Order requires administrator review');
+      if (effect?.status !== 'completed') throw commerceError('ORDER_PROCESSING_PENDING','Order processing is pending');
+    }
+    const invoiceEvidence = await quickbooks.getInvoice(order.providerRefs.invoiceId);
+    const documentNumber = invoiceEvidence.invoice.documentNumber ?? null;
+    await repository.completeServiceInvoiceApproval(appointmentId,{invoiceId:order.providerRefs.invoiceId,documentNumber,sendAccepted:true});
+    return Object.freeze({invoiceId:order.providerRefs.invoiceId,documentNumber,sendAccepted:true});
+  }
+
   return Object.freeze({
+    async createServiceOrder(appointmentId, appointment) {
+      const flags = readFlags();
+      if (flags.serviceQboSendEnabled !== true) return {disabled:true};
+      if (!appointment || !Number.isInteger(appointment.amountCents) || appointment.amountCents <= 0) {
+        throw commerceError('ORDER_INVALID','Service order is invalid');
+      }
+      const order = newOrder({item:{
+        sku:`service-${appointment.serviceType}`,name:appointment.serviceName,
+        amountCents:appointment.amountCents,currency:appointment.currency,orderType:'service',
+        fulfillmentType:'scheduled_service',
+      },customer:{name:appointment.customerName,email:appointment.customerEmail}});
+      return repository.createServiceOrder(appointmentId,order);
+    },
+
+    approveServiceInvoice: approveServiceInvoiceInternal,
     async requestPilotSignInLink(input, appCheckContext) {
       if (!appCheckContext?.app) throw commerceError('APP_CHECK_REQUIRED', 'App Check is required');
       if (!record(input) || Object.keys(input).some(key => key !== 'email')) return GENERIC_AUTH_RESULT;
