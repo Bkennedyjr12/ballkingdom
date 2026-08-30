@@ -354,6 +354,34 @@ test('records only a safe failure code and restores the pre-claim state for retr
   assert.equal(JSON.stringify(receipt).includes('secret'), false);
 });
 
+test('keeps a failed refund from a terminal status reconciliation-visible when due', async () => {
+  const retryAt = new Date('2026-08-29T18:15:00.000Z');
+  const {firestore, repository} = repositoryFixture();
+  await repository.createOrder('order-fulfilled', digitalOrder({status: 'fulfilled'}));
+  const claim = await repository.claimTransition(
+    'order-fulfilled', 'refunded', 'refund-worker'
+  );
+
+  await repository.recordFailure(
+    'order-fulfilled',
+    'refunded',
+    'refund-worker',
+    claim.claimId,
+    {code: 'provider_timeout', retryAt}
+  );
+
+  const stored = firestore.document('orders/order-fulfilled');
+  assert.equal(stored.status, 'fulfilled');
+  assert.equal(stored.terminal, false);
+  assert.deepEqual(await repository.listReconciliationCandidates(
+    new Date('2026-08-29T18:14:59.999Z')
+  ), []);
+  assert.deepEqual(
+    (await repository.listReconciliationCandidates(retryAt)).map(order => order.id),
+    ['order-fulfilled']
+  );
+});
+
 test('rejects a delayed result after the same worker releases and reclaims the transition', async () => {
   const {firestore, repository} = repositoryFixture();
   await repository.createOrder('order-1', digitalOrder());

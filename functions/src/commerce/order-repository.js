@@ -348,7 +348,7 @@ export function createOrderRepository({
         transaction.set(reference, {
           ...order,
           status: restoredStatus,
-          terminal: isReconciliationTerminalStatus(restoredStatus),
+          terminal: false,
           activeTransition: null,
           lastErrorCode: errorCode,
           reconciliationDueAt: retryAt,
