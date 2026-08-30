@@ -14,6 +14,7 @@
       "ignore": [
         "firebase.json",
         "firestore.rules",
+        "storage.rules",
         "firestore.indexes.json",
         ".firebaserc",
         ".git/**",
@@ -68,6 +69,8 @@
       "public": "hosting/theballerskingdom-redirect/public",
       "ignore": [
         "firebase.json",
+        "firestore.rules",
+        "storage.rules",
         "**/.*"
       ],
       "redirects": [

@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// Commerce-only deny fragment for local verification. The authoritative
+// production Storage rules source and bucket mapping have not been recovered,
+// so firebase.json intentionally does not configure this file for deployment.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /private-commerce/{artifact=**} {
+      allow read, write: if false;
+    }
+  }
+}

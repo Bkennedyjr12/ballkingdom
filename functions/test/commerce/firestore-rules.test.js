@@ -28,7 +28,9 @@ test('the standalone commerce rules artifact is not configured as the deployable
   const config = JSON.parse(await readFile(new URL('firebase.json', rootUrl), 'utf8'));
 
   assert.equal(config.firestore?.rules, undefined);
-  assert.equal(config.hosting[0].ignore.includes('firestore.rules'), true);
+  for (const hosting of config.hosting) {
+    assert.equal(hosting.ignore.includes('firestore.rules'), true);
+  }
 });
 
 test('the index manifest supports bounded due-order reconciliation queries', async () => {
