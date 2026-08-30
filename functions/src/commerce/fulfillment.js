@@ -17,7 +17,7 @@ function isRecord(value) {
 
 function requireAuth(authContext) {
   if (!authContext?.app) throw fulfillmentError('APP_CHECK_REQUIRED', 'App Check is required');
-  const uid = authContext.uid ?? authContext.auth?.uid;
+  const uid = authContext.auth?.uid;
   if (typeof uid !== 'string' || uid.length < 1 || uid.length > 128) {
     throw fulfillmentError('AUTH_REQUIRED', 'Authentication is required');
   }
@@ -62,13 +62,13 @@ export function createFulfillmentService({
   artifactKeys = Object.freeze({}),
   randomBytes = secureRandomBytes,
   clock = () => new Date(),
-  openArtifact,
+  streamArtifact,
   grantTtlMs = TEN_MINUTES_MS,
 } = {}) {
   if (!repository?.getOrder || !repository?.getEntitlement
     || !repository?.createDownloadGrant || !repository?.consumeDownloadGrant
     || typeof randomBytes !== 'function' || typeof clock !== 'function'
-    || typeof openArtifact !== 'function' || !isRecord(artifactKeys)
+    || typeof streamArtifact !== 'function' || !isRecord(artifactKeys)
     || grantTtlMs !== TEN_MINUTES_MS) {
     throw new TypeError('Fulfillment dependencies are required');
   }
@@ -138,7 +138,19 @@ export function createFulfillmentService({
       if (!consumed) {
         throw fulfillmentError('FULFILLMENT_GRANT_INVALID', 'Download grant is invalid or expired');
       }
-      return openArtifact(artifactKey, Object.freeze({orderId,sku:order.sku,customerUid:uid}));
+      const result = await streamArtifact(
+        artifactKey,Object.freeze({orderId,sku:order.sku,customerUid:uid})
+      );
+      if (!isRecord(result) || result.streamed !== true
+        || Object.keys(result).some(key => !['streamed','contentType','bytesWritten'].includes(key))
+        || (Object.hasOwn(result, 'contentType') && typeof result.contentType !== 'string')
+        || (Object.hasOwn(result, 'bytesWritten')
+          && (!Number.isSafeInteger(result.bytesWritten) || result.bytesWritten < 0))) {
+        throw fulfillmentError(
+          'FULFILLMENT_STREAM_INVALID','Artifact streaming contract was not satisfied'
+        );
+      }
+      return Object.freeze({...result});
     },
   });
 }

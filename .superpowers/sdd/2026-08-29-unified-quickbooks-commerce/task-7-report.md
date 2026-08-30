@@ -9,11 +9,19 @@ Implemented local, dependency-injected protected fulfillment with no production 
 - App Check plus authenticated immutable order-owner enforcement.
 - Fulfilled-order and active-entitlement enforcement; invoice, webhook, unpaid, and merely paid states cannot download.
 - Server-only SKU-to-object allowlist; browser UIDs and storage paths are ignored or rejected.
-- Atomic one-use redemption contract; concurrent/replayed grants fail.
+- Required atomic one-use redemption repository contract; concurrent/replayed grants fail against the in-memory contract test. This is not evidence of a real Firestore transaction or persistent emulator behavior.
 - A streaming failure leaves the token consumed, while the authenticated owner may create a new token without another payment.
 - Path traversal and malformed order/grant values fail closed.
 
 The implementation is intentionally not wired to a production Storage bucket in `functions/src/index.js` and does not replace Task 6's atomic verified-payment entitlement creation. The missing verified bucket/object placement and authoritative Rules policy make such wiring unsafe. `fulfillPaidOrder()` remains available for a later reviewed orchestration boundary, while Task 6's transaction stays the active local entitlement source.
+
+## Fix round 1
+
+- Identity now derives exclusively from `authContext.auth.uid`; a top-level `uid` is never trusted. Regression coverage proves that top-level owner spoofing cannot override a nested attacker UID and that a top-level UID without nested Firebase auth is rejected.
+- Renamed the object boundary to `streamArtifact` and enforced a stream-only result contract. Results containing `url`, `providerUrl`, `signedUrl`, or any other URL-shaped key are rejected; `streamed:true` is required.
+- The stream boundary returns only bounded streaming metadata (`streamed`, optional `contentType`, optional `bytesWritten`); returned bodies or any unrecognized key are rejected.
+- Clarified across this report and the Rules evidence that redemption atomicity is a required repository contract demonstrated by a mock. No real Firestore transaction, persistence implementation, or emulator proof is claimed.
+- The intentionally unwired runtime, bucket, and Rules boundary remains unchanged.
 
 ## Rules boundary
 
@@ -26,12 +34,14 @@ The implementation is intentionally not wired to a production Storage bucket in 
 
 ## Verification
 
-- `npm --prefix functions test -- test/commerce/fulfillment.test.js`: 8 passed.
+- `npm --prefix functions test -- test/commerce/fulfillment.test.js`: 10 passed after fix round 1.
 - `npm --prefix functions test -- test/commerce/firestore-rules.test.js test/commerce/storage-rules.test.js`: 6 passed, 2 explicit environment skips.
 - `npm --prefix functions test`: 274 passed, 2 explicit environment skips.
 - `npm --prefix functions run check`: passed.
 - `node --check functions/src/commerce/fulfillment.js`: passed.
 - `git diff --check`: passed.
+- Fix-round full suite: 276 passed, 2 explicit environment skips.
+- Secure repository checker completed; its secret-like findings are unchanged synthetic values in pre-existing provider/commerce tests, with no Task 7 file reported.
 
 No emulator claim is made: `/usr/bin/java` exists only as a launcher and reports that no Java Runtime is installed; `@firebase/rules-unit-testing` is also absent.
 

@@ -10,6 +10,8 @@ Recorded: 2026-08-30 (America/Los_Angeles)
 - `storage.rules` is a local commerce-only deny fragment created for static fail-closed verification. It is not an authoritative production ruleset, and `firebase.json` intentionally has no `storage` block.
 - Both local fragments are excluded from every Hosting manifest entry.
 - Firebase Admin operations would bypass these fragments; no browser or public-object access is authorized by this work.
+- The fulfillment unit suite demonstrates the required atomic `consumeDownloadGrant` repository contract with an in-memory test double. There is no real Firestore transaction implementation or emulator proof in this task, so persistent single-use redemption is not claimed as complete.
+- The artifact boundary is stream-only and rejects URL-shaped results. It remains intentionally unwired until the bucket and object placement are verified; no reusable signed or provider URL is produced.
 
 The local-fragment hashes below identify only the reviewed repository artifacts. They are **not** production-source or merge evidence:
 

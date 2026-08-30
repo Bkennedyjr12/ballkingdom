@@ -44,21 +44,33 @@ function fixture({status = 'fulfilled', uid = 'customer-1'} = {}) {
     artifactKeys:{[SKU]:ARTIFACT},
     randomBytes:() => Buffer.alloc(32, ++randomCounter),
     clock:() => new Date(NOW),
-    openArtifact:async key => { opened.push(key); return {key,body:'private bytes'}; },
+    streamArtifact:async key => { opened.push(key); return {streamed:true}; },
   });
   return {service,orders,entitlements,grants,persisted,opened};
 }
 
-const auth = (uid = 'customer-1') => ({app:{appId:'test-app'},uid});
+const auth = (uid = 'customer-1') => ({app:{appId:'test-app'},auth:{uid}});
 
 test('requires App Check and the authenticated owner and ignores a client UID', async () => {
   const {service} = fixture();
-  await assert.rejects(service.createDownloadGrant({orderId:'order-1'}, {uid:'customer-1'}), /App Check/);
+  await assert.rejects(service.createDownloadGrant({orderId:'order-1'}, {auth:{uid:'customer-1'}}), /App Check/);
   await assert.rejects(service.createDownloadGrant({orderId:'order-1'}, auth('wrong-user')), /not found/i);
   await assert.rejects(
     service.createDownloadGrant({orderId:'order-1',customerUid:'customer-1'}, auth('wrong-user')),
     /not found/i,
   );
+});
+
+test('derives identity only from auth.uid and rejects a spoofed top-level owner UID', async () => {
+  const {service} = fixture();
+  await assert.rejects(service.createDownloadGrant(
+    {orderId:'order-1'},
+    {app:{appId:'test-app'},uid:'customer-1',auth:{uid:'attacker'}},
+  ), /not found/i);
+  await assert.rejects(service.createDownloadGrant(
+    {orderId:'order-1'},
+    {app:{appId:'test-app'},uid:'customer-1'},
+  ), /Authentication is required/);
 });
 
 test('denies every state that is not independently fulfilled and denies guessed handles', async () => {
@@ -124,7 +136,7 @@ test('rejects modified, wrong-order, wrong-SKU, wrong-owner, and boundary-expire
         return saved;
       },
     },artifactKeys:{[SKU]:ARTIFACT},clock:() => new Date(NOW.getTime()+600000),
-    openArtifact:async () => ({}),
+    streamArtifact:async () => ({streamed:true}),
   });
   await assert.rejects(boundaryService.redeemDownloadGrant({orderId:'order-1',grant:issued.grant}, auth()), /invalid or expired/i);
 });
@@ -154,16 +166,48 @@ test('a consumed streaming failure remains consumed while a new authenticated gr
         return saved;
       },
     },artifactKeys:{[SKU]:ARTIFACT},randomBytes:() => Buffer.alloc(32, state.grants.size + 10),
-    clock:() => new Date(NOW),openArtifact:async () => {
+    clock:() => new Date(NOW),streamArtifact:async () => {
       if (fail) { fail = false; throw new Error('stream failed'); }
-      return {body:'ok'};
+      return {streamed:true};
     },
   });
   const first = await service.createDownloadGrant({orderId:'order-1'}, auth());
   await assert.rejects(service.redeemDownloadGrant({orderId:'order-1',grant:first.grant}, auth()), /stream failed/);
   await assert.rejects(service.redeemDownloadGrant({orderId:'order-1',grant:first.grant}, auth()), /invalid or expired/i);
   const second = await service.createDownloadGrant({orderId:'order-1'}, auth());
-  assert.equal((await service.redeemDownloadGrant({orderId:'order-1',grant:second.grant}, auth())).body, 'ok');
+  assert.equal((await service.redeemDownloadGrant({orderId:'order-1',grant:second.grant}, auth())).streamed, true);
+});
+
+test('rejects reusable URL-shaped artifact delivery results', async () => {
+  for (const unsafe of [
+    {streamed:true,url:'https://storage.example.test/file'},
+    {streamed:true,providerUrl:'https://storage.example.test/file'},
+    {streamed:true,signedUrl:'https://storage.example.test/file'},
+    {streamed:true,body:'private bytes'},
+    {streamed:false,body:'bytes'},
+  ]) {
+    const state = fixture();
+    const service = createFulfillmentService({
+      repository:{
+        getOrder:async id => state.orders.get(id) ?? null,
+        getEntitlement:async id => state.entitlements.get(id) ?? null,
+        createDownloadGrant:async grant => state.grants.set(`${grant.orderId}:${grant.digest}`, structuredClone(grant)),
+        consumeDownloadGrant:async ({orderId,digest}) => {
+          const saved = state.grants.get(`${orderId}:${digest}`);
+          if (!saved || saved.consumedAt) return null;
+          saved.consumedAt = NOW;
+          return saved;
+        },
+      },
+      artifactKeys:{[SKU]:ARTIFACT},randomBytes:() => Buffer.alloc(32, 7),clock:() => new Date(NOW),
+      streamArtifact:async () => unsafe,
+    });
+    const {grant} = await service.createDownloadGrant({orderId:'order-1'}, auth());
+    await assert.rejects(
+      service.redeemDownloadGrant({orderId:'order-1',grant}, auth()),
+      /streaming contract/i,
+    );
+  }
 });
 
 test('fulfillPaidOrder permits only a paid protected digital order with an allowlisted SKU', async () => {
