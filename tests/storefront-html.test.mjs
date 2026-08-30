@@ -70,3 +70,8 @@ test('homepage introduces digital products without claiming checkout is live', a
   assert.match(html, /Build My Free Career Snapshot/);
   assert.doesNotMatch(html, /secure checkout is live|buy now/i);
 });
+
+test('light custom-solution bands force readable dark supporting text', async () => {
+  const css = await read('assets/css/styles.css');
+  assert.match(css, /\.custom-solutions-band p:not\(\.storefront-kicker\)\s*\{[^}]*color:\s*#171717/i);
+});

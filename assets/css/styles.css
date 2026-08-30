@@ -915,7 +915,7 @@ body.theme-training .training-hero::before {
 .delivery-ledger__item span { color: var(--gold); font-family: var(--font-display); letter-spacing: .16em; }
 .custom-solutions-band { padding: 6rem 0; background: var(--gold); color: #080808; }
 .custom-solutions-band h2 { max-width: 850px; color: #080808; font-size: clamp(2.2rem, 5vw, 4.5rem); }
-.custom-solutions-band p:not(.storefront-kicker) { max-width: 680px; }
+.custom-solutions-band p:not(.storefront-kicker) { max-width: 680px; color: #171717; }
 .custom-solutions-band .storefront-kicker { color: #080808; }
 .custom-solutions-band .btn-primary { background: #080808; color: #fff; }
 @media (max-width: 900px) { .product-offer-grid, .delivery-ledger { grid-template-columns: 1fr; } .product-offer-grid::before { top: 0; bottom: 0; left: 1rem; right: auto; width: 1px; height: auto; } .product-offer { min-height: 0; margin-left: 1rem; } .delivery-ledger__item + .delivery-ledger__item { padding-left: 0; border-left: 0; border-top: 1px solid #3b3b3b; } }
