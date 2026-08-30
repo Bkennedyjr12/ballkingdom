@@ -30,3 +30,11 @@ test('approved names and five-business-day promise are exact', () => {
 test('unknown slugs return null', () => {
   assert.equal(getProductBySlug('missing'), null);
 });
+
+test('catalog fragments match rendered product card ids', () => {
+  for (const product of getPrimaryProducts()) {
+    if (product.href.startsWith('products.html#')) {
+      assert.equal(product.href, `products.html#${product.slug}`);
+    }
+  }
+});

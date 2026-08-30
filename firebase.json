@@ -13,6 +13,7 @@
       "public": ".",
       "ignore": [
         "firebase.json",
+        "firestore.indexes.json",
         ".firebaserc",
         ".git/**",
         ".firebase/**",
@@ -52,7 +53,7 @@
           "headers": [
             {
               "key": "Cache-Control",
-              "value": "max-age=31536000, immutable"
+              "value": "public, max-age=300, must-revalidate"
             }
           ]
         }

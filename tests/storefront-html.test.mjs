@@ -84,7 +84,24 @@ test('Firebase Hosting excludes backend, tests, and local source material', asyn
     'functions/**',
     'tests/**',
     'playwright.config.mjs',
+    'firestore.indexes.json',
     'home-inspection-guide/input/**',
     'home-inspection-guide/audit/**'
   ]) assert.ok(publicTarget.ignore.includes(pattern), `missing Hosting ignore: ${pattern}`);
+});
+
+test('Firebase Hosting revalidates mutable CSS and JavaScript assets', async () => {
+  const config = JSON.parse(await read('firebase.json'));
+  const publicTarget = config.hosting.find((entry) => entry.target === 'public');
+  const assetHeaders = publicTarget.headers.find((entry) => entry.source.includes('js|css'));
+  const cacheControl = assetHeaders.headers.find((header) => header.key === 'Cache-Control');
+  assert.equal(cacheControl.value, 'public, max-age=300, must-revalidate');
+});
+
+test('custom solution contact route preserves inquiry context', async () => {
+  const html = await read('contact.html');
+  assert.match(html, /id=["']custom-solution-inquiry["']/i);
+  assert.match(html, /data-custom-solution-context/i);
+  assert.match(html, /URLSearchParams/i);
+  assert.match(html, /interest.*custom-solution/i);
 });

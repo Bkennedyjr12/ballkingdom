@@ -7,7 +7,7 @@ const PRODUCTS = Object.freeze([
     delivery: 'instant-download',
     availability: 'coming-soon',
     priceLabel: 'Founding price to be announced',
-    href: 'products.html#acquisition-toolkit',
+    href: 'products.html#sba-ready-business-acquisition-toolkit',
     cta: 'Get the Acquisition Toolkit',
     disclaimer: 'Educational screening tools only. Financing and transaction outcomes are not guaranteed.'
   }),
@@ -19,7 +19,7 @@ const PRODUCTS = Object.freeze([
     delivery: 'instant-download',
     availability: 'coming-soon',
     priceLabel: 'Price to be announced',
-    href: 'products.html#home-inspection-guide',
+    href: 'products.html#home-inspection-study-guide',
     cta: 'Get the Home Inspection Guide',
     disclaimer: 'Learning resource only; it does not replace licensing requirements, supervised field experience, or professional judgment.'
   }),

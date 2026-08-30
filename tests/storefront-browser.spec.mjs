@@ -22,3 +22,9 @@ test('career page exposes no file upload or active checkout', async ({ page }) =
   await expect(page.locator('[data-career-intake-pending]')).toHaveAttribute('aria-disabled', 'true');
   await expect(page.getByText(/not guaranteed/i)).toBeVisible();
 });
+
+test('custom solution route opens the dedicated inquiry context', async ({ page }) => {
+  await page.goto('/contact.html?interest=custom-solution');
+  await expect(page.locator('[data-custom-solution-context]')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Request a Custom Solution' })).toBeVisible();
+});
