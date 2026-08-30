@@ -75,3 +75,16 @@ test('light custom-solution bands force readable dark supporting text', async ()
   const css = await read('assets/css/styles.css');
   assert.match(css, /\.custom-solutions-band p:not\(\.storefront-kicker\)\s*\{[^}]*color:\s*#171717/i);
 });
+
+test('Firebase Hosting excludes backend, tests, and local source material', async () => {
+  const config = JSON.parse(await read('firebase.json'));
+  const publicTarget = config.hosting.find((entry) => entry.target === 'public');
+  assert.ok(publicTarget);
+  for (const pattern of [
+    'functions/**',
+    'tests/**',
+    'playwright.config.mjs',
+    'home-inspection-guide/input/**',
+    'home-inspection-guide/audit/**'
+  ]) assert.ok(publicTarget.ignore.includes(pattern), `missing Hosting ignore: ${pattern}`);
+});

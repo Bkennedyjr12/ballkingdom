@@ -20,8 +20,13 @@
         "**/.*",
         "**/node_modules/**",
         "backend/**",
+        "functions/**",
+        "tests/**",
         "docs/**",
         "output/**",
+        "test-results/**",
+        "playwright-report/**",
+        "playwright.config.mjs",
         "video/**",
         "MIGRATION.md",
         "README.md",
@@ -31,6 +36,8 @@
         "assets/**/*.bak",
         "home-inspection-guide/scripts/**",
         "home-inspection-guide/src/**",
+        "home-inspection-guide/input/**",
+        "home-inspection-guide/audit/**",
         "home-inspection-guide/README.md"
       ],
       "rewrites": [
