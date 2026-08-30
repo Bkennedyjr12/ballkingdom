@@ -307,6 +307,12 @@ test('fails closed when the documented Invoice send result is missing or contrad
     ['wrong DeliveryType', invoice => { invoice.DeliveryInfo.DeliveryType = 'Print'; }],
     ['missing DeliveryTime', invoice => { delete invoice.DeliveryInfo.DeliveryTime; }],
     ['invalid DeliveryTime', invoice => { invoice.DeliveryInfo.DeliveryTime = 'not-a-date'; }],
+    ['Missing Info delivery error', invoice => { invoice.DeliveryInfo.DeliveryErrorType = 'Missing Info'; }],
+    ['Undeliverable delivery error', invoice => { invoice.DeliveryInfo.DeliveryErrorType = 'Undeliverable'; }],
+    ['Delivery Server Down error', invoice => { invoice.DeliveryInfo.DeliveryErrorType = 'Delivery Server Down'; }],
+    ['Bounced Email delivery error', invoice => { invoice.DeliveryInfo.DeliveryErrorType = 'Bounced Email'; }],
+    ['unknown nonempty delivery error', invoice => { invoice.DeliveryInfo.DeliveryErrorType = 'Provider Specific Error'; }],
+    ['present empty delivery error field', invoice => { invoice.DeliveryInfo.DeliveryErrorType = ''; }],
   ];
   for (const [name, mutate] of cases) {
     await t.test(name, async () => {

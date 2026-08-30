@@ -247,7 +247,8 @@ function isDocumentedInvoiceSendResult(invoice, invoiceId, customerEmail) {
     !Array.isArray(invoice.DeliveryInfo) &&
     invoice.DeliveryInfo.DeliveryType === 'Email' &&
     isNonEmptyString(invoice.DeliveryInfo.DeliveryTime) &&
-    !Number.isNaN(Date.parse(invoice.DeliveryInfo.DeliveryTime))
+    !Number.isNaN(Date.parse(invoice.DeliveryInfo.DeliveryTime)) &&
+    !Object.hasOwn(invoice.DeliveryInfo, 'DeliveryErrorType')
   );
 }
 
