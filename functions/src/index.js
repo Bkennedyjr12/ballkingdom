@@ -2,7 +2,7 @@ import {initializeApp} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
 import {getFirestore, FieldValue, Timestamp} from 'firebase-admin/firestore';
 import {SecretManagerServiceClient} from '@google-cloud/secret-manager';
-import {randomUUID} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
 import {onDocumentWritten} from 'firebase-functions/v2/firestore';
 import {onSchedule} from 'firebase-functions/v2/scheduler';
 import {onCall, onRequest, HttpsError} from 'firebase-functions/v2/https';
@@ -146,45 +146,64 @@ function lazyGraphClient() {
 }
 
 function lazyQuickBooksClient() {
-  return createLazyProvider(quickBooksClient, [
-    'createCommerceInvoice','sendInvoice','getInvoice','getPayment','getAccountingChanges',
+  const provider = createLazyProvider(quickBooksClient, [
+    'createCommerceInvoice','sendInvoice','getInvoice','getPayment','getAccountingChanges','getRefundEvidence',
   ]);
+  return Object.freeze({...provider,refundEvidenceCapability:false});
 }
 
-function commerceRepository() {
-  const repository = createOrderRepository({db,fieldValue:FieldValue,Timestamp});
-  const reviews = db.collection('commerceRefundReviews');
-  const reviewTotals = db.collection('commerceRefundReviewTotals');
-  const orders = db.collection('orders');
-  const audits = db.collection('commerceAudit');
+export function createRefundControlRepository({db:database,fieldValue,baseRepository = {}} = {}) {
+  if (!database?.collection || !database?.runTransaction || !fieldValue?.serverTimestamp) {
+    throw new TypeError('Refund repository dependencies are required');
+  }
+  const reviews = database.collection('commerceRefundReviews');
+  const reviewTotals = database.collection('commerceRefundReviewTotals');
+  const orders = database.collection('orders');
+  const audits = database.collection('commerceAudit');
   const safeId = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value);
   const safeDigest = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
-  const audit = fields => ({...fields,createdAt:FieldValue.serverTimestamp()});
+  const audit = fields => ({...fields,createdAt:fieldValue.serverTimestamp()});
+  const bindingFor = order => createHash('sha256').update(
+    `refund-order-binding\0${order.providerRefs?.realmId}\0${order.providerRefs?.invoiceId}\0${order.providerRefs?.providerOrderRef}`
+  ).digest('hex');
   return Object.freeze({
-    ...repository,
+    ...baseRepository,
     async recordRefundReview(input = {}) {
       if (!safeId(input.orderId) || !safeId(input.adminUid) || !safeDigest(input.idempotencyKey)
+        || !safeDigest(input.orderBinding)
         || !Number.isSafeInteger(input.amountCents) || input.amountCents <= 0
-        || !Number.isSafeInteger(input.verifiedUnrefundedAmountCents)
-        || input.verifiedUnrefundedAmountCents < input.amountCents
+        || !Number.isSafeInteger(input.authoritativeTotalAmountCents)
+        || !Number.isSafeInteger(input.authoritativeRefundedAmountCents)
         || typeof input.reason !== 'string' || input.reason.length < 1 || input.reason.length > 500
         || input.reason !== input.reason.trim()) {
         throw new Error('Refund review is invalid');
       }
       const reference = reviews.doc(input.idempotencyKey);
       const totalReference = reviewTotals.doc(input.orderId);
+      const orderReference = orders.doc(input.orderId);
       const receipt = audits.doc();
-      return db.runTransaction(async transaction => {
-        const [existing,totalSnapshot] = await Promise.all([
-          transaction.get(reference),transaction.get(totalReference),
+      return database.runTransaction(async transaction => {
+        const [existing,totalSnapshot,orderSnapshot] = await Promise.all([
+          transaction.get(reference),transaction.get(totalReference),transaction.get(orderReference),
         ]);
         if (existing.exists) {
           const data = existing.data();
           return {reviewId:reference.id,amountCents:data.amountCents,status:data.status,duplicate:true};
         }
+        const order = orderSnapshot.data();
+        if (!orderSnapshot.exists || !['paid','fulfilled'].includes(order.status)
+          || order.amountCents !== input.authoritativeTotalAmountCents
+          || Number(order.refundedAmountCents ?? 0) !== input.authoritativeRefundedAmountCents
+          || bindingFor(order) !== input.orderBinding) {
+          const error = new Error('Refund state changed');
+          error.code = 'REFUND_STATE_CONFLICT';
+          throw error;
+        }
         const pendingAmountCents = Number(totalSnapshot.data()?.pendingAmountCents ?? 0);
+        const authoritativeUnrefundedAmountCents = order.amountCents
+          - Number(order.refundedAmountCents ?? 0);
         if (!Number.isSafeInteger(pendingAmountCents)
-          || pendingAmountCents + input.amountCents > input.verifiedUnrefundedAmountCents) {
+          || pendingAmountCents + input.amountCents > authoritativeUnrefundedAmountCents) {
           const error = new Error('Refund amount is invalid');
           error.code = 'REFUND_AMOUNT_INVALID';
           throw error;
@@ -192,11 +211,11 @@ function commerceRepository() {
         transaction.create(reference, {
           orderId:input.orderId,amountCents:input.amountCents,reason:input.reason,
           requestedByUid:input.adminUid,status:'pending_operator_action',
-          createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp(),
+          createdAt:fieldValue.serverTimestamp(),updatedAt:fieldValue.serverTimestamp(),
         });
         transaction.set(totalReference, {
           orderId:input.orderId,pendingAmountCents:pendingAmountCents + input.amountCents,
-          updatedAt:FieldValue.serverTimestamp(),
+          updatedAt:fieldValue.serverTimestamp(),
         });
         transaction.create(receipt,audit({
           orderId:input.orderId,event:'refund_review_requested',amountCents:input.amountCents,
@@ -212,44 +231,83 @@ function commerceRepository() {
       }
       const reference = orders.doc(orderId);
       const receipt = audits.doc();
-      return db.runTransaction(async transaction => {
+      return database.runTransaction(async transaction => {
         const snapshot = await transaction.get(reference);
         if (!snapshot.exists || !['paid','fulfilled'].includes(snapshot.data().status)) return false;
         transaction.update(reference,{
-          refundReconciliation:{status:'manual_review',errorCode,updatedAt:FieldValue.serverTimestamp()},
-          updatedAt:FieldValue.serverTimestamp(),
+          refundReconciliation:{status:'manual_review',errorCode,updatedAt:fieldValue.serverTimestamp()},
+          updatedAt:fieldValue.serverTimestamp(),
         });
         transaction.create(receipt,audit({orderId,event:'refund_manual_review',errorCode,actorUid:adminUid}));
         return true;
       });
     },
-    async completeRefundReconciliation({orderId,amountCents,adminUid,evidenceId} = {}) {
-      if (!safeId(orderId) || !safeId(adminUid) || !safeDigest(evidenceId)
+    async completeRefundReconciliation(input = {}) {
+      const {orderId,amountCents,adminUid,evidenceId} = input;
+      if (!safeId(orderId) || !safeId(adminUid) || !safeDigest(evidenceId) || !safeDigest(input.orderBinding)
+        || !['paid','fulfilled'].includes(input.expectedStatus)
+        || !Number.isSafeInteger(input.expectedRefundedAmountCents)
+        || !Number.isSafeInteger(input.cumulativeRefundedAmountCents)
         || !Number.isSafeInteger(amountCents) || amountCents <= 0) {
         throw new Error('Refund reconciliation is invalid');
       }
       const reference = orders.doc(orderId);
       const receipt = audits.doc();
-      return db.runTransaction(async transaction => {
+      return database.runTransaction(async transaction => {
         const snapshot = await transaction.get(reference);
         if (!snapshot.exists) throw new Error('Order was not found');
         const order = snapshot.data();
-        if (order.status === 'refunded' && order.refundEvidenceId === evidenceId) return false;
-        const unrefunded = Number(order.amountCents) - Number(order.refundedAmountCents ?? 0);
-        if (!['paid','fulfilled'].includes(order.status) || amountCents !== unrefunded) {
-          throw new Error('Refund reconciliation state is invalid');
+        if (order.status === 'refunded' && order.refundEvidenceId === evidenceId
+          && order.refundedAmountCents === input.cumulativeRefundedAmountCents
+          && order.lastReconciledRefundAmountCents === amountCents) {
+          return {completed:true,duplicate:true,status:'refunded'};
+        }
+        const conflict = order.status !== input.expectedStatus
+          || Number(order.refundedAmountCents ?? 0) !== input.expectedRefundedAmountCents
+          || bindingFor(order) !== input.orderBinding
+          || input.cumulativeRefundedAmountCents !== input.expectedRefundedAmountCents + amountCents
+          || input.cumulativeRefundedAmountCents > Number(order.amountCents);
+        if (conflict) {
+          if (['paid','fulfilled'].includes(order.status)) transaction.update(reference,{
+            refundReconciliation:{status:'manual_review',errorCode:'refund_state_conflict'},
+            updatedAt:fieldValue.serverTimestamp(),
+          });
+          transaction.create(receipt,audit({
+            orderId,event:'refund_manual_review',errorCode:'refund_state_conflict',actorUid:adminUid,
+          }));
+          return {completed:false,duplicate:false,status:order.status,errorCode:'refund_state_conflict'};
+        }
+        if (input.cumulativeRefundedAmountCents < order.amountCents) {
+          transaction.update(reference,{
+            refundedAmountCents:input.cumulativeRefundedAmountCents,refundEvidenceId:evidenceId,
+            refundReconciliation:{status:'manual_review',errorCode:'partial_refund_requires_manual_review'},
+            updatedAt:fieldValue.serverTimestamp(),
+          });
+          transaction.create(receipt,audit({
+            orderId,event:'refund_manual_review',amountCents,
+            errorCode:'partial_refund_requires_manual_review',actorUid:adminUid,evidenceId,
+          }));
+          return {completed:false,duplicate:false,status:order.status,errorCode:'partial_refund_requires_manual_review'};
         }
         transaction.update(reference,{
-          status:'refunded',terminal:true,refundedAmountCents:amountCents,
+          status:'refunded',terminal:true,refundedAmountCents:input.cumulativeRefundedAmountCents,
+          lastReconciledRefundAmountCents:amountCents,
           refundEvidenceId:evidenceId,refundReconciliation:{status:'exact_accounting_refund'},
-          activeTransition:null,reconciliationDueAt:null,updatedAt:FieldValue.serverTimestamp(),
+          activeTransition:null,reconciliationDueAt:null,updatedAt:fieldValue.serverTimestamp(),
         });
         transaction.create(receipt,audit({
           orderId,event:'refund_reconciled',amountCents,actorUid:adminUid,evidenceId,
         }));
-        return true;
+        return {completed:true,duplicate:false,status:'refunded'};
       });
     },
+  });
+}
+
+function commerceRepository() {
+  return createRefundControlRepository({
+    db,fieldValue:FieldValue,
+    baseRepository:createOrderRepository({db,fieldValue:FieldValue,Timestamp}),
   });
 }
 

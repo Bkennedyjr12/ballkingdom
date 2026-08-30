@@ -67,36 +67,56 @@ function refundRequest(input, {reasonRequired = false} = {}) {
   return input;
 }
 
-function refundReviewIdempotencyKey({orderId,amountCents,reason}, adminUid) {
+function refundReviewIdempotencyKey({orderId,amountCents}) {
   return createHash('sha256')
-    .update(`refund-review\0${orderId}\0${amountCents}\0${reason}\0${adminUid}`)
+    .update(`refund-review\0${orderId}\0${amountCents}`)
     .digest('hex');
 }
 
-function exactRefundEvidence(evidence, paymentEvidence, order, amountCents) {
-  const refund = evidence?.refund;
+function refundOrderBinding(order) {
+  return createHash('sha256').update(
+    `refund-order-binding\0${order.providerRefs.realmId}\0${order.providerRefs.invoiceId}\0${order.providerRefs.providerOrderRef}`
+  ).digest('hex');
+}
+
+function normalizeRefundEvidence(evidence, paymentEvidence, order) {
   const payment = paymentEvidence?.payments?.[0];
-  return record(evidence)
-    && Object.keys(evidence).sort().join(',') === [
-      'currency','invoiceId','providerOrderRef','providerPaymentRef','realmId','refund',
+  if (!record(evidence)
+    || Object.keys(evidence).sort().join(',') !== [
+      'capability','currency','invoiceId','providerOrderRef','providerPaymentRef','realmId','refunds',
     ].sort().join(',')
-    && record(refund)
-    && Object.keys(refund).sort().join(',') === [
-      'amountCents','currency','entityState','invoiceId','providerOrderRef','providerPaymentRef','refundId','status',
-    ].sort().join(',')
-    && evidence.realmId === order.providerRefs.realmId
-    && evidence.invoiceId === order.providerRefs.invoiceId
-    && evidence.providerOrderRef === order.providerRefs.providerOrderRef
-    && evidence.providerPaymentRef === payment?.providerPaymentRef
-    && evidence.currency === order.currency
-    && typeof refund.refundId === 'string' && refund.refundId.length > 0
-    && refund.entityState === 'present'
-    && refund.status === 'completed'
-    && refund.amountCents === amountCents
-    && refund.invoiceId === evidence.invoiceId
-    && refund.providerOrderRef === evidence.providerOrderRef
-    && refund.providerPaymentRef === evidence.providerPaymentRef
-    && refund.currency === evidence.currency;
+    || evidence.capability !== 'documented_accounting_refund_v1'
+    || evidence.realmId !== order.providerRefs.realmId
+    || evidence.invoiceId !== order.providerRefs.invoiceId
+    || evidence.providerOrderRef !== order.providerRefs.providerOrderRef
+    || evidence.providerPaymentRef !== payment?.providerPaymentRef
+    || evidence.currency !== order.currency
+    || !Array.isArray(evidence.refunds) || evidence.refunds.length > 100) return null;
+  const ids = new Set();
+  let cumulativeRefundedAmountCents = 0;
+  for (const refund of evidence.refunds) {
+    if (!record(refund)
+      || Object.keys(refund).sort().join(',') !== [
+        'amountCents','currency','entityState','invoiceId','providerOrderRef','providerPaymentRef','refundId','status',
+      ].sort().join(',')
+      || typeof refund.refundId !== 'string' || refund.refundId.length < 1 || ids.has(refund.refundId)
+      || refund.entityState !== 'present' || refund.status !== 'completed'
+      || !Number.isSafeInteger(refund.amountCents) || refund.amountCents <= 0
+      || refund.invoiceId !== evidence.invoiceId
+      || refund.providerOrderRef !== evidence.providerOrderRef
+      || refund.providerPaymentRef !== evidence.providerPaymentRef
+      || refund.currency !== evidence.currency) return null;
+    ids.add(refund.refundId);
+    cumulativeRefundedAmountCents += refund.amountCents;
+    if (!Number.isSafeInteger(cumulativeRefundedAmountCents)
+      || cumulativeRefundedAmountCents > order.amountCents) return null;
+  }
+  return Object.freeze({
+    cumulativeRefundedAmountCents,
+    evidenceId:createHash('sha256').update(
+      `refund-evidence\0${[...ids].sort().join('\0')}\0${evidence.providerPaymentRef}`
+    ).digest('hex'),
+  });
 }
 
 function approvedRecipient(candidate, approved) {
@@ -868,26 +888,37 @@ export function createCommerceService({
     async requestRefundReview(input, authContext) {
       const adminUid = requireAdminContext(authContext);
       const request = refundRequest(input, {reasonRequired:true});
+      if (quickbooks?.refundEvidenceCapability !== true
+        || typeof quickbooks?.getRefundEvidence !== 'function') {
+        throw commerceError('REFUND_EVIDENCE_UNAVAILABLE', 'Refund review is unavailable');
+      }
       const order = await repository.getOrder(request.orderId);
       if (!order || !['paid','fulfilled'].includes(order.status)
         || !order.providerRefs?.invoiceId || !order.providerRefs?.realmId) {
         throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
       }
-      let evidence;
+      let paymentEvidence;
+      let refundEvidence;
       try {
-        evidence = await quickbooks?.getInvoice?.(order.providerRefs.invoiceId);
-        verifyQuickBooksPaymentEvidence(evidence, {
+        paymentEvidence = await quickbooks?.getInvoice?.(order.providerRefs.invoiceId);
+        verifyQuickBooksPaymentEvidence(paymentEvidence, {
           realmId:order.providerRefs.realmId,
           invoiceId:order.providerRefs.invoiceId,
           providerOrderRef:order.providerRefs.providerOrderRef,
           amountCents:order.amountCents,
           currency:order.currency,
         });
+        refundEvidence = await quickbooks.getRefundEvidence(order.providerRefs.invoiceId);
       } catch {
         throw commerceError('REFUND_EVIDENCE_UNAVAILABLE', 'Refund amount cannot be verified');
       }
-      const verifiedUnrefundedAmountCents = order.amountCents - Number(order.refundedAmountCents ?? 0);
-      if (request.amountCents > verifiedUnrefundedAmountCents) {
+      const normalizedRefunds = normalizeRefundEvidence(refundEvidence,paymentEvidence,order);
+      if (!normalizedRefunds) {
+        throw commerceError('REFUND_EVIDENCE_UNAVAILABLE', 'Refund amount cannot be verified');
+      }
+      const authoritativeUnrefundedAmountCents = order.amountCents
+        - normalizedRefunds.cumulativeRefundedAmountCents;
+      if (request.amountCents > authoritativeUnrefundedAmountCents) {
         throw commerceError('REFUND_AMOUNT_INVALID', 'Refund amount is invalid');
       }
       if (typeof repository.recordRefundReview !== 'function') {
@@ -898,8 +929,10 @@ export function createCommerceService({
         amountCents:request.amountCents,
         reason:request.reason,
         adminUid,
-        verifiedUnrefundedAmountCents,
-        idempotencyKey:refundReviewIdempotencyKey(request, adminUid),
+        authoritativeTotalAmountCents:order.amountCents,
+        authoritativeRefundedAmountCents:normalizedRefunds.cumulativeRefundedAmountCents,
+        orderBinding:refundOrderBinding(order),
+        idempotencyKey:refundReviewIdempotencyKey(request),
       });
       return Object.freeze({
         reviewHandle:createHash('sha256').update(`refund-review-handle\0${recorded.reviewId}`).digest('hex'),
@@ -938,7 +971,7 @@ export function createCommerceService({
       const adminUid = requireAdminContext(authContext);
       const request = refundRequest(input);
       const order = await repository.getOrder(request.orderId);
-      if (!order || !['paid','fulfilled'].includes(order.status)
+      if (!order || !['paid','fulfilled','refunded'].includes(order.status)
         || !order.providerRefs?.invoiceId || !order.providerRefs?.realmId) {
         throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
       }
@@ -959,25 +992,54 @@ export function createCommerceService({
           amountCents:order.amountCents,
           currency:order.currency,
         });
-        if (typeof quickbooks?.getRefundEvidence !== 'function') {
+        if (quickbooks?.refundEvidenceCapability !== true
+          || typeof quickbooks?.getRefundEvidence !== 'function') {
           return preserveForManualReview('refund_evidence_unsupported');
         }
         refundEvidence = await quickbooks.getRefundEvidence(order.providerRefs.invoiceId);
       } catch {
         return preserveForManualReview('refund_evidence_unavailable');
       }
-      if (!exactRefundEvidence(refundEvidence, paymentEvidence, order, request.amountCents)) {
+      const normalizedRefunds = normalizeRefundEvidence(refundEvidence,paymentEvidence,order);
+      const existingRefundedAmountCents = Number(order.refundedAmountCents ?? 0);
+      if (order.status === 'refunded') {
+        if (normalizedRefunds
+          && normalizedRefunds.evidenceId === order.refundEvidenceId
+          && normalizedRefunds.cumulativeRefundedAmountCents === existingRefundedAmountCents
+          && order.lastReconciledRefundAmountCents === request.amountCents) {
+          return Object.freeze({orderHandle:order.id,status:'refunded',reconciliation:'exact_accounting_refund'});
+        }
+        throw commerceError('REFUND_STATE_CONFLICT','Refund reconciliation conflicts with terminal state');
+      }
+      if (!normalizedRefunds
+        || !Number.isSafeInteger(existingRefundedAmountCents)
+        || normalizedRefunds.cumulativeRefundedAmountCents !== existingRefundedAmountCents + request.amountCents) {
         return preserveForManualReview('refund_evidence_mismatch');
       }
       if (typeof repository.completeRefundReconciliation !== 'function') {
         return preserveForManualReview('refund_reconciliation_unavailable');
       }
-      await repository.completeRefundReconciliation({
-        orderId:order.id,amountCents:request.amountCents,adminUid,
-        evidenceId:createHash('sha256').update(
-          `refund-evidence\0${refundEvidence.refund.refundId}\0${refundEvidence.providerPaymentRef}`
-        ).digest('hex'),
-      });
+      let completed;
+      try {
+        completed = await repository.completeRefundReconciliation({
+          orderId:order.id,amountCents:request.amountCents,adminUid,
+          expectedStatus:order.status,
+          expectedRefundedAmountCents:existingRefundedAmountCents,
+          cumulativeRefundedAmountCents:normalizedRefunds.cumulativeRefundedAmountCents,
+          evidenceId:normalizedRefunds.evidenceId,
+          orderBinding:refundOrderBinding(order),
+        });
+      } catch {
+        return preserveForManualReview('refund_state_conflict');
+      }
+      if (!completed?.completed) {
+        const current = await repository.getOrder(order.id);
+        return Object.freeze({
+          orderHandle:order.id,
+          status:['paid','fulfilled'].includes(current?.status) ? current.status : order.status,
+          reconciliation:'manual_review',
+        });
+      }
       return Object.freeze({orderHandle:order.id,status:'refunded',reconciliation:'exact_accounting_refund'});
     },
 

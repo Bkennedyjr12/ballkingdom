@@ -6,6 +6,8 @@ This runbook covers the Ballers Kingdom invoice-first commerce pilot. QuickBooks
 
 A refund review request is **not approval to execute a refund**. `requestRefundReview` creates an internal work item only. Neither it nor `reconcileOrder` nor `reconcileRefund` calls a provider refund operation. A separately approved operator action in QuickBooks is required for every refund. An action visible in QuickBooks Payments is not reconciled until current QuickBooks Accounting entities independently prove the exact realm, order, invoice, payment, currency, and amount.
 
+The current production Accounting adapter has no authoritative documented refund/reversal reader. Therefore `requestRefundReview` is intentionally unavailable and records no work item in production. Do not describe an Invoice/Payment read or local `refundedAmountCents` as verified unrefunded value. The review control may be enabled only after a separately reviewed adapter normalizes current documented Accounting refund/reversal entities under the exact evidence contract and independently proves that capability.
+
 Do not send an authentication email or QuickBooks invoice email, initiate a payment/refund, change a secret, deploy, or enable a rollout flag without Brian's separate approval for that exact action and recipient/amount where applicable. Approval for one action does not authorize another.
 
 ## Authoritative identities and targets
@@ -55,7 +57,7 @@ The authoritative Firestore and Storage Rules sources, mappings, Java runtime, a
 1. Verify the administrator identity, App Check, Git commit, Firebase project/account, rollout flags, and clean tests.
 2. Read the order in the protected operator surface. Responses must contain only the order handle, state, amount/currency needed for the decision, and redacted disposition—never customer email, provider URLs, tokens, realm, invoice/payment identifiers, or secret material.
 3. Run `reconcileOrder` to re-fetch the Invoice/Payment through the existing exact Accounting evidence verifier. A website state, webhook hint, email, invoice-send response, or invoice balance alone is insufficient.
-4. If a customer requests review, record the bounded reason and amount through `requestRefundReview`. The amount must be integer cents and cannot exceed the atomically verified unrefunded amount, including other pending review work items.
+4. If the authoritative documented refund/reversal reader is absent, stop: `requestRefundReview` must fail closed before any work-item write. After that capability is separately implemented and verified, a customer request may be recorded with a bounded reason and integer-cent amount no greater than the atomically verified unrefunded amount, including other pending review work items.
 5. Review the internal work item. This is still not authority to refund.
 6. Obtain Brian's separate approval for the exact order, amount, and QuickBooks operator refund action.
 7. In QuickBooks, confirm company, customer, original Invoice, original Payment, payment method, requested amount, and current unrefunded amount. Execute once through the documented QuickBooks operator UI. Do not use a website callable or an undocumented API.
