@@ -24,10 +24,12 @@
 - The existing owner approval gate remains mandatory before a service invoice is finalized or sent.
 - Automatic digital invoice send is code-only until a separately approved production pilot.
 - No account change, webhook configuration, invoice, customer email, payment, production deploy, or refund occurs without the applicable explicit approval.
+- Firebase email-link provider configuration does not authorize an authentication email. One Firebase authentication email and exact recipient require approval separately from the later QuickBooks Invoice send/customer email and its exact recipient.
 - The production Accounting app is not visible to the signed-in Intuit Developer identity; this blocks production webhook configuration, but not a scheduled-reconciliation-only pilot when the existing Accounting OAuth connection and every other gate are verified.
 - The repository still lacks the authoritative production Firestore Rules source and working Java rules-unit-testing; the local deny fragment must not be wired for deployment.
 - The repository has no `storage.rules` or configured authoritative Storage Rules source; missing authoritative production Storage policy/bucket mapping and emulator proof blocks the pilot.
 - `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED` and `COMMERCE_SERVICE_QBO_SEND_ENABLED` are independent and default false; the first pilot may enable only the digital flag.
+- The reviewed production values for those non-secret Boolean parameters come only from committed `functions/.env.the-ballers-kingdom`, not ignored dotenv state, an undocumented CLI flag, or an unrecorded deploy prompt.
 - Use explicit Firebase identity and target flags: project `the-ballers-kingdom`, account `lilpelejr12@gmail.com`, Hosting target `public`, Functions codebase `ballkingdom-integrations`.
 
 ---
@@ -49,6 +51,8 @@ Tasks 1–4 below are completed historical plan records and remain unchanged. Th
 - `functions/src/providers/quickbooks-webhooks.js` — raw-body Intuit signature verification and normalized webhook hints.
 - `functions/src/commerce/commerce-service.js` — digital invoice, payment verification, reconciliation, and fulfillment orchestration.
 - `functions/src/commerce/feature-flags.js` — independent default-off digital-pilot and service-migration gates.
+- `functions/.env.the-ballers-kingdom` — committed non-secret project parameter values, initially `false`/`false`.
+- `functions/.gitignore` — narrow exception for that exact reviewed project parameter file; every other `.env*` remains ignored except the existing example exception.
 - `functions/src/commerce/fulfillment.js` — protected digital-delivery grants and service handoff.
 - `functions/src/commerce/public-errors.js` — safe error codes and redaction.
 - `functions/src/index.js` — thin Firebase trigger/callable/request bindings.
@@ -57,6 +61,7 @@ Tasks 1–4 below are completed historical plan records and remain unchanged. Th
 - `order-status.html` — shared accessible invoice-sent/payment-verification page.
 - `tests/commerce-browser.spec.mjs` — desktop and mobile customer journeys.
 - `storage.rules` — authoritative production Storage policy after source recovery/merge; direct paid-artifact access remains denied.
+- `docs/operations/firebase-commerce-rules-source-evidence.md` — non-secret source provenance, hashes, bucket mapping, and merge evidence required before Rules mapping/deploy.
 - `docs/operations/quickbooks-commerce-runbook.md` — merchant evidence, sandbox, rollout, monitoring, reconciliation, and rollback.
 
 ---
@@ -466,6 +471,8 @@ git commit -m "feat: verify QuickBooks invoice payments"
 **Files:**
 - Create: `functions/src/commerce/commerce-service.js`
 - Create: `functions/src/commerce/feature-flags.js`
+- Create: `functions/.env.the-ballers-kingdom`
+- Modify: `functions/.gitignore`
 - Create: `functions/src/providers/quickbooks-webhooks.js`
 - Create: `functions/test/commerce/commerce-service.test.js`
 - Create: `functions/test/commerce/feature-flags.test.js`
@@ -477,7 +484,7 @@ git commit -m "feat: verify QuickBooks invoice payments"
 
 **Interfaces:**
 - Consumes: catalog, existing order state/repository, extended QuickBooks Accounting adapter, `verifyQuickBooksPaymentEvidence()`, and Intuit's current [webhooks contract](https://developer.intuit.com/app/developer/qbo/docs/develop/webhooks).
-- Produces: `createDigitalOrder({sku,customerName,idempotencyKey}, authContext)`, `getOrderStatus({orderHandle}, authContext)`, `verifyOrderPayment({orderId,source})`, `acceptQuickBooksWebhook({rawBody,signature})`, `reconcilePendingOrders(now)`, two independent default-off feature flags, and Firebase Auth plus App Check-enforced customer/admin endpoints.
+- Produces: `createDigitalOrder({sku,customerName,idempotencyKey}, authContext)`, `getOrderStatus({orderHandle}, authContext)`, `verifyOrderPayment({orderId,source})`, `acceptQuickBooksWebhook({rawBody,signature})`, `reconcilePendingOrders(now)`, `getCommerceReleaseState(authContext)`, two independent default-off feature flags, and Firebase Auth plus App Check-enforced customer/admin endpoints.
 
 - [ ] **Step 1: Add failing durable-effect repository tests**
 
@@ -499,7 +506,7 @@ test('creates and sends one server-priced invoice without returning a pay URL', 
 });
 ```
 
-Cover both flags defaulting false; digital order denial while its flag is false; duplicate submission; a recovered existing invoice after create timeout; confirmed send acceptance; send failure; five-minute lease expiry; stale ambiguous send to `manual_review` with no second send; no fulfillment from create/send responses; exact evidence success; mismatched evidence to `manual_review`; and recovery without another invoice or email. Assert service orders are rejected by `createDigitalOrder()` and cannot bypass `approveInvoice`. Keep `COMMERCE_SERVICE_QBO_SEND_ENABLED` false throughout these tests.
+Cover both `defineBoolean` declarations defaulting false; the committed project parameter file containing exactly the two allowlisted non-secret keys with Boolean literal values; the service file value always remaining `false`; and the exact file being tracked despite the general `.env*` ignore. The initial Task 6 commit writes digital `false`, but the file-schema test must continue to pass when Task 12 deliberately changes only that value to `true`; the code-level absent-value default test remains `false`. Also cover digital order denial while its flag is false; duplicate submission; a recovered existing invoice after create timeout; confirmed send acceptance; send failure; five-minute lease expiry; stale ambiguous send to `manual_review` with no second send; no fulfillment from create/send responses; exact evidence success; mismatched evidence to `manual_review`; and recovery without another invoice or email. Assert service orders are rejected by `createDigitalOrder()` and cannot bypass `approveInvoice`. Keep `COMMERCE_SERVICE_QBO_SEND_ENABLED` false throughout these tests. Test that `getCommerceReleaseState()` requires App Check plus `admin:true` and returns only `{digitalInvoicePilotEnabled:boolean,serviceQboSendEnabled:boolean}`.
 
 - [ ] **Step 3: Write failing webhook tests**
 
@@ -513,7 +520,16 @@ Expected: FAIL because durable effects, commerce service, and webhook verificati
 
 - [ ] **Step 5: Implement digital invoice creation and send**
 
-Define `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED=false` and `COMMERCE_SERVICE_QBO_SEND_ENABLED=false` as Firebase Functions Boolean parameters via `defineBoolean`, preserving the default when unset and rejecting non-Boolean test/config input. `createDigitalOrder()` first requires the digital flag, App Check, and a Firebase Auth token containing `uid`, `email`, and `email_verified:true`. It loads the server catalog item, ignores browser amount/UID/email fields, creates the Task 3 order with immutable `customerUid=request.auth.uid` and the normalized token email, and commits that order before `invoice_create` can be claimed. It calls `createCommerceInvoice()` with `bk-order-${orderId}` and persists `realmId`, `invoiceId`, `customerId`, and `providerOrderRef`. It then separately claims `invoice_send` and calls `sendInvoice()` with the stored Invoice ID and verified token email. Return only:
+Define `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED=false` and `COMMERCE_SERVICE_QBO_SEND_ENABLED=false` as Firebase Functions Boolean parameters via `defineBoolean`, preserving the code default when unset and rejecting non-Boolean test/config input. Firebase's current [parameterized configuration documentation](https://firebase.google.com/docs/functions/config-env) states that parameter values are loaded from `.env.<project_ID>` and that this file may be version-controlled; the current [`defineBoolean` reference](https://firebase.google.com/docs/reference/functions/2nd-gen/node/firebase-functions.params#defineboolean) confirms the typed file-or-prompt behavior. Create committed `functions/.env.the-ballers-kingdom` with exactly:
+
+```dotenv
+COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED=false
+COMMERCE_SERVICE_QBO_SEND_ENABLED=false
+```
+
+Modify `functions/.gitignore` with only `!.env.the-ballers-kingdom` in addition to its existing `.env.example` exception. This file contains no credentials, recipient, customer data, or other configuration. The Firebase CLI must load it for project `the-ballers-kingdom`; because both values are present, any prompt for either value is an unexpected release failure, not an opportunity to supply an unrecorded answer. `getCommerceReleaseState()` reads the two `.value()` results at runtime and exposes only those Booleans to an App Check-enforced `admin:true` caller for independent post-deploy verification.
+
+`createDigitalOrder()` first requires the digital flag, App Check, and a Firebase Auth token containing `uid`, `email`, and `email_verified:true`. It loads the server catalog item, ignores browser amount/UID/email fields, creates the Task 3 order with immutable `customerUid=request.auth.uid` and the normalized token email, and commits that order before `invoice_create` can be claimed. It calls `createCommerceInvoice()` with `bk-order-${orderId}` and persists `realmId`, `invoiceId`, `customerId`, and `providerOrderRef`. It then separately claims `invoice_send` and calls `sendInvoice()` with the stored Invoice ID and verified token email. Return only:
 
 ```js
 {
@@ -550,7 +566,7 @@ Assert signed-out rejection, unverified-email rejection, App Check rejection, a 
 ```bash
 npm --prefix functions test -- test/commerce/order-repository.test.js test/commerce/commerce-service.test.js test/commerce/feature-flags.test.js test/commerce/quickbooks-webhooks.test.js
 npm --prefix functions run check
-git add functions/src/commerce/commerce-service.js functions/src/commerce/feature-flags.js functions/src/providers/quickbooks-webhooks.js functions/test/commerce/commerce-service.test.js functions/test/commerce/feature-flags.test.js functions/test/commerce/quickbooks-webhooks.test.js functions/src/commerce/order-repository.js functions/test/commerce/order-repository.test.js functions/src/index.js firebase.json
+git add functions/src/commerce/commerce-service.js functions/src/commerce/feature-flags.js functions/.env.the-ballers-kingdom functions/.gitignore functions/src/providers/quickbooks-webhooks.js functions/test/commerce/commerce-service.test.js functions/test/commerce/feature-flags.test.js functions/test/commerce/quickbooks-webhooks.test.js functions/src/commerce/order-repository.js functions/test/commerce/order-repository.test.js functions/src/index.js firebase.json
 git commit -m "feat: orchestrate QuickBooks invoice payments"
 ```
 
@@ -563,9 +579,12 @@ git commit -m "feat: orchestrate QuickBooks invoice payments"
 - Create: `functions/test/commerce/fulfillment.test.js`
 - Modify: `functions/src/commerce/commerce-service.js`
 - Modify: `functions/src/index.js`
+- Modify: `firestore.rules` only after authoritative production source recovery and merge
 - Create: `storage.rules`
-- Modify: `firebase.json` (add the verified Storage Rules source and add `storage.rules` to both Hosting ignore lists)
+- Modify: `firebase.json` only after source recovery (add the verified Firestore and Storage Rules mappings; add both Rules files to both Hosting ignore lists)
+- Modify: `functions/test/commerce/firestore-rules.test.js`
 - Create: `functions/test/commerce/storage-rules.test.js`
+- Create: `docs/operations/firebase-commerce-rules-source-evidence.md`
 
 **Interfaces:**
 - Consumes: a transactionally claimed `paid` order produced only by Task 6's exact Accounting Invoice/Payment verifier.
@@ -583,17 +602,31 @@ Run: `npm --prefix functions test -- test/commerce/fulfillment.test.js`
 
 Keep paid artifacts outside the public Hosting directory. Resolve artifact keys from a server allowlist keyed by SKU. `createDownloadGrant()` derives the caller UID from Firebase Auth, requires App Check and `request.auth.uid === order.customerUid`, then creates a cryptographically random 256-bit nonce. Store only its SHA-256 digest, bound order ID/customer UID/SKU, `expiresAt=issuedAt+10 minutes`, and nullable `consumedAt`; never accept a UID or storage path from the browser. `redeemDownloadGrant()` requires the same Firebase UID and App Check, hashes the submitted nonce, and transactionally changes exactly one matching unexpired grant from unused to consumed before the Function streams the allowlisted object. Concurrent or replayed redemption fails. If streaming fails after consumption, the still-authenticated owner must request a new grant; the nonce is never reopened.
 
-- [ ] **Step 4: Deny direct Storage enumeration and reads**
+- [ ] **Step 4: Recover, merge, and map both authoritative Rules sources**
 
-The repository currently has no `storage.rules`, no Storage block in `firebase.json`, and no verified production Storage Rules source or bucket mapping. Before writing deployable rules, recover and hash the authoritative production source and document the bucket mapping. Merge the narrow paid-artifact direct-read denial without replacing unrelated live policy. If that source cannot be recovered, stop with both the Storage Rules release and production pilot blocked; do not treat a new local deny file as production truth.
+The repository currently has only an unconfigured Firestore commerce-deny fragment: `firebase.json` maps `firestore.indexes.json` but not `firestore.rules`. It also has no `storage.rules`, Storage block, verified production Storage Rules source, or bucket mapping. Recover and hash the authoritative production Firestore and Storage Rules sources before changing either mapping. Record each read-only source location/identity, retrieval timestamp, pre-merge SHA-256, exact Storage bucket mapping, merge decision, and merged-file SHA-256 in `docs/operations/firebase-commerce-rules-source-evidence.md` without copying private data. Merge the completed commerce collection denies into the authoritative Firestore source and the narrow paid-artifact direct-read denial into the authoritative Storage source without replacing unrelated live policy. If either source cannot be recovered, record the blocker and stop with its Rules release and the production pilot blocked; do not treat the existing fragment or a new local deny file as production truth.
 
-After recovery and review, create the merged `storage.rules`, configure `firebase.json` with `"storage":{"rules":"storage.rules"}`, and add `storage.rules` to both Hosting ignore lists so Hosting cannot serve it. Direct client enumeration, reads, and writes to paid artifacts are denied; only the Admin SDK inside the authenticated redemption Function may read the allowlisted object. Do not return a reusable public signed URL.
+Only after both merged sources and hashes are reviewed, make the mappings explicit:
+
+```json
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  }
+}
+```
+
+Preserve the rest of `firebase.json` unchanged and add both `firestore.rules` and `storage.rules` to both Hosting ignore lists so Hosting cannot serve either policy. Direct client enumeration, reads, and writes to paid artifacts are denied; only the Admin SDK inside the authenticated redemption Function may read the allowlisted object. Do not return a reusable public signed URL. Emulator/static tests assert the exact two mappings; Task 11 independently compares the committed files to the merged SHA-256 values in the evidence document before any dry run.
 
 - [ ] **Step 5: Run emulator tests and commit**
 
 ```bash
-firebase emulators:exec --only auth,firestore,storage,functions "npm --prefix functions test -- test/commerce/fulfillment.test.js test/commerce/storage-rules.test.js" --project the-ballers-kingdom
-git add functions/src/commerce/fulfillment.js functions/test/commerce/fulfillment.test.js functions/test/commerce/storage-rules.test.js functions/src/commerce/commerce-service.js functions/src/index.js storage.rules firebase.json
+firebase emulators:exec --only auth,firestore,storage,functions "npm --prefix functions test -- test/commerce/fulfillment.test.js test/commerce/firestore-rules.test.js test/commerce/storage-rules.test.js" --project the-ballers-kingdom
+git add functions/src/commerce/fulfillment.js functions/test/commerce/fulfillment.test.js functions/test/commerce/firestore-rules.test.js functions/test/commerce/storage-rules.test.js functions/src/commerce/commerce-service.js functions/src/index.js firestore.rules storage.rules firebase.json docs/operations/firebase-commerce-rules-source-evidence.md
 git commit -m "feat: protect paid digital fulfillment"
 ```
 
@@ -689,7 +722,7 @@ Run: `npx playwright test tests/commerce-browser.spec.mjs`
 
 - [ ] **Step 3: Implement the shared purchase and order summary**
 
-Render item name, server-returned price, currency, customer name/email fields, fulfillment terms, refund/cancellation links, and `Send payment instructions`. Complete Firebase email-link sign-in before calling `createDigitalOrder`; after authentication, treat the verified token email as authoritative and do not let the browser substitute another UID/email. Handle a consumed, expired, modified, or reused email link as signed out and require a fresh link. Explain before submission that QuickBooks will email the payable invoice and that Ballers Kingdom will verify payment before delivery. Never render or collect card, bank, PayPal, or Venmo credentials.
+Render item name, server-returned price, currency, customer name/email fields, fulfillment terms, refund/cancellation links, and `Send payment instructions`. Follow Firebase's current [email-link authentication flow](https://firebase.google.com/docs/auth/web/email-link-auth): only after the server reports the digital SKU and pilot flag active, an explicit customer action may call `sendSignInLinkToEmail`, which causes Firebase to send a separate authentication email to the supplied address. Complete that sign-in before calling `createDigitalOrder`; after authentication, treat the verified token email as authoritative and do not let the browser substitute another UID/email. Handle a consumed, expired, modified, or reused email link as signed out and require a fresh link. Enabling the Auth provider is not authorization to send this email, and this authentication email is not the later QuickBooks invoice email. Explain before each action which provider sends which message and that QuickBooks will verify payment before delivery. Never render or collect card, bank, PayPal, or Venmo credentials.
 
 - [ ] **Step 4: Implement status polling with bounded retries**
 
@@ -788,6 +821,8 @@ firebase emulators:exec --only auth,firestore,storage,functions "npm --prefix fu
 
 The final emulator command is a required release gate, but it is currently blocked: this repository has only an unconfigured commerce-deny fragment rather than the authoritative production Firestore Rules source, has no `storage.rules` or configured Storage Rules source, and lacks the required Java/rules-unit-testing proof. Do not represent a static fragment or newly created local deny file as runtime authorization proof. Recover and merge both authoritative production Rules sources and bucket mapping, install/verify Java, then run the full signed-out/ordinary/customer-owner/wrong-customer/admin suite before either Rules release. Missing authoritative Firestore or Storage Rules source is a pilot release blocker.
 
+Use the Firebase Auth emulator and captured emulator out-of-band link/code to test `sendSignInLinkToEmail` request handling, successful completion, expiry, wrong email, and replay without delivering a production authentication email. The verification record must show `production Firebase authentication emails sent: 0` and `production QuickBooks invoice emails sent: 0`; those are distinct later pilot approvals.
+
 - [ ] **Step 2: Run dependency and secret checks**
 
 ```bash
@@ -797,11 +832,11 @@ python3 /Users/briankennedyjrm.ed/.codex/skills/secure-ai-operator/scripts/secur
 git diff --check
 ```
 
-Classify synthetic test fixtures separately from real findings. Do not waive a production secret or high-severity runtime vulnerability.
+Classify synthetic test fixtures separately from real findings. Confirm `functions/.env.the-ballers-kingdom` is tracked through the narrow ignore exception, contains exactly the two non-secret Boolean parameter keys, and contains no email address, credential, customer data, or unrelated setting. Do not waive a production secret or high-severity runtime vulnerability.
 
 - [ ] **Step 3: Verify Accounting invoice and payment journeys without live outbound effects**
 
-Use injected mocks for the documented Invoice send operation and assert its exact current method/path/headers/response envelope without sending an email. In an Intuit sandbox, create/read only sandbox customers, items, invoices, and Payments when supported and authorized for the test account; do not send an invoice to a real address. Cover unpaid invoice, exact paid invoice, delayed verification, partial/split/wrong-amount/wrong-realm/wrong-reference evidence, fulfillment retry, service approval, and refund-insufficient-evidence behavior. Verify each against the sandbox Accounting entity, Firestore emulator/test environment, and audit receipt. No live company, production email, payment, or refund is authorized.
+Use injected mocks for the documented Invoice send operation and assert its exact current method/path/headers/response envelope without sending an email. Separately use Auth-emulator evidence for the Firebase authentication email request/completion contract without sending a production email. In an Intuit sandbox, create/read only sandbox customers, items, invoices, and Payments when supported and authorized for the test account; do not send an invoice to a real address. Cover unpaid invoice, exact paid invoice, delayed verification, partial/split/wrong-amount/wrong-realm/wrong-reference evidence, fulfillment retry, service approval, and refund-insufficient-evidence behavior. Verify each against the sandbox Accounting entity, Firestore emulator/test environment, and audit receipt. No live company, Firebase authentication email, QuickBooks invoice email, payment, or refund is authorized by Task 11.
 
 - [ ] **Step 4: Verify webhook hints and mandatory recovery**
 
@@ -814,13 +849,18 @@ This repository has no release-guard script. Use these concrete preflight comman
 ```bash
 git status --short
 git rev-parse HEAD
+git ls-files --error-unmatch functions/.env.the-ballers-kingdom firestore.rules storage.rules docs/operations/firebase-commerce-rules-source-evidence.md
+node -e "const f=JSON.parse(require('node:fs').readFileSync('firebase.json','utf8')); if(f.firestore?.rules!=='firestore.rules'||f.firestore?.indexes!=='firestore.indexes.json'||f.storage?.rules!=='storage.rules') process.exit(1)"
 firebase target --project the-ballers-kingdom --account lilpelejr12@gmail.com
+firebase deploy --only firestore:rules --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run
 firebase deploy --only functions:ballkingdom-integrations --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run
 firebase deploy --only storage --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run
 firebase deploy --only hosting:public --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run
 ```
 
-The Firebase CLI warns that a dry run may enable target-project APIs, so obtain production-impact approval before running these production-targeted preflights. Confirm Hosting maps `public -> ballkingdom-com`, Functions maps only `ballkingdom-integrations`, Storage resolves only the reviewed bucket/rules source, and no private artifact, test fixture, backend source, Rules source, or secret file enters the Hosting manifest.
+Before these commands, compare the recovered authoritative source hashes to the merged `firestore.rules` and `storage.rules` evidence and review the exact `firebase.json` diff that added the mappings only after recovery. The Firebase CLI warns that a dry run may enable target-project APIs, so obtain production-impact approval separately for the Firestore Rules, Storage Rules, Functions, and Hosting dry runs. Confirm Firestore resolves only `firestore.rules`, Storage resolves only the reviewed bucket/`storage.rules`, Hosting maps `public -> ballkingdom-com`, Functions maps only `ballkingdom-integrations`, and no private artifact, test fixture, backend source, Rules source, or secret file enters the Hosting manifest.
+
+For the Functions dry run, record the CLI line showing it loaded `functions/.env.the-ballers-kingdom`. It must not prompt for either Boolean because the reviewed file supplies both values. Abort on any prompt, any ignored project dotenv override, any key beyond the two allowlisted flags, or `COMMERCE_SERVICE_QBO_SEND_ENABLED=true`. Task 11 keeps both values false and proves the admin-only `getCommerceReleaseState` contract locally; it does not enable the pilot.
 
 - [ ] **Step 6: Write verification evidence and commit**
 
@@ -829,7 +869,7 @@ git add docs/operations/quickbooks-commerce-verification.md
 git commit -m "docs: verify QuickBooks commerce release"
 ```
 
-The evidence must distinguish mocked, local, emulator, Intuit sandbox, signed-in read-only, and production truth. It must list the missing authoritative Firestore and Storage Rules sources/emulator proof as pilot blockers. It must list invisible developer-app ownership specifically as a webhook-configuration blocker, not as a blocker to scheduled reconciliation when the existing Accounting OAuth connection is authoritatively working.
+The evidence must distinguish mocked, local, emulator, Intuit sandbox, signed-in read-only, and production truth. It must list the missing authoritative Firestore and Storage Rules sources/mappings/emulator proof as pilot blockers. It must record the committed project parameter file path and hash, the exact false/false values verified in Task 11, and zero production Firebase authentication emails and zero production QuickBooks invoice emails. It must list invisible developer-app ownership specifically as a webhook-configuration blocker, not as a blocker to scheduled reconciliation when the existing Accounting OAuth connection is authoritatively working.
 
 ---
 
@@ -837,7 +877,8 @@ The evidence must distinguish mocked, local, emulator, Intuit sandbox, signed-in
 
 **Files:**
 - Modify: `docs/operations/quickbooks-commerce-verification.md`
-- Modify only configuration required by the approved pilot SKU.
+- Modify: `functions/.env.the-ballers-kingdom` in a reviewed non-secret configuration commit.
+- Modify only other configuration required by the approved pilot SKU.
 
 **Interfaces:**
 - Consumes: approved verification evidence and explicit production authorization.
@@ -845,11 +886,11 @@ The evidence must distinguish mocked, local, emulator, Intuit sandbox, signed-in
 
 - [ ] **Step 1: Obtain explicit approvals**
 
-Require Brian's separate approval for the exact SKU and price/tax/item mapping, Firebase email-link provider configuration if it is not already enabled, production app/webhook configuration if proposed, secret/IAM changes, authoritative Firestore Rules release, authoritative Storage Rules release, scoped Functions deployment, scoped Hosting deployment, enabling only the digital pilot flag, one QuickBooks invoice send, the exact customer email recipient, one low-value owner payment, and any refund. One approval does not imply another. Automatic digital invoice send remains disabled until these pilot approvals are recorded; the service migration flag remains false.
+Require Brian's separate approval for each of the following: the exact SKU and price/tax/item mapping; Firebase email-link provider configuration if it is not already enabled; one Firebase email-link authentication email send and its exact recipient; production app/webhook configuration if proposed; secret/IAM changes; authoritative Firestore Rules release; authoritative Storage Rules release; scoped Functions deployment; scoped Hosting deployment; the reviewed commit enabling only the digital pilot flag; one later QuickBooks Invoice send/customer email and its exact recipient; one low-value owner payment; and any refund. Provider configuration does not authorize the Firebase authentication email. The Firebase email approval does not authorize the QuickBooks invoice email, or vice versa, even when both exact recipients are the same. Automatic digital invoice send remains disabled until all applicable approvals are recorded; the service migration flag remains false.
 
 - [ ] **Step 2: Verify identity, target, commit, and rollback**
 
-Read back Firebase account/project/targets, Firebase email-link provider state, QuickBooks company/realm and working Accounting OAuth read, the visible owning Intuit app only if webhooks are part of the pilot, Git commit, authoritative Firestore and Storage Rules sources/hashes and bucket mapping, Java emulator evidence, both false-by-default flag values, clean source packaging, existing live versions, and rollback commands before mutation. If either authoritative Rules source or emulator proof is incomplete, do not deploy the pilot. If the production app is still invisible, do not configure or deploy the webhook, but the pilot may proceed with mandatory scheduled reconciliation when Accounting OAuth and every other gate passes.
+Read back Firebase account/project/targets, Firebase email-link provider state, QuickBooks company/realm and working Accounting OAuth read, the visible owning Intuit app only if webhooks are part of the pilot, Git commit, authoritative Firestore and Storage Rules sources/hashes and exact `firebase.json` mappings, bucket mapping, Java emulator evidence, the tracked `functions/.env.the-ballers-kingdom` hash/content, clean source packaging, existing live versions, and rollback commands before mutation. Confirm no other `.env` or `.env.the-ballers-kingdom` override is present in `functions/`. The pre-activation config must be exactly digital `false`, service `false`; rollback restores and redeploys that reviewed file. If either authoritative Rules source, mapping, or emulator proof is incomplete, do not deploy the pilot. If the production app is still invisible, do not configure or deploy the webhook, but the pilot may proceed with mandatory scheduled reconciliation when Accounting OAuth and every other gate passes.
 
 - [ ] **Step 3: Deploy Rules separately only after their approvals**
 
@@ -860,31 +901,42 @@ firebase deploy --only firestore:rules --project the-ballers-kingdom --account l
 firebase deploy --only storage --project the-ballers-kingdom --account lilpelejr12@gmail.com
 ```
 
-Before each command, confirm its Firebase CLI dry run and exact diff. After each command, read back/emulator-smoke-test the intended signed-out, customer-owner, wrong-customer, and admin behavior before continuing. The Storage deployment is not implied by Firestore approval. If the authoritative production Storage Rules source/bucket mapping is missing or Storage emulator proof is incomplete, stop: the pilot is blocked, and no Rules release or digital enablement may be claimed.
+Before each command, separately approve and run its exact `--dry-run` form, confirm the recovered-source hash and `firebase.json` mapping, and review the diff. After each command, read back/emulator-smoke-test the intended signed-out, customer-owner, wrong-customer, and admin behavior before continuing. The Firestore approval does not imply Storage approval. If either authoritative production source/mapping or emulator proof is incomplete, stop: the pilot is blocked, and no Rules release or digital enablement may be claimed.
 
 - [ ] **Step 4: Deploy Functions only after approval**
 
-Run the exact approved preflight and scoped command for `functions:ballkingdom-integrations`. Deploy with `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED` still false and `COMMERCE_SERVICE_QBO_SEND_ENABLED=false`. Deploy no webhook verifier-token binding or endpoint configuration unless the owning app is visible and the exact configuration is approved. Smoke-test signed-out, wrong-UID, unverified-email, and App Check denial plus scheduled reconciliation before enabling any product.
+Run the exact approved preflight and scoped command for `functions:ballkingdom-integrations` from the reviewed false/false `functions/.env.the-ballers-kingdom`. The CLI must report loading that exact project file and must not prompt for either Boolean; abort if it prompts or finds another dotenv source. Deploy no webhook verifier-token binding or endpoint configuration unless the owning app is visible and the exact configuration is approved. After deploy, call the App Check- and admin-protected `getCommerceReleaseState` and record `{digitalInvoicePilotEnabled:false,serviceQboSendEnabled:false}`. Smoke-test signed-out, wrong-UID, unverified-email, and App Check denial plus scheduled reconciliation before enabling any product.
 
 - [ ] **Step 5: Enable one pilot SKU and digital flag; deploy Hosting only after approval**
 
-Activate only the approved SKU and set only `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED=true`; leave `COMMERCE_SERVICE_QBO_SEND_ENABLED=false` so existing service behavior remains unchanged. Rerun the entire relevant test set, run and review the approved `firebase deploy --only functions:ballkingdom-integrations --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run`, then perform the separately approved scoped Functions deploy that applies the digital flag. Run and review the concrete approved `firebase deploy --only hosting:public --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run`, then deploy only `hosting:public` to `ballkingdom-com`. Confirm `storage.rules` and private artifacts are absent from the Hosting manifest, read back both flag values, and prove the service path still uses its existing behavior before submitting the digital order.
+Activate only the approved SKU by changing committed `functions/.env.the-ballers-kingdom` to exactly:
 
-- [ ] **Step 6: Send one approved QuickBooks invoice and customer email**
+```dotenv
+COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED=true
+COMMERCE_SERVICE_QBO_SEND_ENABLED=false
+```
 
-Authenticate the approved customer with Firebase email link, submit the approved digital order once, and verify the immutable `customerUid`/verified-email mapping exists before the invoice effect. Verify one server-priced QuickBooks Invoice, one stored invoice ID/order reference, one documented QuickBooks invoice-send response, and one customer email at the exact approved address. The response and email prove neither delivery nor payment. If the send outcome is ambiguous or its five-minute claim expires, confirm scheduled recovery puts it in `manual_review` with `invoice_send_unknown` and do not resend blindly.
+Review and commit that two-key non-secret file before deployment; no ignored file or deploy prompt may override it. Rerun the relevant suite, run and review the separately approved `firebase deploy --only functions:ballkingdom-integrations --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run`, verify the CLI loads the exact file without prompting, then perform the approved scoped Functions deploy. Call `getCommerceReleaseState` as an App Check-authenticated administrator and record exactly `{digitalInvoicePilotEnabled:true,serviceQboSendEnabled:false}`; also prove the digital path is enabled and the service path still follows its existing Graph/PDF behavior. Then run and review the separately approved `firebase deploy --only hosting:public --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run` and deploy only `hosting:public` to `ballkingdom-com`. Confirm both Rules files and private artifacts are absent from the Hosting manifest.
 
-- [ ] **Step 7: Run one approved low-value owner payment**
+- [ ] **Step 6: Send one approved Firebase authentication email**
+
+After recording the separate email-send approval, call `sendSignInLinkToEmail` once for the exact approved Firebase authentication recipient. Verify the Firebase send request/acceptance, receipt of the authentication email, one-time link completion, resulting verified-email UID, and redacted audit evidence. This proves authentication only; it does not create an order, invoice, invoice email, or payment. Provider enablement did not authorize this send, and no retry or different recipient is implied by the approval.
+
+- [ ] **Step 7: Send one separately approved QuickBooks invoice email**
+
+Only after recording the separate QuickBooks email approval and its exact recipient, submit the authenticated digital order once. Verify the immutable `customerUid`/verified-email mapping exists before the invoice effect, then verify one server-priced QuickBooks Invoice, one stored invoice ID/order reference, one documented QuickBooks Invoice send response, and one invoice email at the exact QuickBooks-approved address. The Firebase authentication-email approval did not authorize this action. The response and email prove neither delivery nor payment. If the send outcome is ambiguous or its five-minute claim expires, confirm scheduled recovery puts it in `manual_review` with `invoice_send_unknown` and do not resend blindly.
+
+- [ ] **Step 8: Run one approved low-value owner payment**
 
 Pay through a method QuickBooks presents in its invoice email; use ACH only if QuickBooks exposes it on that invoice. Verify exact realm, Invoice ID/order reference/`TotalAmt`/currency/zero `Balance`/present-paid state and exactly one present Payment with exact `TotalAmt`, zero `UnappliedAmt`, no deleted/voided status, and one full `LinkedTxn` application only to that Invoice. Then verify Firebase state/audit plus authenticated, same-UID, ten-minute, single-use protected fulfillment from independent sources. Also inspect QuickBooks Payments and the settlement/deposit view. Do not treat the website, email, webhook, Invoice send response, Invoice balance alone, or an invented provider `completed` value as confirmation.
 
-- [ ] **Step 8: Execute an approved refund if requested**
+- [ ] **Step 9: Execute an approved refund if requested**
 
 Perform the refund in QuickBooks only after its separate approval. Verify it independently in QuickBooks Payments, QuickBooks accounting, Firebase audit state, and the original payment method. If Accounting entities cannot prove the refund under the documented contract, retain manual review and do not manufacture `refunded`. Do not refund automatically merely because the owner payment succeeded.
 
-- [ ] **Step 9: Record the measured result**
+- [ ] **Step 10: Record the measured result**
 
-Update the verification document with non-secret timestamps, identifiers truncated to safe suffixes, observed behavior, both feature-flag values, scheduled-reconciliation evidence, authenticated grant expiry/replay results, rollback status, and remaining rollout gates. Commit the evidence without private customer or payment data. Keep the service flag false until a separately approved release.
+Update the verification document with non-secret timestamps, identifiers truncated to safe suffixes, the two distinct email approvals/recipients and send outcomes recorded without exposing the full addresses, parameter-file commit/hash, protected runtime flag readbacks, scheduled-reconciliation evidence, authenticated grant expiry/replay results, rollback status, and remaining rollout gates. Commit the evidence without private customer or payment data. Keep the service flag false until a separately approved release.
 
 ---
 
@@ -900,8 +952,10 @@ Update the verification document with non-secret timestamps, identifiers truncat
 - Valid webhooks create hints only; invalid signatures/realms are rejected; every transition uses authoritative re-fetch.
 - Scheduled reconciliation recovers correctly with webhooks unavailable, delayed, duplicated, or missed.
 - Firebase Auth ownership, App Check, admin authorization, five-minute invoice/effect leases, stale-send quarantine/no-resend, grant replay protection, redaction, reconciliation, and refund-review limits pass automated tests.
-- The authoritative production Firestore and Storage Rules sources/bucket mapping are recovered/merged and the Java rules-unit-testing emulator suite passes; the current Firestore fragment, absent Storage source, and static checks are insufficient.
+- The authoritative production Firestore and Storage Rules sources/bucket mapping are recovered/merged, hashes are recorded, `firebase.json` maps exactly `firestore.rules` and `storage.rules`, and the Java rules-unit-testing emulator suite passes; the current Firestore fragment, absent Storage source, missing mappings, and static checks are insufficient.
 - The owning Intuit Developer app is visible and approved before any production webhook configuration; otherwise scheduled reconciliation is the enabled recovery path and may support the digital pilot when Accounting OAuth and every other gate pass.
 - Both rollout flags default false; Task 12 enables only the digital flag and leaves service behavior unchanged until separately approved.
+- The reviewed `functions/.env.the-ballers-kingdom` is the sole production source for both non-secret flags; Functions deploys load it without prompting, and protected runtime readback proves digital/service values after each deploy.
+- Firebase provider configuration, the Firebase authentication email/recipient, and the later QuickBooks invoice email/recipient are three separate gates; neither email is sent or implied without its own approval.
 - Mocked, local, emulator, Accounting sandbox, dependency, secret, Hosting-boundary, and browser verification pass without an unapproved invoice/email/payment/refund.
-- Production remains fail-closed until each scoped deployment, one QuickBooks invoice send/customer email, owner payment, and optional refund receives its own explicit approval and independent verification.
+- Production remains fail-closed until each scoped deployment, one Firebase authentication email/exact recipient, one later QuickBooks Invoice send/customer email/exact recipient, owner payment, and optional refund receives its own explicit approval and independent verification.
