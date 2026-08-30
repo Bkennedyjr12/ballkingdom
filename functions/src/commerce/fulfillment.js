@@ -19,7 +19,8 @@ function isRecord(value) {
 function requireAuth(authContext) {
   if (!authContext?.app) throw fulfillmentError('APP_CHECK_REQUIRED', 'App Check is required');
   const uid = authContext.auth?.uid;
-  if (typeof uid !== 'string' || uid.length < 1 || uid.length > 128) {
+  if (typeof uid !== 'string' || uid.length < 1 || uid.length > 128
+    || /[\u0000-\u001f\u007f]/.test(uid)) {
     throw fulfillmentError('AUTH_REQUIRED', 'Authentication is required');
   }
   return uid;

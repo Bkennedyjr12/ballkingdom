@@ -13,6 +13,11 @@ function validId(value, pattern = ID) {
   return typeof value === 'string' && pattern.test(value);
 }
 
+function validFirebaseUid(value) {
+  return typeof value === 'string' && value.length >= 1 && value.length <= 128
+    && !/[\u0000-\u001f\u007f]/.test(value);
+}
+
 function dateValue(value) {
   if (value instanceof Date) return new Date(value);
   if (typeof value?.toDate === 'function') return value.toDate();
@@ -23,7 +28,7 @@ function validateGrant(grant) {
   const issuedAt = dateValue(grant?.issuedAt);
   const expiresAt = dateValue(grant?.expiresAt);
   if (!validId(grant?.orderId) || !validId(grant?.digest, DIGEST)
-    || !validId(grant?.customerUid) || !validId(grant?.sku, SKU)
+    || !validFirebaseUid(grant?.customerUid) || !validId(grant?.sku, SKU)
     || grant?.consumedAt !== null || Number.isNaN(issuedAt.getTime())
     || Number.isNaN(expiresAt.getTime())
     || expiresAt.getTime() - issuedAt.getTime() !== TEN_MINUTES_MS) {
@@ -90,7 +95,7 @@ export function createFulfillmentRepository({db,fieldValue,Timestamp} = {}) {
 
     async consumeDownloadGrant({orderId,digest,customerUid,sku,now} = {}) {
       const at = dateValue(now);
-      if (!validId(orderId) || !validId(digest, DIGEST) || !validId(customerUid)
+      if (!validId(orderId) || !validId(digest, DIGEST) || !validFirebaseUid(customerUid)
         || !validId(sku, SKU) || Number.isNaN(at.getTime())) {
         throw repositoryError('FULFILLMENT_GRANT_INVALID', 'Download grant is invalid');
       }

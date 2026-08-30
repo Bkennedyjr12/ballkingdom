@@ -79,6 +79,18 @@ test('derives identity only from auth.uid and rejects a spoofed top-level owner 
   ), /Authentication is required/);
 });
 
+test('accepts bounded Firebase custom UIDs and rejects controls or oversize authentication UIDs', async () => {
+  const customUid = 'custom:uid@example.com|tenant/abc';
+  const {service} = fixture({uid:customUid});
+  assert.match((await service.createDownloadGrant({orderId:'order-1'}, auth(customUid))).grant, /^[A-Za-z0-9_-]{43}$/);
+  for (const invalidUid of [`owner\nadmin`,'x'.repeat(129)]) {
+    await assert.rejects(
+      service.createDownloadGrant({orderId:'order-1'}, auth(invalidUid)),
+      /Authentication is required/,
+    );
+  }
+});
+
 test('denies every state that is not independently fulfilled and denies guessed handles', async () => {
   for (const status of ['draft','invoice_created','invoice_sent','pending_payment','paid','webhook_hint']) {
     const {service} = fixture({status});

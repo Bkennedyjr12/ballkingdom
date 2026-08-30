@@ -51,15 +51,30 @@ const fieldValue = {serverTimestamp:() => ({serverTimestamp:true})};
 const now = new Date('2026-08-30T12:00:00.000Z');
 const digest = 'a'.repeat(64);
 
-function fixture() {
+function fixture(uid = 'owner-1') {
   const db = fakeFirestore({
     'orders/order-1':{id:'order-1',status:'fulfilled',orderType:'digital_product',
-      fulfillmentType:'protected_download',sku:'guide',customerUid:'owner-1'},
+      fulfillmentType:'protected_download',sku:'guide',customerUid:uid},
     'fulfillmentGrants/order-1':{orderId:'order-1',status:'active',sku:'guide',
-      customerUid:'owner-1',fulfillmentType:'protected_download'},
+      customerUid:uid,fulfillmentType:'protected_download'},
   });
   return {db,repository:createFulfillmentRepository({db,fieldValue,Timestamp})};
 }
+
+test('accepts bounded Firebase custom UID characters and rejects controls or oversize UIDs', async () => {
+  const customUid = 'custom:uid@example.com|tenant/abc';
+  const {repository} = fixture(customUid);
+  await repository.createDownloadGrant({orderId:'order-1',digest,customerUid:customUid,sku:'guide',
+    issuedAt:now,expiresAt:new Date(now.getTime()+600000),consumedAt:null});
+  assert.ok(await repository.consumeDownloadGrant({orderId:'order-1',digest,customerUid:customUid,
+    sku:'guide',now}));
+  for (const invalidUid of [`owner\nadmin`,'x'.repeat(129)]) {
+    const state = fixture(invalidUid);
+    await assert.rejects(state.repository.createDownloadGrant({orderId:'order-1',digest,
+      customerUid:invalidUid,sku:'guide',issuedAt:now,
+      expiresAt:new Date(now.getTime()+600000),consumedAt:null}), /invalid/i);
+  }
+});
 
 test('transactionally creates a digest-only ten-minute grant bound to exact fulfilled owner and SKU', async () => {
   const {db,repository} = fixture();

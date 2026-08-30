@@ -75,3 +75,16 @@ The authoritative deployed Rules originals and exact bucket are now independentl
 - Original and candidate Rules hashes matched the recorded provenance and candidate manifest.
 - Secure repository scan reported only the existing synthetic secret-like strings in pre-existing tests; no Task 7 file was flagged.
 - Production dependency audit reports 7 moderate transitive `uuid` findings under the existing Firebase/Google Storage dependency chain. The offered forced remediation would downgrade `firebase-admin` to a breaking major version, so no unrelated forced dependency mutation was made.
+
+## Resumed fix round 1
+
+- Private streaming now requires a valid numeric object generation from metadata and reselects the file with `{generation}` before `createReadStream({validation:'crc32c'})`. The unpinned file is never read, so replacement between metadata validation and streaming cannot substitute a newer object.
+- Stream receipts count actual chunks. The adapter destroys/unpipes the source and destroys the response if actual bytes exceed the SKU ceiling or validated metadata length; truncated streams also fail because actual bytes must equal the validated content length.
+- Response `close`, `aborted`, or error before `finish` rejects exactly once. Every success/failure path removes source and response listeners; disconnect tests prove the promise settles and the source is destroyed.
+- The download grant remains consumed before streaming. Existing service/repository tests prove any stream/disconnect failure cannot reopen or replay that grant, while a new authenticated digest can be issued without another payment.
+- Customer identity validation now uses a dedicated Firebase UID rule rather than the order/document-ID regex: 1–128 characters, including legitimate custom UID punctuation, with control characters and oversized values rejected consistently by the service and Firestore repository.
+- Focused stream/repository/service suite: 23 passed.
+- Complete tracked Functions suite: 337 passed, 2 explicit release-gate skips.
+- Static syntax, diff, immutable-original hashes, and candidate-manifest hashes passed unchanged.
+- Secure repository scan again reported only synthetic strings in pre-existing tests; no Task 7 file was flagged.
+- Bare `node --test` also discovered an unrelated untracked stale duplicate named `private-artifact-stream.test 2.js`. It uses the pre-fix contract and failed as expected; it and the unrelated `firestore 2.diff` were preserved untouched and excluded by running the complete Git-tracked test manifest explicitly.

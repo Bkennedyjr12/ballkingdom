@@ -2,6 +2,7 @@ export const VERIFIED_COMMERCE_BUCKET = 'the-ballers-kingdom.firebasestorage.app
 
 const PRIVATE_KEY = /^private-commerce\/[A-Za-z0-9][A-Za-z0-9._/-]{0,480}$/;
 const MIME = /^[a-z0-9][a-z0-9!#$&^_.+-]{0,63}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,63}$/;
+const GENERATION = /^[1-9][0-9]{0,30}$/;
 
 function streamError(message) {
   const error = new Error(message);
@@ -24,19 +25,61 @@ export function createPrivateArtifactStreamer({bucket} = {}) {
       || !Number.isSafeInteger(maxBytes) || maxBytes < 1) {
       throw streamError('Artifact stream context is invalid');
     }
-    const file = bucket.file(key);
-    const [metadata] = await file.getMetadata();
-    const bytesWritten = Number(metadata?.size);
-    if (metadata?.contentType !== expectedContentType || !Number.isSafeInteger(bytesWritten)
-      || bytesWritten < 0 || bytesWritten > maxBytes) {
+    const metadataFile = bucket.file(key);
+    const [metadata] = await metadataFile.getMetadata();
+    const expectedBytes = Number(metadata?.size);
+    const generation = metadata?.generation;
+    if (metadata?.contentType !== expectedContentType || !Number.isSafeInteger(expectedBytes)
+      || expectedBytes < 0 || expectedBytes > maxBytes
+      || typeof generation !== 'string' || !GENERATION.test(generation)) {
       throw streamError('Private artifact metadata is unavailable');
     }
     if (typeof response.setHeader === 'function') response.setHeader('Content-Type', expectedContentType);
+    const pinnedFile = bucket.file(key, {generation});
+    let bytesWritten = 0;
     await new Promise((resolve,reject) => {
-      const source = file.createReadStream();
-      source.once('error', reject);
-      response.once('error', reject);
-      response.once('finish', resolve);
+      const source = pinnedFile.createReadStream({validation:'crc32c'});
+      let settled = false;
+      const cleanup = () => {
+        source.removeListener('data', onData);
+        source.removeListener('error', onSourceError);
+        response.removeListener('error', onResponseError);
+        response.removeListener('finish', onFinish);
+        response.removeListener('close', onClose);
+        response.removeListener('aborted', onAborted);
+      };
+      const fail = () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (typeof source.unpipe === 'function') source.unpipe(response);
+        if (typeof source.destroy === 'function' && !source.destroyed) source.destroy();
+        if (typeof response.destroy === 'function' && !response.destroyed) response.destroy();
+        reject(streamError('Private artifact stream is unavailable'));
+      };
+      const onData = chunk => {
+        const length = Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk);
+        bytesWritten += length;
+        if (!Number.isSafeInteger(bytesWritten) || bytesWritten > maxBytes
+          || bytesWritten > expectedBytes) fail();
+      };
+      const onSourceError = () => fail();
+      const onResponseError = () => fail();
+      const onClose = () => fail();
+      const onAborted = () => fail();
+      const onFinish = () => {
+        if (settled) return;
+        if (bytesWritten !== expectedBytes) { fail(); return; }
+        settled = true;
+        cleanup();
+        resolve();
+      };
+      source.on('data', onData);
+      source.once('error', onSourceError);
+      response.once('error', onResponseError);
+      response.once('finish', onFinish);
+      response.once('close', onClose);
+      response.once('aborted', onAborted);
       source.pipe(response);
     });
     return Object.freeze({streamed:true,contentType:expectedContentType,bytesWritten});
