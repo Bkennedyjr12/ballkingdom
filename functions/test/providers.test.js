@@ -47,6 +47,29 @@ test('Graph invoice email includes the PDF attachment', async () => {
   assert.equal(attachment.contentBytes, Buffer.from('pdf').toString('base64'));
 });
 
+test('Graph sends the dedicated pilot authentication template without returning the action link', async () => {
+  const calls = [];
+  const fetchMock = async (url, options) => {
+    calls.push({url: String(url), options});
+    return calls.length === 1 ? response({access_token: 'token'}) : response('', 202);
+  };
+  const graph = createGraphClient({
+    tenantId:'t',clientId:'c',clientSecret:'s',refreshToken:'r',sender:'info@ballkingdom.com',
+  }, fetchMock);
+
+  const result = await graph.sendPilotAuthLink({
+    to:'pilot@example.test',
+    link:'https://ballkingdom.com/finish-sign-in?mode=signIn&oobCode=code',
+  });
+
+  assert.deepEqual(result, {accepted:true});
+  assert.equal(Object.hasOwn(result, 'link'), false);
+  const message = JSON.parse(calls[1].options.body).message;
+  assert.match(message.subject, /secure sign-in/i);
+  assert.match(message.body.content, /finish-sign-in/);
+  assert.equal(message.toRecipients[0].emailAddress.address, 'pilot@example.test');
+});
+
 test('QuickBooks creates a variable-price invoice using customer and item references', async () => {
   const calls = [];
   const fetchMock = async (url, options = {}) => {

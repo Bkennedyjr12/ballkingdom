@@ -44,6 +44,28 @@ export function createGraphClient(config, fetchImpl = fetch) {
   }
 
   return {
+    async sendPilotAuthLink({to, link} = {}) {
+      const recipient = String(to ?? '').trim().toLowerCase();
+      let actionLink;
+      try {
+        actionLink = new URL(String(link ?? ''));
+      } catch {
+        throw new Error('Pilot authentication email input is invalid');
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)
+        || recipient.length > 254
+        || actionLink.protocol !== 'https:') {
+        throw new Error('Pilot authentication email input is invalid');
+      }
+      return send({
+        subject:'Your secure sign-in link — The Ballers Kingdom',
+        body:{
+          contentType:'HTML',
+          content:`<p>Use this one-time secure link to sign in to The Ballers Kingdom:</p><p><a href="${escapeHtml(actionLink.href)}">Finish secure sign-in</a></p><p>If you did not request this link, you can ignore this message.</p>`,
+        },
+        toRecipients:[{emailAddress:{address:recipient}}],
+      });
+    },
     async sendConfirmation({to, customerName, serviceName, startsAt}) {
       const when = new Intl.DateTimeFormat('en-US', {
         dateStyle:'full', timeStyle:'short', timeZone:'America/Los_Angeles',

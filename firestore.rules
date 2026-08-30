@@ -16,6 +16,22 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /commerceEffects/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /commerceReservations/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /commerceWebhookHints/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /commerceRateLimits/{document=**} {
+      allow read, write: if false;
+    }
+
     match /fulfillmentGrants/{document=**} {
       allow read, write: if false;
     }

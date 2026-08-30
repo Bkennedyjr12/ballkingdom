@@ -1,4 +1,5 @@
 import {initializeApp} from 'firebase-admin/app';
+import {getAuth} from 'firebase-admin/auth';
 import {getFirestore, FieldValue, Timestamp} from 'firebase-admin/firestore';
 import {SecretManagerServiceClient} from '@google-cloud/secret-manager';
 import {randomUUID} from 'node:crypto';
@@ -9,6 +10,10 @@ import {defineSecret, defineString} from 'firebase-functions/params';
 import {createGraphClient} from './providers/microsoft-graph.js';
 import {createQuickBooksClient} from './providers/quickbooks.js';
 import {createIntegrationService} from './orchestration.js';
+import {createCommerceService} from './commerce/commerce-service.js';
+import {createOrderRepository} from './commerce/order-repository.js';
+import {readCommerceFeatureFlags} from './commerce/feature-flags.js';
+import {createQuickBooksWebhookProcessor} from './providers/quickbooks-webhooks.js';
 import {buildMicrosoftAuthUrl,buildQuickBooksAuthUrl,exchangeMicrosoftCode,exchangeQuickBooksCode} from './providers/oauth.js';
 
 initializeApp();
@@ -24,12 +29,15 @@ const MS_TENANT_ID = defineSecret('MS_TENANT_ID');
 const MS_CLIENT_ID = defineSecret('MS_CLIENT_ID');
 const MS_CLIENT_SECRET = defineSecret('MS_CLIENT_SECRET');
 const MS_REFRESH_TOKEN = defineSecret('MS_REFRESH_TOKEN');
+const COMMERCE_PILOT_RECIPIENT_EMAIL = defineSecret('COMMERCE_PILOT_RECIPIENT_EMAIL');
+const QBO_WEBHOOK_VERIFIER_TOKEN = defineSecret('QBO_WEBHOOK_VERIFIER_TOKEN');
 const QBO_REDIRECT_URI = defineString('QBO_REDIRECT_URI',{default:'https://us-west1-the-ballers-kingdom.cloudfunctions.net/quickBooksOAuthCallback'});
 const MS_REDIRECT_URI = defineString('MS_REDIRECT_URI',{default:'https://us-west1-the-ballers-kingdom.cloudfunctions.net/microsoftOAuthCallback'});
 
 const QBO_SECRETS = [QBO_CLIENT_ID,QBO_CLIENT_SECRET,QBO_REFRESH_TOKEN,QBO_REALM_ID];
 const MS_SECRETS = [MS_TENANT_ID,MS_CLIENT_ID,MS_CLIENT_SECRET,MS_REFRESH_TOKEN];
 const ALL_SECRETS = [...QBO_SECRETS,...MS_SECRETS];
+const COMMERCE_QBO_WEBHOOK_ENABLED = false;
 
 function auditRef(appointmentId) {
   return db.collection('integrationAudit').doc(`${appointmentId}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`);
@@ -144,6 +152,144 @@ function quickBooksClient() {
     onRefreshToken: token => addSecretVersion('QBO_REFRESH_TOKEN', token),
   });
 }
+
+function commerceRepository() {
+  return createOrderRepository({db,fieldValue:FieldValue,Timestamp});
+}
+
+function commerceHttpsError(error) {
+  if (error?.code === 'AUTH_REQUIRED') return new HttpsError('unauthenticated','Authentication is required');
+  if (['VERIFIED_EMAIL_REQUIRED','PILOT_RECIPIENT_REQUIRED','ADMIN_REQUIRED'].includes(error?.code)) {
+    return new HttpsError('permission-denied','This operation is not permitted');
+  }
+  if (error?.code === 'ORDER_NOT_FOUND') return new HttpsError('not-found','Order was not found');
+  if (error?.code === 'ORDER_INVALID') return new HttpsError('invalid-argument','Request data is invalid');
+  if (error?.code === 'RATE_LIMITED') return new HttpsError('resource-exhausted','Try again later');
+  return new HttpsError('failed-precondition','Commerce operation could not be completed');
+}
+
+function runtimeCommerceService({withPilotEmail = false, withQuickBooks = false, withGraph = false} = {}) {
+  const repository = commerceRepository();
+  return createCommerceService({
+    repository,
+    quickbooks:withQuickBooks ? quickBooksClient() : null,
+    graph:withGraph ? graphClient() : null,
+    auth:withPilotEmail ? {
+      generateSignInWithEmailLink:(email, settings) => getAuth().generateSignInWithEmailLink(email, settings),
+    } : null,
+    getApprovedPilotEmail:withPilotEmail
+      ? () => COMMERCE_PILOT_RECIPIENT_EMAIL.value()
+      : () => { throw new Error('Pilot recipient secret is unavailable'); },
+    authRequestLimiter:key => repository.consumeRateLimit(
+      'pilot_auth',key,new Date(),{limit:5,windowMs:10 * 60 * 1000}
+    ),
+    statusRequestLimiter:key => repository.consumeRateLimit(
+      'order_status',key,new Date(),{limit:60,windowMs:10 * 60 * 1000}
+    ),
+    fulfillDigitalOrder:order => repository.grantDigitalFulfillment(order.id),
+    alertOperator:alert => repository.recordOperatorAlert(alert),
+  });
+}
+
+export const requestPilotSignInLink = onCall({
+  region:REGION,
+  secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...MS_SECRETS],
+  enforceAppCheck:true,
+}, async request => {
+  try {
+    const service = runtimeCommerceService({withPilotEmail:true,withGraph:true});
+    return await service.requestPilotSignInLink(request.data, {app:request.app});
+  } catch {
+    return {status:'request_received'};
+  }
+});
+
+export const createDigitalOrder = onCall({
+  region:REGION,
+  secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_SECRETS],
+  enforceAppCheck:true,
+}, async request => {
+  try {
+    const service = runtimeCommerceService({withPilotEmail:true,withQuickBooks:true});
+    return await service.createDigitalOrder(request.data, request.auth);
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
+export const getOrderStatus = onCall({region:REGION,enforceAppCheck:true}, async request => {
+  try {
+    const service = runtimeCommerceService();
+    return await service.getOrderStatus(request.data, request.auth);
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
+export const verifyOrderPayment = onCall({
+  region:REGION,
+  secrets:QBO_SECRETS,
+  enforceAppCheck:true,
+}, async request => {
+  requireAdmin(request.auth);
+  try {
+    const service = runtimeCommerceService({withQuickBooks:true});
+    return await service.verifyOrderPayment({
+      orderId:String(request.data?.orderId ?? ''),
+      source:'admin',
+    });
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
+export const getCommerceReleaseState = onCall({region:REGION,enforceAppCheck:true}, async request => {
+  try {
+    const service = runtimeCommerceService();
+    return await service.getCommerceReleaseState({
+      uid:request.auth?.uid,
+      token:request.auth?.token,
+      app:request.app,
+    });
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
+export const quickBooksCommerceWebhook = onRequest({
+  region:REGION,
+  secrets:[QBO_WEBHOOK_VERIFIER_TOKEN,QBO_REALM_ID],
+}, async (request,response) => {
+  if (COMMERCE_QBO_WEBHOOK_ENABLED !== true || readCommerceFeatureFlags().digitalInvoicePilotEnabled !== true) {
+    response.status(404).send('Not found');
+    return;
+  }
+  try {
+    const repository = commerceRepository();
+    const processor = createQuickBooksWebhookProcessor({
+      verifierToken:QBO_WEBHOOK_VERIFIER_TOKEN.value(),
+      expectedRealmId:QBO_REALM_ID.value(),
+      storeHint:(id,hint) => repository.storeWebhookHint(id,hint),
+    });
+    await processor.acceptQuickBooksWebhook({
+      rawBody:request.rawBody,
+      signature:String(request.get('intuit-signature') ?? ''),
+    });
+    response.status(200).send('Accepted');
+  } catch (error) {
+    if (error?.code === 'WEBHOOK_SIGNATURE_INVALID') response.status(401).send('Rejected');
+    else if (error?.code === 'WEBHOOK_REALM_INVALID') response.status(403).send('Rejected');
+    else response.status(400).send('Rejected');
+  }
+});
+
+export const reconcileCommerceOrders = onSchedule({schedule:'every 5 minutes',
+  timeZone:'America/Los_Angeles',region:REGION,
+  secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_SECRETS,...MS_SECRETS],
+}, async () => {
+  const service = runtimeCommerceService({withPilotEmail:true,withQuickBooks:true,withGraph:true});
+  await service.reconcilePendingOrders(new Date());
+});
 
 export const confirmAcceptedBooking = onDocumentWritten({document:'appointments/{appointmentId}',region:REGION,secrets:MS_SECRETS}, async event => {
   const data = event.data?.after?.data();

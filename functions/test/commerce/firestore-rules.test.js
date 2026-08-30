@@ -3,7 +3,15 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 const rootUrl = new URL('../../../', import.meta.url);
-const COMMERCE_COLLECTIONS = ['orders', 'commerceAudit', 'fulfillmentGrants'];
+const COMMERCE_COLLECTIONS = [
+  'orders',
+  'commerceAudit',
+  'commerceEffects',
+  'commerceReservations',
+  'commerceWebhookHints',
+  'commerceRateLimits',
+  'fulfillmentGrants',
+];
 
 test('commerce rules explicitly deny every direct client operation without an admin bypass', async () => {
   const rules = await readFile(new URL('firestore.rules', rootUrl), 'utf8');

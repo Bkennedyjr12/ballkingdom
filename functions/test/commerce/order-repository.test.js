@@ -129,11 +129,14 @@ function digitalOrder(overrides = {}) {
     currency: 'USD',
     orderType: 'digital_product',
     fulfillmentType: 'protected_download',
+    customerUid: 'customer-uid',
     customer: {name: 'Ada', email: 'ada@example.test'},
     status: 'pending_payment',
     ...overrides,
   };
 }
+
+const RECIPIENT_BINDING = 'a'.repeat(64);
 
 function repositoryFixture(clock = () => new Date('2026-08-29T18:00:00.000Z')) {
   const firestore = createFakeFirestore();
@@ -555,4 +558,364 @@ test('lists due nonterminal reconciliation candidates in due-time order', async 
   );
 
   assert.deepEqual(candidates.map(order => order.id), ['order-earlier', 'order-later']);
+});
+
+test('atomically reserves one recipient and SKU order with both durable invoice effects', async () => {
+  const {firestore, repository} = repositoryFixture();
+
+  const [first, second] = await Promise.all([
+    repository.createReservedDigitalOrder({
+      recipientBinding: RECIPIENT_BINDING,
+      orderId: 'order-a',
+      order: digitalOrder(),
+    }),
+    repository.createReservedDigitalOrder({
+      recipientBinding: RECIPIENT_BINDING,
+      orderId: 'order-b',
+      order: digitalOrder(),
+    }),
+  ]);
+
+  assert.equal(first.orderId, 'order-a');
+  assert.equal(first.duplicate, false);
+  assert.equal(second.orderId, 'order-a');
+  assert.equal(second.duplicate, true);
+  assert.equal(firestore.document('orders/order-a').customerUid, 'customer-uid');
+  assert.equal(firestore.document('orders/order-b'), undefined);
+  const effects = firestore.collection('commerceEffects');
+  assert.equal(effects.length, 2);
+  assert.deepEqual(effects.map(effect => effect.effect).sort(), ['invoice_create', 'invoice_send']);
+  assert.equal(JSON.stringify(effects).includes(RECIPIENT_BINDING), false);
+});
+
+test('fails closed when an existing pilot reservation is owned by another user', async () => {
+  const {repository} = repositoryFixture();
+  await repository.createReservedDigitalOrder({
+    recipientBinding: RECIPIENT_BINDING,
+    orderId: 'order-a',
+    order: digitalOrder(),
+  });
+
+  await assert.rejects(repository.createReservedDigitalOrder({
+    recipientBinding: RECIPIENT_BINDING,
+    orderId: 'order-b',
+    order: digitalOrder({customerUid: 'different-user'}),
+  }), {code: 'ORDER_RESERVATION_CONFLICT'});
+});
+
+test('allows only one five-minute effect lease claimant', async () => {
+  const now = new Date('2026-08-29T18:00:00.000Z');
+  const {firestore, repository} = repositoryFixture(() => now);
+  await repository.createReservedDigitalOrder({
+    recipientBinding: RECIPIENT_BINDING,
+    orderId: 'order-a',
+    order: digitalOrder(),
+  });
+
+  const [first, second] = await Promise.all([
+    repository.claimEffect('order-a', 'invoice_create', 'worker-a', now),
+    repository.claimEffect('order-a', 'invoice_create', 'worker-b', now),
+  ]);
+
+  assert.deepEqual(first, {claimId: 'claim-1'});
+  assert.equal(second, false);
+  const effect = firestore.document('commerceEffects/order-a-invoice_create');
+  assert.equal(effect.claim.workerId, 'worker-a');
+  assert.equal(effect.claim.claimId, 'claim-1');
+  assert.equal(effect.claim.claimedAt.toDate().toISOString(), now.toISOString());
+  assert.equal(
+    effect.claim.leaseExpiresAt.toDate().toISOString(),
+    '2026-08-29T18:05:00.000Z'
+  );
+});
+
+test('completes only the exact create claim and keeps Invoice references immutable', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createReservedDigitalOrder({
+    recipientBinding: RECIPIENT_BINDING,
+    orderId: 'order-a',
+    order: digitalOrder(),
+  });
+  const claim = await repository.claimEffect(
+    'order-a', 'invoice_create', 'worker-a', new Date('2026-08-29T18:00:00.000Z')
+  );
+  const providerRefs = {
+    realmId: 'realm-1',
+    invoiceId: 'invoice-1',
+    customerId: 'customer-1',
+    providerOrderRef: 'bk-order-order-a',
+  };
+
+  await assert.rejects(repository.completeEffect(
+    'order-a', 'invoice_create', 'worker-b', claim.claimId, {providerRefs}
+  ), {code: 'EFFECT_CLAIM_LOST'});
+  assert.equal(await repository.completeEffect(
+    'order-a', 'invoice_create', 'worker-a', claim.claimId, {providerRefs}
+  ), true);
+  assert.equal(await repository.completeEffect(
+    'order-a', 'invoice_create', 'worker-a', claim.claimId, {providerRefs}
+  ), false);
+  assert.deepEqual(firestore.document('orders/order-a').providerRefs, providerRefs);
+  assert.equal(firestore.document('commerceEffects/order-a-invoice_create').status, 'completed');
+
+  await assert.rejects(repository.completeEffect(
+    'order-a', 'invoice_create', 'worker-a', claim.claimId,
+    {providerRefs: {...providerRefs, invoiceId: 'invoice-2'}}
+  ), {code: 'PROVIDER_REF_CONFLICT'});
+});
+
+test('requires the completed create effect and deterministic order reference before send can be claimed', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createReservedDigitalOrder({
+    recipientBinding:RECIPIENT_BINDING,orderId:'order-a',order:digitalOrder(),
+  });
+  firestore.document('orders/order-a').providerRefs = {
+    realmId:'realm-1',invoiceId:'invoice-1',customerId:'customer-1',providerOrderRef:'wrong-reference',
+  };
+  assert.equal(await repository.claimEffect(
+    'order-a','invoice_send','worker-a',new Date('2026-08-29T18:00:00.000Z')
+  ), false);
+
+  const createClaim = await repository.claimEffect(
+    'order-a','invoice_create','worker-a',new Date('2026-08-29T18:00:00.000Z')
+  );
+  await assert.rejects(repository.completeEffect(
+    'order-a','invoice_create','worker-a',createClaim.claimId,
+    {providerRefs:{
+      realmId:'realm-1',invoiceId:'invoice-1',customerId:'customer-1',providerOrderRef:'wrong-reference',
+    }}
+  ), {code:'PROVIDER_REF_CONFLICT'});
+});
+
+test('stores bounded effect failures without provider payloads or raw recipients', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createReservedDigitalOrder({
+    recipientBinding: RECIPIENT_BINDING,
+    orderId: 'order-a',
+    order: digitalOrder(),
+  });
+  const claim = await repository.claimEffect(
+    'order-a', 'invoice_create', 'worker-a', new Date('2026-08-29T18:00:00.000Z')
+  );
+
+  await repository.recordEffectFailure(
+    'order-a', 'invoice_create', 'worker-a', claim.claimId,
+    {code: 'PROVIDER FAILED: ada@example.test', providerPayload: {accessToken: 'secret'}},
+    new Date('2026-08-29T18:01:00.000Z')
+  );
+
+  const serialized = JSON.stringify({
+    effect: firestore.document('commerceEffects/order-a-invoice_create'),
+    audits: firestore.collection('commerceAudit'),
+  });
+  assert.equal(serialized.includes('ada@example.test'), false);
+  assert.equal(serialized.includes('accessToken'), false);
+  assert.equal(serialized.includes('secret'), false);
+  assert.equal(serialized.includes('operation_failed'), true);
+});
+
+test('backs off known create failures and will not reclaim before the bounded retry time', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createReservedDigitalOrder({
+    recipientBinding:RECIPIENT_BINDING,orderId:'order-a',order:digitalOrder(),
+  });
+  const claim = await repository.claimEffect(
+    'order-a','invoice_create','worker-a',new Date('2026-08-29T18:00:00.000Z')
+  );
+  await repository.recordEffectFailure(
+    'order-a','invoice_create','worker-a',claim.claimId,
+    {code:'invoice_create_failed'},new Date('2026-08-29T18:01:00.000Z')
+  );
+
+  const effect = firestore.document('commerceEffects/order-a-invoice_create');
+  assert.equal(effect.attemptCount, 1);
+  assert.equal(effect.nextAttemptAt.toDate().toISOString(), '2026-08-29T18:06:00.000Z');
+  assert.equal(await repository.claimEffect(
+    'order-a','invoice_create','worker-b',new Date('2026-08-29T18:05:59.999Z')
+  ), false);
+  assert.deepEqual(await repository.claimEffect(
+    'order-a','invoice_create','worker-b',new Date('2026-08-29T18:06:00.000Z')
+  ), {claimId:'claim-3'});
+});
+
+test('rejects crossing either outbound dispatch boundary at or after lease expiry', async () => {
+  const {repository} = repositoryFixture();
+  await repository.createPilotAuthEmailEffect(RECIPIENT_BINDING);
+  const authClaim = await repository.claimPilotAuthEmailEffect(
+    RECIPIENT_BINDING,'auth-worker',new Date('2026-08-29T18:00:00.000Z')
+  );
+  await assert.rejects(repository.markPilotAuthDispatchStarted(
+    RECIPIENT_BINDING,'auth-worker',authClaim.claimId,new Date('2026-08-29T18:05:00.000Z')
+  ), {code:'EFFECT_LEASE_EXPIRED'});
+
+  await repository.createReservedDigitalOrder({
+    recipientBinding:'b'.repeat(64),orderId:'order-a',order:digitalOrder(),
+  });
+  const createClaim = await repository.claimEffect(
+    'order-a','invoice_create','worker-a',new Date('2026-08-29T18:00:00.000Z')
+  );
+  await repository.completeEffect('order-a','invoice_create','worker-a',createClaim.claimId, {
+    providerRefs:{
+      realmId:'realm-1',invoiceId:'invoice-1',customerId:'customer-1',providerOrderRef:'bk-order-order-a',
+    },
+  });
+  const sendClaim = await repository.claimEffect(
+    'order-a','invoice_send','send-worker',new Date('2026-08-29T18:00:00.000Z')
+  );
+  await assert.rejects(repository.markEffectDispatchStarted(
+    'order-a','invoice_send','send-worker',sendClaim.claimId,new Date('2026-08-29T18:05:00.000Z')
+  ), {code:'EFFECT_LEASE_EXPIRED'});
+});
+
+test('quarantines an expired invoice-send lease and permanently prevents another send claim', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createReservedDigitalOrder({
+    recipientBinding: RECIPIENT_BINDING,
+    orderId: 'order-a',
+    order: digitalOrder(),
+  });
+  const createClaim = await repository.claimEffect(
+    'order-a', 'invoice_create', 'worker-a', new Date('2026-08-29T18:00:00.000Z')
+  );
+  await repository.completeEffect(
+    'order-a', 'invoice_create', 'worker-a', createClaim.claimId,
+    {providerRefs: {
+      realmId: 'realm-1', invoiceId: 'invoice-1', customerId: 'customer-1',
+      providerOrderRef: 'bk-order-order-a',
+    }}
+  );
+  const sendClaim = await repository.claimEffect(
+    'order-a', 'invoice_send', 'worker-a', new Date('2026-08-29T18:01:00.000Z')
+  );
+  await repository.markEffectDispatchStarted(
+    'order-a', 'invoice_send', 'worker-a', sendClaim.claimId,
+    new Date('2026-08-29T18:01:01.000Z')
+  );
+
+  assert.deepEqual(await repository.recoverExpiredEffects(
+    new Date('2026-08-29T18:05:59.999Z')
+  ), {recoveredCreateOrderIds: [], recoveredPilotAuthBindings: [], manualReviewOrderIds: [], manualReviewPilotAuthBindings: []});
+  const recovered = await repository.recoverExpiredEffects(
+    new Date('2026-08-29T18:06:00.000Z')
+  );
+
+  assert.deepEqual(recovered.manualReviewOrderIds, ['order-a']);
+  assert.equal(firestore.document('commerceEffects/order-a-invoice_send').status, 'manual_review');
+  assert.equal(firestore.document('orders/order-a').status, 'manual_review');
+  assert.equal(firestore.document('orders/order-a').lastErrorCode, 'invoice_send_unknown');
+  assert.equal(await repository.claimEffect(
+    'order-a', 'invoice_send', 'worker-b', new Date('2026-08-29T18:07:00.000Z')
+  ), false);
+});
+
+test('creates one protected pilot auth effect and records the one dispatch attempt before delivery', async () => {
+  const {firestore, repository} = repositoryFixture();
+  assert.equal(await repository.createPilotAuthEmailEffect(RECIPIENT_BINDING), true);
+  assert.equal(await repository.createPilotAuthEmailEffect(RECIPIENT_BINDING), false);
+  const claim = await repository.claimPilotAuthEmailEffect(
+    RECIPIENT_BINDING, 'auth-worker', new Date('2026-08-29T18:00:00.000Z')
+  );
+
+  assert.deepEqual(claim, {claimId: 'claim-1'});
+  assert.equal(await repository.markPilotAuthDispatchStarted(
+    RECIPIENT_BINDING, 'auth-worker', claim.claimId,
+    new Date('2026-08-29T18:00:01.000Z')
+  ), true);
+  const effect = firestore.collection('commerceEffects').find(item => item.effect === 'pilot_auth_email');
+  assert.equal(effect.dispatchAttemptCount, 1);
+  assert.equal(effect.dispatchStartedAt.toDate().toISOString(), '2026-08-29T18:00:01.000Z');
+  assert.equal(await repository.completePilotAuthEmailEffect(
+    RECIPIENT_BINDING, 'auth-worker', claim.claimId
+  ), true);
+  assert.equal(await repository.completePilotAuthEmailEffect(
+    RECIPIENT_BINDING, 'auth-worker', claim.claimId
+  ), false);
+  assert.equal(JSON.stringify(effect).includes(RECIPIENT_BINDING), false);
+});
+
+test('recovers only pre-dispatch pilot auth leases and quarantines ambiguous dispatches', async () => {
+  const firstBinding = 'a'.repeat(64);
+  const secondBinding = 'b'.repeat(64);
+  const {firestore, repository} = repositoryFixture();
+  await repository.createPilotAuthEmailEffect(firstBinding);
+  await repository.createPilotAuthEmailEffect(secondBinding);
+  await repository.claimPilotAuthEmailEffect(
+    firstBinding, 'auth-worker', new Date('2026-08-29T18:00:00.000Z')
+  );
+  const ambiguousClaim = await repository.claimPilotAuthEmailEffect(
+    secondBinding, 'auth-worker', new Date('2026-08-29T18:00:00.000Z')
+  );
+  await repository.markPilotAuthDispatchStarted(
+    secondBinding, 'auth-worker', ambiguousClaim.claimId,
+    new Date('2026-08-29T18:00:01.000Z')
+  );
+
+  const recovered = await repository.recoverExpiredEffects(
+    new Date('2026-08-29T18:05:00.000Z')
+  );
+
+  assert.deepEqual(recovered.recoveredPilotAuthBindings, [firstBinding]);
+  assert.deepEqual(recovered.manualReviewPilotAuthBindings, [secondBinding]);
+  const authEffects = firestore.collection('commerceEffects')
+    .filter(item => item.effect === 'pilot_auth_email');
+  assert.deepEqual(authEffects.map(item => item.status).sort(), ['manual_review', 'pending']);
+  assert.equal(authEffects.find(item => item.status === 'manual_review').lastErrorCode, 'pilot_auth_email_unknown');
+});
+
+test('stores idempotent webhook hints with the exact normalized field allowlist', async () => {
+  const {firestore, repository} = repositoryFixture();
+  const hint = {
+    realmId:'realm-1',entityName:'Invoice',entityId:'invoice-1',operation:'Update',
+    lastUpdated:'2026-08-29T18:00:00.000Z',
+  };
+
+  assert.equal(await repository.storeWebhookHint('b'.repeat(64), hint), true);
+  assert.equal(await repository.storeWebhookHint('b'.repeat(64), hint), false);
+  assert.deepEqual(firestore.document(`commerceWebhookHints/${'b'.repeat(64)}`), hint);
+  await assert.rejects(repository.storeWebhookHint('c'.repeat(64), {
+    ...hint,rawBody:'must-not-be-stored',
+  }), {code:'ORDER_INVALID'});
+});
+
+test('creates one redacted fulfillment grant for a paid digital order', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createReservedDigitalOrder({
+    recipientBinding:RECIPIENT_BINDING,
+    orderId:'order-a',
+    order:digitalOrder({status:'paid'}),
+  });
+
+  assert.equal(await repository.grantDigitalFulfillment('order-a'), true);
+  assert.equal(await repository.grantDigitalFulfillment('order-a'), false);
+  assert.deepEqual(firestore.document('fulfillmentGrants/order-a'), {
+    orderId:'order-a',sku:'study-guide',customerUid:'customer-uid',
+    fulfillmentType:'protected_download',status:'active',createdAt:SERVER_TIMESTAMP,
+  });
+});
+
+test('enforces bounded digest-keyed abuse windows without storing raw identifiers', async () => {
+  const {firestore, repository} = repositoryFixture();
+  const firstWindow = new Date('2026-08-29T18:00:00.000Z');
+  const nextWindow = new Date('2026-08-29T18:10:00.000Z');
+  const key = 'd'.repeat(64);
+
+  assert.equal(await repository.consumeRateLimit('pilot_auth', key, firstWindow, {limit:2,windowMs:600000}), true);
+  assert.equal(await repository.consumeRateLimit('pilot_auth', key, firstWindow, {limit:2,windowMs:600000}), true);
+  assert.equal(await repository.consumeRateLimit('pilot_auth', key, firstWindow, {limit:2,windowMs:600000}), false);
+  assert.equal(await repository.consumeRateLimit('pilot_auth', key, nextWindow, {limit:2,windowMs:600000}), true);
+  const serialized = JSON.stringify(firestore.collection('commerceRateLimits'));
+  assert.equal(serialized.includes('approved-pilot@example.test'), false);
+});
+
+test('records only bounded redacted operator alerts', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.recordOperatorAlert({
+    code:'invoice_send_unknown',orderId:'order-a',email:'approved-pilot@example.test',link:'https://secret',
+  });
+
+  const alert = firestore.collection('commerceAudit').at(-1);
+  assert.deepEqual(Object.keys(alert).sort(), ['createdAt','errorCode','event','orderId']);
+  assert.equal(alert.event, 'operator_alert');
+  assert.equal(alert.errorCode, 'invoice_send_unknown');
+  assert.equal(JSON.stringify(alert).includes('approved-pilot'), false);
 });
