@@ -205,7 +205,6 @@ export function createCommerceService({
       await repository.recordPilotAuthEmailFailure(
         binding, workerId, claim.claimId, {code:'pilot_auth_email_unknown'}
       );
-      await alertOperator({code:'pilot_auth_email_unknown'});
       return false;
     }
     await repository.completePilotAuthEmailEffect(binding, workerId, claim.claimId);
@@ -310,7 +309,6 @@ export function createCommerceService({
           orderId, 'invoice_send', sendWorker, sendClaim.claimId,
           {code:'invoice_send_unknown'}, clock()
         );
-        await alertOperator({code:'invoice_send_unknown',orderId});
         throw commerceError('ORDER_MANUAL_REVIEW', 'Order requires administrator review');
       }
       await repository.completeEffect(orderId, 'invoice_send', sendWorker, sendClaim.claimId);
@@ -332,13 +330,6 @@ export function createCommerceService({
 
   async function dispatchPendingEffectsInternal(at) {
     const recovered = await repository.recoverExpiredEffects(at);
-    for (const orderId of recovered.manualReviewOrderIds) {
-      await alertOperator({code:'invoice_send_unknown',orderId});
-    }
-    for (const ignored of recovered.manualReviewPilotAuthBindings) {
-      void ignored;
-      await alertOperator({code:'pilot_auth_email_unknown'});
-    }
     const flags = readFlags();
     const dueEffects = await repository.listDueEffects(at, {limit:RECONCILIATION_LIMIT});
     if (flags.digitalInvoicePilotEnabled === true) {
@@ -352,24 +343,41 @@ export function createCommerceService({
         try {
           if (effect.effect === 'pilot_auth_email') {
             const email = loadApproved();
-            if (effect.recipientBinding === recipientBinding(email)) {
-              await dispatchPilotAuthEmail(email, effect.recipientBinding);
+            if (effect.recipientBinding !== recipientBinding(email)) {
+              await repository.recordPendingEffectFailure(effect, {
+                code:'pilot_auth_recipient_mismatch',terminal:true,
+              }, at);
+              continue;
             }
+            await dispatchPilotAuthEmail(email, effect.recipientBinding);
             continue;
           }
           if (processedOrders.has(effect.orderId)) continue;
-          processedOrders.add(effect.orderId);
           const order = await repository.getOrder(effect.orderId);
-          if (!order) continue;
+          if (!order) {
+            await repository.recordPendingEffectFailure(effect, {
+              code:'commerce_effect_order_missing',terminal:true,
+            }, at);
+            continue;
+          }
           const email = loadApproved();
           if (order.authorizedRecipientBinding !== recipientBinding(email)) {
-            await alertOperator({code:'authorized_recipient_binding_mismatch',orderId:effect.orderId});
+            await repository.recordPendingEffectFailure(effect, {
+              code:'authorized_recipient_binding_mismatch',terminal:true,
+            }, at);
             continue;
           }
           await resumeDigitalInvoice(effect.orderId, email);
+          processedOrders.add(effect.orderId);
         } catch (error) {
-          if (!['ORDER_PROCESSING_PENDING','ORDER_MANUAL_REVIEW'].includes(error?.code)) {
-            await alertOperator({code:'commerce_effect_dispatch_unavailable'});
+          if (error?.code === 'ORDER_MANUAL_REVIEW') {
+            await repository.recordPendingEffectFailure(effect, {
+              code:'commerce_effect_order_manual_review',terminal:true,
+            }, at);
+          } else if (error?.code !== 'ORDER_PROCESSING_PENDING') {
+            await repository.recordPendingEffectFailure(effect, {
+              code:'commerce_effect_dispatch_unavailable',terminal:false,
+            }, at);
           }
         }
       }
@@ -436,11 +444,13 @@ export function createCommerceService({
       });
     },
 
-    async getOrderStatus({orderHandle} = {}, authContext) {
-      const identity = await authoritativeIdentity(authContext, getCurrentUser);
-      if (!(await statusRequestLimiter(rateLimitKey(identity.uid)))) {
+    async getOrderStatus(input = {}, authContext) {
+      const tokenIdentity = authIdentity(authContext);
+      if (!(await statusRequestLimiter(rateLimitKey(tokenIdentity.uid)))) {
         throw commerceError('RATE_LIMITED', 'Status request limit reached');
       }
+      const identity = await authoritativeIdentity(authContext, getCurrentUser);
+      const orderHandle = record(input) ? input.orderHandle : undefined;
       if (typeof orderHandle !== 'string' || orderHandle.length < 1 || orderHandle.length > 128) {
         throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
       }
@@ -516,7 +526,6 @@ export function createCommerceService({
       await repository.completePaymentVerification(orderId, workerId, verifying.claimId, {
         outcome:'manual_review',errorCode:'payment_verification_mismatch',
       });
-      await alertOperator({code:'payment_verification_mismatch',orderId});
       return Object.freeze({status:'manual_review'});
     },
 
@@ -532,65 +541,88 @@ export function createCommerceService({
         limit:RECONCILIATION_LIMIT,ttlMs:RECONCILIATION_HINT_TTL_MS,
       });
       const prioritized = new Map();
-      const consumedHintIds = [];
-      const prioritizeInvoice = async (realmId, invoiceId, source) => {
+      const mappedHints = new Map();
+      const resolveInvoice = async (realmId, invoiceId) => {
         const order = await repository.findOrderByInvoiceId(realmId, invoiceId);
-        if (order && !prioritized.has(order.id)) prioritized.set(order.id, {order,source});
+        return order ? [order] : [];
       };
-      const prioritizeEntity = async ({realmId,entityName,entityId}, source) => {
+      const resolveEntity = async ({realmId,entityName,entityId}) => {
         if (entityName === 'Invoice') {
-          await prioritizeInvoice(realmId, entityId, source);
-          return;
+          return resolveInvoice(realmId, entityId);
         }
+        const resolved = new Map();
         if (entityName === 'Payment' && quickbooks?.getPayment) {
           const payment = await quickbooks.getPayment(entityId);
           for (const application of payment.applications.slice(0, 10)) {
             if (application.linkedTxnType === 'Invoice') {
-              await prioritizeInvoice(realmId, application.linkedTxnId, source);
+              for (const order of await resolveInvoice(realmId, application.linkedTxnId)) {
+                resolved.set(order.id, order);
+              }
             }
           }
         }
+        return [...resolved.values()];
+      };
+      const addResolved = (orders, source) => {
+        const newOrders = orders.filter(order => !prioritized.has(order.id));
+        if (newOrders.length > RECONCILIATION_LIMIT - prioritized.size) return false;
+        for (const order of newOrders) prioritized.set(order.id, {order,source});
+        return true;
       };
       for (const hint of hints) {
         try {
-          await prioritizeEntity(hint, 'webhook_hint');
-          consumedHintIds.push(hint.hintId);
+          const orders = await resolveEntity(hint);
+          if (addResolved(orders, 'webhook_hint')) {
+            mappedHints.set(hint.hintId, new Set(orders.map(order => order.id)));
+          }
         } catch {
           await alertOperator({code:'quickbooks_hint_unavailable'});
         }
       }
-      if (consumedHintIds.length > 0) {
-        await repository.consumeReconciliationHints(consumedHintIds);
-      }
 
-      if (quickbooks?.getAccountingChanges) {
+      if (prioritized.size < RECONCILIATION_LIMIT && quickbooks?.getAccountingChanges) {
         try {
           const changes = await quickbooks.getAccountingChanges({
             changedSince:new Date(at.getTime() - 24 * 60 * 60 * 1000).toISOString(),
           });
           for (const change of changes.changes.slice(0, RECONCILIATION_LIMIT)) {
-            await prioritizeEntity({
+            const orders = await resolveEntity({
               realmId:changes.realmId,
               entityName:change.entityType,
               entityId:change.entityId,
-            }, 'scheduled');
+            });
+            if (!addResolved(orders, 'scheduled')) break;
+            if (prioritized.size >= RECONCILIATION_LIMIT) break;
           }
         } catch {
           await alertOperator({code:'quickbooks_cdc_unavailable'});
         }
       }
 
-      const candidates = await repository.listReconciliationCandidates(at, {limit:RECONCILIATION_LIMIT});
-      for (const candidate of candidates) {
-        if (!prioritized.has(candidate.id)) prioritized.set(candidate.id, {order:candidate,source:'scheduled'});
+      if (prioritized.size < RECONCILIATION_LIMIT) {
+        const candidates = await repository.listReconciliationCandidates(at, {
+          limit:RECONCILIATION_LIMIT - prioritized.size,
+        });
+        for (const candidate of candidates) {
+          if (!prioritized.has(candidate.id)) prioritized.set(candidate.id, {order:candidate,source:'scheduled'});
+          if (prioritized.size >= RECONCILIATION_LIMIT) break;
+        }
       }
       let verified = 0;
-      for (const {order:candidate,source} of [...prioritized.values()].slice(0, RECONCILIATION_LIMIT)) {
+      const processedOrderIds = new Set();
+      for (const {order:candidate,source} of prioritized.values()) {
         if (!candidate.providerRefs?.invoiceId) {
           continue;
         }
         await this.verifyOrderPayment({orderId:candidate.id,source});
+        processedOrderIds.add(candidate.id);
         verified += 1;
+      }
+      const consumedHintIds = [...mappedHints]
+        .filter(([,orderIds]) => [...orderIds].every(orderId => processedOrderIds.has(orderId)))
+        .map(([hintId]) => hintId);
+      if (consumedHintIds.length > 0) {
+        await repository.consumeReconciliationHints(consumedHintIds);
       }
       return Object.freeze({
         recoveredCreateCount:recovered.recoveredCreateOrderIds.length,

@@ -17,6 +17,7 @@ const ALLOWED_PROVIDER_KEYS = new Set([
 ]);
 const PROVIDER_VALUE = /^[A-Za-z0-9._:/-]{1,200}$/;
 const DOCUMENT_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+const EFFECT_DOCUMENT_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/;
 const WORKER_ID = /^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$/;
 const SAFE_ERROR_CODE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const SHA256_DIGEST = /^[a-f0-9]{64}$/;
@@ -162,7 +163,13 @@ function normalizedWebhookHint(hint) {
     || typeof hint.lastUpdated !== 'string' || Number.isNaN(Date.parse(hint.lastUpdated))) {
     throw repositoryError('ORDER_INVALID', 'Webhook hint is invalid');
   }
-  return Object.freeze(Object.fromEntries(keys.map(key => [key,hint[key]])));
+  return Object.freeze({
+    realmId:hint.realmId,
+    entityName:hint.entityName,
+    entityId:hint.entityId,
+    operation:hint.operation,
+    lastUpdated:new Date(hint.lastUpdated).toISOString(),
+  });
 }
 
 function digestId(domain, ...parts) {
@@ -911,6 +918,89 @@ export function createOrderRepository({
       });
     },
 
+    async recordPendingEffectFailure(descriptor, failure = {}, now = clock()) {
+      if (!plainObject(descriptor)) {
+        throw repositoryError('ORDER_INVALID', 'Pending effect descriptor is invalid');
+      }
+      const effectId = requiredId(descriptor.effectId, 'effectId', EFFECT_DOCUMENT_ID);
+      const pendingEffect = requiredText(descriptor.effect, 'effect', 64);
+      if (pendingEffect !== 'pilot_auth_email' && !EFFECT_TYPES.has(pendingEffect)) {
+        throw repositoryError('ORDER_INVALID', 'effect is invalid');
+      }
+      const orderId = pendingEffect === 'pilot_auth_email'
+        ? null
+        : requiredId(descriptor.orderId, 'orderId');
+      if (pendingEffect === 'pilot_auth_email') recipientBinding(descriptor.recipientBinding);
+      const failedAt = dateValue(now, 'now');
+      const errorCode = safeErrorCode(failure.code, 'commerce_effect_dispatch_unavailable');
+      const forceTerminal = failure.terminal === true;
+      const reference = effects.doc(effectId);
+      const orderReference = orderId == null ? null : orderRef(orderId);
+      const receipt = auditRef();
+      const alertReceipt = auditRef();
+      return db.runTransaction(async transaction => {
+        const [effectSnapshot, orderSnapshot] = await Promise.all([
+          transaction.get(reference),
+          orderReference == null ? Promise.resolve(null) : transaction.get(orderReference),
+        ]);
+        if (!effectSnapshot.exists) return false;
+        const effect = effectSnapshot.data();
+        const identityMatches = effect.effect === pendingEffect
+          && (pendingEffect === 'pilot_auth_email'
+            ? effectId === `pilot-auth-${recipientBinding(descriptor.recipientBinding)}`
+            : effect.orderId === orderId);
+        if (!identityMatches) {
+          throw repositoryError('ORDER_INVALID', 'Pending effect descriptor is invalid');
+        }
+        if (effect.status !== 'pending') return false;
+        if (effect.nextAttemptAt
+          && timestampDate(effect.nextAttemptAt, 'nextAttemptAt') > failedAt) return false;
+        const attemptCount = Math.min(Number(effect.attemptCount ?? 0) + 1, 8);
+        const terminal = forceTerminal || attemptCount >= 8;
+        const retryDelay = Math.min(
+          5 * 60 * 1000 * (2 ** (attemptCount - 1)),
+          6 * 60 * 60 * 1000
+        );
+        const nextAttemptAt = terminal
+          ? null
+          : Timestamp.fromDate(new Date(failedAt.getTime() + retryDelay));
+        const timestamp = fieldValue.serverTimestamp();
+        transaction.set(reference, {
+          ...effect,
+          status:terminal ? 'manual_review' : 'pending',
+          claim:null,
+          attemptCount,
+          lastErrorCode:errorCode,
+          nextAttemptAt,
+          updatedAt:timestamp,
+        });
+        if (terminal && orderSnapshot?.exists) {
+          const order = orderSnapshot.data();
+          transaction.set(orderReference, {
+            ...order,
+            status:'manual_review',
+            terminal:true,
+            activeTransition:null,
+            reconciliationDueAt:null,
+            lastErrorCode:errorCode,
+            updatedAt:timestamp,
+          });
+        }
+        transaction.create(receipt, effectReceipt({
+          orderId,
+          event:terminal ? 'effect_manual_review' : 'effect_failed',
+          effect:pendingEffect,
+          errorCode,
+        }, fieldValue));
+        if (terminal) {
+          transaction.create(alertReceipt, auditReceipt({
+            orderId,event:'operator_alert',errorCode,
+          }, fieldValue));
+        }
+        return true;
+      });
+    },
+
     async listDueEffects(now = clock(), {limit = 50} = {}) {
       const maximum = Number(limit);
       if (!Number.isInteger(maximum) || maximum < 1 || maximum > 100) {
@@ -991,26 +1081,20 @@ export function createOrderRepository({
             return {kind:'recovered_create',id:effect.orderId};
           }
           if (effect.effect === 'invoice_send') {
-            if (effect.dispatchStartedAt == null && effect.dispatchAttemptCount === 0) {
-              transaction.set(reference, {
-                ...effect,status:'pending',claim:null,
-                lastErrorCode:effect.lastErrorCode,nextAttemptAt:cutoff,updatedAt:timestamp,
-              });
-              return {kind:'recovered_send',id:effect.orderId};
-            }
             const orderReference = orderRef(effect.orderId);
             const orderSnapshot = await transaction.get(orderReference);
-            if (!orderSnapshot.exists) return null;
-            const order = orderSnapshot.data();
             transaction.set(reference, {
               ...effect, status: 'manual_review', claim: null,
               lastClaimId: effect.claim?.claimId,
               lastErrorCode: 'invoice_send_unknown', nextAttemptAt: null, updatedAt: timestamp,
             });
-            transaction.set(orderReference, {
-              ...order, status: 'manual_review', terminal: true, activeTransition: null,
-              reconciliationDueAt: null, lastErrorCode: 'invoice_send_unknown', updatedAt: timestamp,
-            });
+            if (orderSnapshot.exists) {
+              const order = orderSnapshot.data();
+              transaction.set(orderReference, {
+                ...order, status: 'manual_review', terminal: true, activeTransition: null,
+                reconciliationDueAt: null, lastErrorCode: 'invoice_send_unknown', updatedAt: timestamp,
+              });
+            }
             transaction.create(alertReceipt, auditReceipt({
               orderId:effect.orderId,event:'operator_alert',errorCode:'invoice_send_unknown',
             }, fieldValue));

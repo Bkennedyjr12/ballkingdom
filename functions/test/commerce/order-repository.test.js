@@ -947,7 +947,7 @@ test('lists newly pending auth, create, and send effects through one bounded due
   )).length, 3);
 });
 
-test('recovers an expired pre-dispatch send but quarantines post-dispatch ambiguity with a durable alert', async () => {
+test('quarantines every expired send lease with one durable alert and never permits another claim', async () => {
   const {firestore, repository} = repositoryFixture();
   for (const suffix of ['safe','ambiguous']) {
     await repository.createReservedDigitalOrder({
@@ -981,18 +981,78 @@ test('recovers an expired pre-dispatch send but quarantines post-dispatch ambigu
     new Date('2026-08-29T18:06:00.000Z')
   );
 
-  assert.deepEqual(recovered.recoveredSendOrderIds, ['order-safe']);
-  assert.deepEqual(recovered.manualReviewOrderIds, ['order-ambiguous']);
-  assert.equal(firestore.document('commerceEffects/order-safe-invoice_send').status, 'pending');
+  assert.deepEqual(recovered.recoveredSendOrderIds, []);
+  assert.deepEqual(recovered.manualReviewOrderIds, ['order-safe','order-ambiguous']);
+  assert.equal(firestore.document('commerceEffects/order-safe-invoice_send').status, 'manual_review');
   assert.equal(firestore.document('commerceEffects/order-ambiguous-invoice_send').status, 'manual_review');
   assert.equal(await repository.claimEffect(
     'order-safe','invoice_send','retry-safe',new Date('2026-08-29T18:06:00.000Z')
-  ) !== false, true);
+  ), false);
   const alerts = firestore.collection('commerceAudit')
     .filter(receipt => receipt.event === 'operator_alert');
   assert.deepEqual(alerts.map(alert => ({errorCode:alert.errorCode,orderId:alert.orderId})), [
+    {errorCode:'invoice_send_unknown',orderId:'order-safe'},
     {errorCode:'invoice_send_unknown',orderId:'order-ambiguous'},
   ]);
+});
+
+test('terminally quarantines pending poisoned effects once so they leave the due queue', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createReservedDigitalOrder({
+    recipientBinding:RECIPIENT_BINDING,orderId:'order-poisoned',order:digitalOrder(),
+  });
+  const [effect] = await repository.listDueEffects(
+    new Date('2026-08-29T18:00:00.000Z'), {limit:1}
+  );
+
+  assert.equal(await repository.recordPendingEffectFailure(effect, {
+    code:'authorized_recipient_binding_mismatch',terminal:true,
+  }, new Date('2026-08-29T18:00:00.000Z')), true);
+  assert.equal(await repository.recordPendingEffectFailure(effect, {
+    code:'authorized_recipient_binding_mismatch',terminal:true,
+  }, new Date('2026-08-29T18:00:00.000Z')), false);
+
+  assert.equal(firestore.document('commerceEffects/order-poisoned-invoice_create').status, 'manual_review');
+  assert.equal((await repository.listDueEffects(
+    new Date('2026-08-29T18:00:00.000Z'), {limit:10}
+  )).some(item => item.effectId === effect.effectId), false);
+  assert.equal(firestore.collection('commerceAudit').filter(receipt => (
+    receipt.event === 'operator_alert'
+      && receipt.errorCode === 'authorized_recipient_binding_mismatch'
+  )).length, 1);
+});
+
+test('backs off transient pending-effect failures and terminally alerts only at the bounded maximum', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createReservedDigitalOrder({
+    recipientBinding:RECIPIENT_BINDING,orderId:'order-transient',order:digitalOrder(),
+  });
+  const [effect] = await repository.listDueEffects(
+    new Date('2026-08-29T18:00:00.000Z'), {limit:1}
+  );
+  let at = new Date('2026-08-29T18:00:00.000Z');
+
+  assert.equal(await repository.recordPendingEffectFailure(effect, {
+    code:'commerce_effect_dispatch_unavailable',terminal:false,
+  }, at), true);
+  assert.equal(await repository.recordPendingEffectFailure(effect, {
+    code:'commerce_effect_dispatch_unavailable',terminal:false,
+  }, at), false);
+  for (let attempt = 2; attempt <= 8; attempt += 1) {
+    at = firestore.document('commerceEffects/order-transient-invoice_create').nextAttemptAt.toDate();
+    assert.equal(await repository.recordPendingEffectFailure(effect, {
+      code:'commerce_effect_dispatch_unavailable',terminal:false,
+    }, at), true);
+  }
+
+  const stored = firestore.document('commerceEffects/order-transient-invoice_create');
+  assert.equal(stored.status, 'manual_review');
+  assert.equal(stored.attemptCount, 8);
+  assert.equal(stored.nextAttemptAt, null);
+  assert.equal(firestore.collection('commerceAudit').filter(receipt => (
+    receipt.event === 'operator_alert'
+      && receipt.errorCode === 'commerce_effect_dispatch_unavailable'
+  )).length, 1);
 });
 
 test('leases payment verification without leaving a due row and atomically fulfills with one grant', async () => {
@@ -1098,6 +1158,20 @@ test('stores idempotent webhook hints with the exact normalized field allowlist'
   await assert.rejects(repository.storeWebhookHint('c'.repeat(64), {
     ...hint,rawBody:'must-not-be-stored',
   }), {code:'ORDER_INVALID'});
+});
+
+test('canonicalizes stored webhook timestamps to UTC', async () => {
+  const {firestore, repository} = repositoryFixture();
+
+  await repository.storeWebhookHint('d'.repeat(64), {
+    realmId:'realm-1',entityName:'Invoice',entityId:'invoice-1',operation:'Update',
+    lastUpdated:'2026-08-29T11:00:00-07:00',
+  });
+
+  assert.equal(
+    firestore.document(`commerceWebhookHints/${'d'.repeat(64)}`).lastUpdated,
+    '2026-08-29T18:00:00.000Z'
+  );
 });
 
 test('batches, bounds, expires, consumes, and maps normalized reconciliation hints', async () => {

@@ -23,6 +23,7 @@ function createMemoryRepository() {
   const fulfillmentGrants = new Map();
   const webhookHints = new Map();
   const disabledAudits = [];
+  const operatorAlerts = [];
   let claimSequence = 0;
 
   function orderEffect(orderId, effect) {
@@ -36,6 +37,7 @@ function createMemoryRepository() {
     fulfillmentGrants,
     webhookHints,
     disabledAudits,
+    operatorAlerts,
     async createReservedDigitalOrder({recipientBinding, orderId, order}) {
       const key = `${recipientBinding}:${order.sku}`;
       const existingId = reservations.get(key);
@@ -227,6 +229,23 @@ function createMemoryRepository() {
       }
       return true;
     },
+    async recordPendingEffectFailure(descriptor, {code,terminal} = {}, now = new Date()) {
+      const entry = descriptor.effect === 'pilot_auth_email'
+        ? [...authEffects.entries()].find(([,effect]) => effect.effectId === descriptor.effectId)
+        : [...effects.entries()].find(([,effect]) => effect.effectId === descriptor.effectId);
+      const current = entry?.[1];
+      if (!current || current.status !== 'pending') return false;
+      current.attemptCount = Math.min(Number(current.attemptCount ?? 0) + 1, 8);
+      current.lastErrorCode = code;
+      if (terminal || current.attemptCount >= 8) {
+        current.status = 'manual_review';
+        current.nextAttemptAt = null;
+        operatorAlerts.push({code,orderId:descriptor.orderId});
+      } else {
+        current.nextAttemptAt = new Date(now.getTime() + 5 * 60 * 1000 * (2 ** (current.attemptCount - 1)));
+      }
+      return true;
+    },
     async recoverExpiredEffects(now) {
       const result = {
         recoveredCreateOrderIds:[],recoveredPilotAuthBindings:[],
@@ -248,13 +267,10 @@ function createMemoryRepository() {
         const orderId = key.split(':')[0];
         if (effect.effect === 'invoice_create') {
           effect.status = 'pending'; effect.claim = null; result.recoveredCreateOrderIds.push(orderId);
-        } else if (effect.dispatchStartedAt) {
+        } else {
           effect.status = 'manual_review'; effect.claim = null;
           Object.assign(orders.get(orderId), {status:'manual_review',terminal:true,lastErrorCode:'invoice_send_unknown'});
           result.manualReviewOrderIds.push(orderId);
-        } else {
-          effect.status = 'pending'; effect.claim = null;
-          result.recoveredSendOrderIds.push(orderId);
         }
       }
       return result;
@@ -262,13 +278,15 @@ function createMemoryRepository() {
     async listDueEffects(now, {limit}) {
       const result = [];
       for (const [binding, effect] of authEffects) {
-        if (effect.status === 'pending') {
-          result.push({effectId:`pilot-auth-${binding}`,effect:'pilot_auth_email',recipientBinding:binding});
+        if (effect.status === 'pending' && (!effect.nextAttemptAt || effect.nextAttemptAt <= now)) {
+          effect.effectId ??= `pilot-auth-${binding}`;
+          result.push({effectId:effect.effectId,effect:'pilot_auth_email',recipientBinding:binding});
         }
       }
       for (const [key, effect] of effects) {
-        if (effect.status !== 'pending') continue;
-        result.push({effectId:key,effect:effect.effect,orderId:key.split(':')[0]});
+        if (effect.status !== 'pending' || (effect.nextAttemptAt && effect.nextAttemptAt > now)) continue;
+        effect.effectId ??= key;
+        result.push({effectId:effect.effectId,effect:effect.effect,orderId:key.split(':')[0]});
       }
       return result.slice(0, limit);
     },
@@ -491,7 +509,7 @@ test('quarantines an ambiguous auth dispatch and never sends it again', async ()
   assert.equal(attempts, 1);
   assert.equal([...state.repository.authEffects.values()][0].status, 'manual_review');
   assert.equal([...state.repository.authEffects.values()][0].lastErrorCode, 'pilot_auth_email_unknown');
-  assert.deepEqual(state.calls.alerts, [{code:'pilot_auth_email_unknown'}]);
+  assert.deepEqual(state.calls.alerts, []);
 });
 
 test('reclaims a pre-dispatch auth lease only after expiry and then delivers once', async () => {
@@ -749,7 +767,7 @@ test('scheduled recovery quarantines an expired invoice-send lease without anoth
 
   assert.equal(sends, 0);
   assert.equal(repository.orders.get('order-1').status, 'manual_review');
-  assert.deepEqual(state.calls.alerts, [{code:'invoice_send_unknown',orderId:'order-1'}]);
+  assert.deepEqual(state.calls.alerts, []);
 });
 
 test('scheduled dispatcher sends a newly pending auth effect without waiting for an expired lease', async () => {
@@ -796,7 +814,7 @@ test('scheduled dispatcher sends one pending Invoice with a durable ID even when
   assert.equal(repository.effects.get('order-1:invoice_send').status, 'completed');
 });
 
-test('expired pre-dispatch Invoice send is safely reclaimed and dispatched once', async () => {
+test('expired pre-dispatch Invoice send is quarantined and can never be dispatched', async () => {
   let now = new Date('2026-08-29T18:00:00.000Z');
   const repository = createMemoryRepository();
   await repository.createReservedDigitalOrder({
@@ -824,8 +842,97 @@ test('expired pre-dispatch Invoice send is safely reclaimed and dispatched once'
   await state.service.reconcilePendingOrders(now);
   await state.service.reconcilePendingOrders(new Date('2026-08-29T18:05:01.000Z'));
 
-  assert.equal(sends, 1);
+  assert.equal(sends, 0);
+  assert.equal(repository.effects.get('order-1:invoice_send').status, 'manual_review');
+  assert.equal(repository.orders.get('order-1').status, 'manual_review');
+});
+
+test('dispatcher quarantines a poisoned oldest page so later valid effects cannot starve', async () => {
+  const repository = createMemoryRepository();
+  for (let index = 0; index < 50; index += 1) {
+    repository.effects.set(`missing-${index}:invoice_create`, {
+      effect:'invoice_create',status:'pending',claim:null,attemptCount:0,
+      nextAttemptAt:new Date('2026-08-29T17:00:00.000Z'),
+    });
+  }
+  await repository.createReservedDigitalOrder({
+    recipientBinding:pilotBinding,orderId:'order-1',
+    order:{
+      sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
+      orderType:'digital_product',fulfillmentType:'protected_download',customer:{name:'Ada'},
+      customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,status:'pending_payment',
+    },
+  });
+  const state = fixture({repository});
+  const at = new Date('2026-08-29T18:00:00.000Z');
+
+  await state.service.dispatchPendingEffects(at);
+  await state.service.dispatchPendingEffects(at);
+
+  assert.equal([...repository.effects.values()].filter(effect => (
+    effect.status === 'manual_review' && effect.lastErrorCode === 'commerce_effect_order_missing'
+  )).length, 50);
+  assert.equal(repository.effects.get('order-1:invoice_create').status, 'completed');
   assert.equal(repository.effects.get('order-1:invoice_send').status, 'completed');
+  assert.equal(state.calls.create.length, 1);
+  assert.equal(state.calls.send.length, 1);
+});
+
+test('dispatcher quarantines every pending effect for a mismatched or manual-review order', async () => {
+  for (const scenario of ['binding_mismatch','already_manual']) {
+    const repository = createMemoryRepository();
+    await repository.createReservedDigitalOrder({
+      recipientBinding:scenario === 'binding_mismatch' ? 'a'.repeat(64) : pilotBinding,
+      orderId:`order-${scenario}`,
+      order:{
+        sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
+        orderType:'digital_product',fulfillmentType:'protected_download',customer:{name:'Ada'},
+        customerUid:'customer-uid',
+        authorizedRecipientBinding:scenario === 'binding_mismatch' ? 'a'.repeat(64) : pilotBinding,
+        status:'pending_payment',
+      },
+    });
+    if (scenario === 'already_manual') {
+      Object.assign(repository.orders.get(`order-${scenario}`), {status:'manual_review',terminal:true});
+    }
+    const state = fixture({repository});
+
+    await state.service.dispatchPendingEffects(new Date('2026-08-29T18:00:00.000Z'));
+
+    assert.deepEqual(
+      [...repository.effects.values()].map(effect => effect.status),
+      ['manual_review','manual_review'],
+      scenario
+    );
+    assert.equal(state.calls.create.length, 0, scenario);
+    assert.equal(state.calls.send.length, 0, scenario);
+  }
+});
+
+test('dispatcher backs off every pending effect after an unexpected pre-dispatch error', async () => {
+  const repository = createMemoryRepository();
+  await repository.createReservedDigitalOrder({
+    recipientBinding:pilotBinding,orderId:'order-unavailable',
+    order:{
+      sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
+      orderType:'digital_product',fulfillmentType:'protected_download',customer:{name:'Ada'},
+      customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,status:'pending_payment',
+    },
+  });
+  const state = fixture({
+    repository,
+    getApprovedPilotEmail:() => { throw new Error('synthetic configuration failure'); },
+  });
+  const at = new Date('2026-08-29T18:00:00.000Z');
+
+  await state.service.dispatchPendingEffects(at);
+
+  for (const effect of repository.effects.values()) {
+    assert.equal(effect.status, 'pending');
+    assert.equal(effect.lastErrorCode, 'commerce_effect_dispatch_unavailable');
+    assert.equal(effect.nextAttemptAt > at, true);
+  }
+  assert.equal((await repository.listDueEffects(at, {limit:50})).length, 0);
 });
 
 test('authoritative exact payment evidence fulfills once while an unpaid Invoice stays pending', async () => {
@@ -912,6 +1019,85 @@ test('a stored webhook hint prioritizes a future-due exact Invoice and is consum
   assert.equal(order.status, 'fulfilled');
   assert.equal(state.repository.fulfillmentGrants.size, 1);
   assert.equal(state.repository.webhookHints.size, 0);
+});
+
+test('retains a mapped webhook hint when authoritative processing crashes before completion', async () => {
+  const state = fixture();
+  const created = await state.service.createDigitalOrder({
+    sku:catalogItem.sku,customerName:'Ada',idempotencyKey:'hint-crash-order',
+  }, ownerAuth);
+  state.repository.orders.get(created.orderHandle).reconciliationDueAt = new Date('2026-08-30T18:00:00.000Z');
+  await state.repository.storeWebhookHints([{id:'c'.repeat(64),hint:{
+    realmId:'realm-1',entityName:'Invoice',entityId:'invoice-1',operation:'Update',
+    lastUpdated:'2026-08-29T18:00:00.000Z',
+  }}]);
+  state.repository.claimPaymentVerification = async () => {
+    throw new Error('synthetic authoritative processing crash');
+  };
+
+  await assert.rejects(
+    state.service.reconcilePendingOrders(new Date('2026-08-29T18:01:00.000Z')),
+    /synthetic authoritative processing crash/
+  );
+
+  assert.equal(state.repository.webhookHints.size, 1);
+});
+
+test('retains a Payment hint when its mapped invoices do not fit the remaining run budget', async () => {
+  const repository = createMemoryRepository();
+  const invoiceToOrder = new Map();
+  for (let index = 0; index < 51; index += 1) {
+    const orderId = `budget-order-${index}`;
+    const invoiceId = `budget-invoice-${index}`;
+    invoiceToOrder.set(invoiceId, orderId);
+    repository.orders.set(orderId, {
+      id:orderId,sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
+      orderType:'digital_product',fulfillmentType:'protected_download',customer:{name:'Ada'},
+      customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,status:'pending_payment',
+      terminal:false,reconciliationDueAt:new Date('2026-08-30T18:00:00.000Z'),
+      providerRefs:{
+        realmId:'realm-1',invoiceId,customerId:'customer-1',providerOrderRef:`bk-order-${orderId}`,
+      },
+      fulfillment:{status:'locked'},
+    });
+    if (index < 49) {
+      const hintId = String(index + 1).padStart(64, '0');
+      repository.webhookHints.set(hintId, {
+        hintId,realmId:'realm-1',entityName:'Invoice',entityId:invoiceId,operation:'Update',
+        lastUpdated:`2026-08-29T18:00:${String(index).padStart(2, '0')}.000Z`,
+      });
+    }
+  }
+  const paymentHintId = 'f'.repeat(64);
+  repository.webhookHints.set(paymentHintId, {
+    hintId:paymentHintId,realmId:'realm-1',entityName:'Payment',entityId:'budget-payment',
+    operation:'Update',lastUpdated:'2026-08-29T18:00:59.000Z',
+  });
+  let invoiceReads = 0;
+  const state = fixture({repository,quickbooks:{
+    async getPayment() {
+      return {applications:[49,50].map(index => ({
+        linkedTxnType:'Invoice',linkedTxnId:`budget-invoice-${index}`,
+      }))};
+    },
+    async getInvoice(invoiceId) {
+      invoiceReads += 1;
+      const orderId = invoiceToOrder.get(invoiceId);
+      return {
+        realmId:'realm-1',invoice:{
+          invoiceId,providerOrderRef:`bk-order-${orderId}`,totalAmountCents:4900,
+          balanceCents:4900,currency:'USD',entityState:'present',paymentState:'unpaid',
+        },payments:[],
+      };
+    },
+    async getAccountingChanges() { return {realmId:'realm-1',changes:[]}; },
+  }});
+
+  const result = await state.service.reconcilePendingOrders(new Date('2026-08-29T18:01:00.000Z'));
+
+  assert.equal(result.verifiedCount, 49);
+  assert.equal(invoiceReads, 49);
+  assert.deepEqual([...repository.webhookHints.keys()], [paymentHintId]);
 });
 
 test('a Payment hint resolves only its bounded Invoice applications before exact Invoice verification', async () => {
@@ -1048,6 +1234,7 @@ test('mismatched paid evidence moves the order to manual review without fulfillm
   assert.equal(verified.status, 'manual_review');
   assert.equal(state.repository.orders.get(result.orderHandle).status, 'manual_review');
   assert.equal(state.repository.fulfillmentGrants.size, 0);
+  assert.deepEqual(state.calls.alerts, []);
 });
 
 test('status is owner-authorized and contains no email or accounting identifiers', async () => {
@@ -1083,6 +1270,26 @@ test('status abuse control receives only a separate fixed-length digest, never t
   assert.equal(seen.length, 1);
   assert.match(seen[0], /^[a-f0-9]{64}$/);
   assert.notEqual(seen[0], ownerAuth.uid);
+});
+
+test('status throttling happens from verified token identity before any Admin user lookup', async () => {
+  let adminLookups = 0;
+  const state = fixture({
+    statusRequestLimiter:async () => false,
+    getCurrentUser:async () => { adminLookups += 1; throw new Error('must not run'); },
+  });
+
+  await assert.rejects(
+    state.service.getOrderStatus({orderHandle:'order-1'}, ownerAuth),
+    {code:'RATE_LIMITED'}
+  );
+  assert.equal(adminLookups, 0);
+});
+
+test('null status input returns the intended safe not-found error', async () => {
+  const state = fixture();
+
+  await assert.rejects(state.service.getOrderStatus(null, ownerAuth), {code:'ORDER_NOT_FOUND'});
 });
 
 test('release state requires App Check and an administrator and exposes only two Booleans', async () => {

@@ -109,6 +109,26 @@ test('stores only normalized Invoice and Payment reconciliation hints idempotent
   assert.equal(serialized.includes(raw.toString('base64')), false);
 });
 
+test('canonicalizes offset-equivalent entity instants before hashing and persistence', async () => {
+  const state = fixture();
+  const first = Buffer.from(JSON.stringify({eventNotifications:[{
+    realmId,dataChangeEvent:{entities:[{
+      name:'Invoice',id:'30',operation:'Update',lastUpdated:'2026-08-29T11:00:00-07:00',
+    }]},
+  }]}));
+  const second = Buffer.from(JSON.stringify({eventNotifications:[{
+    realmId,dataChangeEvent:{entities:[{
+      name:'Invoice',id:'30',operation:'Update',lastUpdated:'2026-08-29T18:00:00.000Z',
+    }]},
+  }]}));
+
+  await state.processor.acceptQuickBooksWebhook({rawBody:first,signature:signature(first)});
+  await state.processor.acceptQuickBooksWebhook({rawBody:second,signature:signature(second)});
+
+  assert.equal(state.hints.size, 1);
+  assert.equal([...state.hints.values()][0].lastUpdated, '2026-08-29T18:00:00.000Z');
+});
+
 test('rejects a validly signed oversized raw body before parsing or persistence', async () => {
   const state = fixture();
   const raw = Buffer.from(JSON.stringify({

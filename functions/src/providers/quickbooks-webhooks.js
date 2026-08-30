@@ -51,7 +51,7 @@ function normalizeHint(notification, entity, expectedRealmId) {
     entityName: entity.name,
     entityId: entity.id,
     operation: entity.operation,
-    lastUpdated: entity.lastUpdated,
+    lastUpdated: new Date(entity.lastUpdated).toISOString(),
   });
 }
 
