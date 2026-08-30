@@ -1103,6 +1103,47 @@ test('retains a mapped hint when authoritative evidence is unavailable and a ret
   assert.equal(order.reconciliationDueAt > new Date('2026-08-29T18:01:00.000Z'), true);
 });
 
+for (const [status,hintId] of [
+  ['cancelled','6'.repeat(64)],
+  ['refunded','7'.repeat(64)],
+]) {
+  test(`observes ${status} as terminal, consumes its hint, and preserves public status`, async () => {
+    const state = fixture();
+    const created = await state.service.createDigitalOrder({
+      sku:catalogItem.sku,customerName:'Ada',idempotencyKey:`terminal-${status}`,
+    }, ownerAuth);
+    const order = state.repository.orders.get(created.orderHandle);
+    Object.assign(order, {
+      status,
+      terminal:true,
+      reconciliationDueAt:null,
+    });
+    let invoiceReads = 0;
+    state.quickbooks.getInvoice = async () => {
+      invoiceReads += 1;
+      throw new Error('terminal orders must not read Accounting evidence');
+    };
+    await state.repository.storeWebhookHints([{id:hintId,hint:{
+      realmId:'realm-1',entityName:'Invoice',entityId:'invoice-1',operation:'Update',
+      lastUpdated:'2026-08-29T18:00:00.000Z',
+    }}]);
+
+    assert.deepEqual(
+      await state.service.verifyOrderPayment({orderId:created.orderHandle,source:'admin'}),
+      {status},
+      status
+    );
+    const result = await state.service.reconcilePendingOrders(
+      new Date('2026-08-29T18:01:00.000Z')
+    );
+
+    assert.equal(result.verifiedCount, 1, status);
+    assert.equal(state.repository.webhookHints.size, 0, status);
+    assert.equal(invoiceReads, 0, status);
+    assert.equal(order.status, status, status);
+  });
+}
+
 test('retains a Payment hint when its mapped invoices do not fit the remaining run budget', async () => {
   const repository = createMemoryRepository();
   const invoiceToOrder = new Map();

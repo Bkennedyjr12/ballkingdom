@@ -1,6 +1,6 @@
 import {createHash, timingSafeEqual, randomUUID} from 'node:crypto';
 import {getCommerceItem as getCatalogItem} from './catalog.js';
-import {newOrder} from './order-state.js';
+import {isReconciliationTerminalStatus, newOrder} from './order-state.js';
 import {verifyQuickBooksPaymentEvidence} from './quickbooks-payment-verifier.js';
 import {readCommerceFeatureFlags} from './feature-flags.js';
 
@@ -391,7 +391,7 @@ export function createCommerceService({
     }
     let order = await repository.getOrder(orderId);
     if (!order) throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
-    if (order.status === 'fulfilled' || order.status === 'manual_review') {
+    if (isReconciliationTerminalStatus(order.status)) {
       return Object.freeze({
         status:safeOrderStatus(order.status),
         disposition:'terminal_observed',
@@ -406,7 +406,7 @@ export function createCommerceService({
     if (!verifying) {
       order = await repository.getOrder(orderId);
       if (!order) throw commerceError('ORDER_NOT_FOUND', 'Order was not found');
-      const terminal = order.status === 'fulfilled' || order.status === 'manual_review';
+      const terminal = isReconciliationTerminalStatus(order.status);
       return Object.freeze({
         status:safeOrderStatus(order.status),
         disposition:terminal ? 'terminal_observed' : 'deferred',
