@@ -39,6 +39,7 @@ const QBO_SECRETS = [QBO_CLIENT_ID,QBO_CLIENT_SECRET,QBO_REFRESH_TOKEN,QBO_REALM
 const MS_SECRETS = [MS_TENANT_ID,MS_CLIENT_ID,MS_CLIENT_SECRET,MS_REFRESH_TOKEN];
 const ALL_SECRETS = [...QBO_SECRETS,...MS_SECRETS];
 const COMMERCE_QBO_WEBHOOK_ENABLED = false;
+const REFUND_PENDING_REVIEW_LIMIT = 100;
 
 function auditRef(appointmentId) {
   return db.collection('integrationAudit').doc(`${appointmentId}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`);
@@ -255,13 +256,12 @@ export function createRefundControlRepository({db:database,fieldValue,baseReposi
       const reference = orders.doc(orderId);
       const receipt = audits.doc();
       const totalReference = reviewTotals.doc(orderId);
-      const matchingReviews = reviews.where('orderId','==',orderId)
-        .where('amountCents','==',amountCents)
+      const pendingReviews = reviews.where('orderId','==',orderId)
         .where('status','==','pending_operator_action')
-        .limit(2);
+        .limit(REFUND_PENDING_REVIEW_LIMIT+1);
       return database.runTransaction(async transaction => {
-        const [snapshot,totalSnapshot,matchingSnapshot] = await Promise.all([
-          transaction.get(reference),transaction.get(totalReference),transaction.get(matchingReviews),
+        const [snapshot,totalSnapshot,pendingSnapshot] = await Promise.all([
+          transaction.get(reference),transaction.get(totalReference),transaction.get(pendingReviews),
         ]);
         if (!snapshot.exists) throw new Error('Order was not found');
         const order = snapshot.data();
@@ -286,36 +286,46 @@ export function createRefundControlRepository({db:database,fieldValue,baseReposi
           return {completed:false,duplicate:false,status:order.status,errorCode:'refund_state_conflict'};
         }
         const pendingAmountCents = Number(totalSnapshot.data()?.pendingAmountCents ?? 0);
-        const matchingDocuments = matchingSnapshot.docs ?? [];
-        if (matchingDocuments.length !== 1) {
-          const errorCode = matchingDocuments.length > 1
-            ? 'refund_review_ambiguous' : 'refund_review_missing';
-          transaction.update(reference,{
-            refundReconciliation:{status:'manual_review',errorCode},
-            updatedAt:fieldValue.serverTimestamp(),
-          });
+        const pendingDocuments = pendingSnapshot.docs ?? [];
+        const failReviewIntegrity = errorCode => {
           transaction.create(receipt,audit({
             orderId,event:'refund_manual_review',errorCode,actorUid:adminUid,
           }));
           return {completed:false,duplicate:false,status:order.status,errorCode};
+        };
+        if (pendingDocuments.length > REFUND_PENDING_REVIEW_LIMIT) {
+          return failReviewIntegrity('refund_review_limit_exceeded');
         }
+        let recomputedPendingAmountCents = 0;
+        for (const document of pendingDocuments) {
+          const review = document.data();
+          if (!Number.isSafeInteger(review.amountCents) || review.amountCents <= 0) {
+            return failReviewIntegrity('refund_review_amount_invalid');
+          }
+          recomputedPendingAmountCents += review.amountCents;
+          if (!Number.isSafeInteger(recomputedPendingAmountCents)) {
+            return failReviewIntegrity('refund_review_total_invalid');
+          }
+        }
+        if (!Number.isSafeInteger(pendingAmountCents)
+          || pendingAmountCents !== recomputedPendingAmountCents) {
+          return failReviewIntegrity('refund_review_total_conflict');
+        }
+        const matchingDocuments = pendingDocuments.filter(document => document.data().amountCents === amountCents);
+        if (matchingDocuments.length !== 1) return failReviewIntegrity(
+          matchingDocuments.length > 1 ? 'refund_review_ambiguous' : 'refund_review_missing'
+        );
         const matchingReview = matchingDocuments[0];
-        if (!Number.isSafeInteger(pendingAmountCents) || pendingAmountCents < amountCents) {
-          transaction.update(reference,{
-            refundReconciliation:{status:'manual_review',errorCode:'refund_review_total_conflict'},
-            updatedAt:fieldValue.serverTimestamp(),
-          });
-          transaction.create(receipt,audit({
-            orderId,event:'refund_manual_review',errorCode:'refund_review_total_conflict',actorUid:adminUid,
-          }));
-          return {completed:false,duplicate:false,status:order.status,errorCode:'refund_review_total_conflict'};
+        if (matchingReview.id !== input.reviewId) {
+          return failReviewIntegrity('refund_review_id_mismatch');
         }
+        const remainingPendingAmountCents = recomputedPendingAmountCents-amountCents;
         transaction.update(matchingReview.ref,{
           status:'resolved',resolvedByUid:adminUid,resolutionEvidenceId:evidenceId,
           resolvedAt:fieldValue.serverTimestamp(),updatedAt:fieldValue.serverTimestamp(),
         });
         transaction.set(totalReference,{
-          orderId,pendingAmountCents:pendingAmountCents-amountCents,
+          orderId,pendingAmountCents:remainingPendingAmountCents,
           updatedAt:fieldValue.serverTimestamp(),
         });
         if (input.cumulativeRefundedAmountCents < order.amountCents) {

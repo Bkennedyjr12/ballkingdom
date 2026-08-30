@@ -534,3 +534,79 @@ test('multiple legacy pending matches preserve state and create manual review', 
   assert.equal(database.documents.get('orders/order-1').status,'fulfilled');
   assert.equal(database.documents.get('commerceRefundReviewTotals/order-1').pendingAmountCents,2000);
 });
+
+test('review-ledger integrity failures preserve order, reviews, and totals', async () => {
+  const cases = [
+    {name:'inflated total',reviewAmount:1000,total:2000,passedReviewId:reviewId('order-1',1000)},
+    {name:'deflated total',reviewAmount:1000,total:500,passedReviewId:reviewId('order-1',1000)},
+    {name:'invalid review amount',reviewAmount:'1000',total:1000,passedReviewId:reviewId('order-1',1000)},
+    {name:'review id mismatch',reviewAmount:1000,total:1000,passedReviewId:'9'.repeat(64)},
+  ];
+  for (const scenario of cases) {
+    const id = reviewId('order-1',1000);
+    const seed = {
+      'orders/order-1':structuredClone(paidOrder),
+      [`commerceRefundReviews/${id}`]:{
+        orderId:'order-1',amountCents:scenario.reviewAmount,status:'pending_operator_action',
+      },
+      'commerceRefundReviewTotals/order-1':{orderId:'order-1',pendingAmountCents:scenario.total},
+    };
+    const database = transactionDatabase(seed);
+    const repository = createRefundControlRepository({db:database,fieldValue:serverTimestamp});
+    const before = structuredClone(Object.fromEntries(database.documents));
+    const result = await repository.completeRefundReconciliation({
+      orderId:'order-1',amountCents:1000,adminUid:'admin-1',evidenceId:'7'.repeat(64),orderBinding,
+      expectedStatus:'fulfilled',expectedRefundedAmountCents:0,cumulativeRefundedAmountCents:1000,
+      reviewId:scenario.passedReviewId,
+    });
+    assert.match(result.errorCode,/refund_review_/i,scenario.name);
+    for (const [path,value] of Object.entries(before)) {
+      assert.deepEqual(database.documents.get(path),value,`${scenario.name}: ${path}`);
+    }
+    assert.equal([...database.documents].filter(([path])=>path.startsWith('commerceAudit/')).length,1);
+  }
+});
+
+test('valid multiple-review ledger resolves only the deterministic match and recomputes remaining total', async () => {
+  const firstId = reviewId('order-1',1000);
+  const secondId = reviewId('order-1',2000);
+  const database = transactionDatabase({
+    'orders/order-1':structuredClone(paidOrder),
+    [`commerceRefundReviews/${firstId}`]:{orderId:'order-1',amountCents:1000,status:'pending_operator_action'},
+    [`commerceRefundReviews/${secondId}`]:{orderId:'order-1',amountCents:2000,status:'pending_operator_action'},
+    'commerceRefundReviewTotals/order-1':{orderId:'order-1',pendingAmountCents:3000},
+  });
+  const repository = createRefundControlRepository({db:database,fieldValue:serverTimestamp});
+  const input = {
+    orderId:'order-1',amountCents:1000,adminUid:'admin-1',evidenceId:'8'.repeat(64),orderBinding,
+    expectedStatus:'fulfilled',expectedRefundedAmountCents:0,cumulativeRefundedAmountCents:1000,
+    reviewId:firstId,
+  };
+  const first = await repository.completeRefundReconciliation(input);
+  const duplicate = await repository.completeRefundReconciliation(input);
+  assert.equal(first.errorCode,'partial_refund_requires_manual_review');
+  assert.equal(duplicate.duplicate,true);
+  assert.equal(database.documents.get(`commerceRefundReviews/${firstId}`).status,'resolved');
+  assert.equal(database.documents.get(`commerceRefundReviews/${secondId}`).status,'pending_operator_action');
+  assert.equal(database.documents.get('commerceRefundReviewTotals/order-1').pendingAmountCents,2000);
+});
+
+test('pending review ledger cap fails closed without mutating commerce state', async () => {
+  const seed = {
+    'orders/order-1':structuredClone(paidOrder),
+    'commerceRefundReviewTotals/order-1':{orderId:'order-1',pendingAmountCents:101},
+  };
+  for (let index=0;index<101;index+=1) seed[`commerceRefundReviews/legacy-${index}`]={
+    orderId:'order-1',amountCents:1,status:'pending_operator_action',
+  };
+  const database = transactionDatabase(seed);
+  const repository = createRefundControlRepository({db:database,fieldValue:serverTimestamp});
+  const result = await repository.completeRefundReconciliation({
+    orderId:'order-1',amountCents:1,adminUid:'admin-1',evidenceId:'6'.repeat(64),orderBinding,
+    expectedStatus:'fulfilled',expectedRefundedAmountCents:0,cumulativeRefundedAmountCents:1,
+    reviewId:reviewId('order-1',1),
+  });
+  assert.equal(result.errorCode,'refund_review_limit_exceeded');
+  assert.equal(database.documents.get('orders/order-1').status,'fulfilled');
+  assert.equal(database.documents.get('commerceRefundReviewTotals/order-1').pendingAmountCents,101);
+});
