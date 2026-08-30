@@ -73,6 +73,15 @@ test('a reconnect fence after rotated-token persistence leaves an orphan and emi
   assert.deepEqual(calls,['orphan-5','publish-rejected','qbo_reconnect_required','owned-review-rejected']);
 });
 
+test('an ambiguous rotated-token add is persistence-unknown and never publishes',async()=>{
+  const calls=[];const credentialStore={async readPublished(){return {generation:2,refreshTokenVersion:'4',realmVersion:'3'};},async claimRefresh(){return {status:'claimed'};},async markDispatchStarted(){return true;},async verifyPublishFence(){return true;},async publishRotation(){calls.push('publish');return true;},async requireManualReview(input){calls.push(input.reason);return true;},async failBeforeDispatch(){},async recordAlert(){}};
+  const tokenStore={async readVersion(version){return {value:'bound-token',version};},async addVersion(){throw new Error('outcome unknown');}};
+  const realmStore={async readVersion(version){return {value:'bound-realm',version};}};
+  const coordinator=createBoundQuickBooksCredentialCoordinator({credentialStore,tokenStore,realmStore,refresh:async()=>({accessToken:'access',refreshToken:'rotated',expiresIn:3600}),clock:()=>new Date(10),ownerIdFactory:()=>'owner'});
+  await assert.rejects(coordinator.getCredentials(),error=>error.code==='QBO_REFRESH_PERSISTENCE_UNKNOWN');
+  assert.deepEqual(calls,['qbo_refresh_persistence_unknown']);
+});
+
 test('partial reconnect writes never publish a mixed pair',async()=>{
   const calls=[];const credentialStore={async beginReconnect(){return {generation:8};},async publishReconnect(){calls.push('publish');return true;},async failReconnect(input){calls.push(input.reason);}};
   const tokenStore={async addVersion(){return {version:'20'};},async readVersion(){return {value:'new-token',version:'20'};}};
