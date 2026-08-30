@@ -252,11 +252,37 @@ function isDocumentedInvoiceSendResult(invoice, invoiceId, customerEmail) {
   );
 }
 
+export async function refreshQuickBooksAccessToken({clientId,clientSecret,refreshToken} = {},fetchImpl=fetch) {
+  if (![clientId,clientSecret,refreshToken].every(isNonEmptyString)) {
+    throw new TypeError('QuickBooks authentication configuration is invalid');
+  }
+  const credentials=Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const response=await fetchImpl('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',{
+    method:'POST',
+    headers:{authorization:`Basic ${credentials}`,'content-type':'application/x-www-form-urlencoded',accept:'application/json'},
+    body:new URLSearchParams({grant_type:'refresh_token',refresh_token:refreshToken}),
+  });
+  let result;
+  try { result=await response.json(); } catch { result=null; }
+  if (!response.ok) {
+    const error=new Error('QuickBooks authentication was rejected');
+    if (result?.error === 'invalid_grant') error.code='invalid_grant';
+    throw error;
+  }
+  if (!isNonEmptyString(result?.access_token) || !isNonEmptyString(result?.refresh_token)) {
+    throw new Error('QuickBooks authentication response was invalid');
+  }
+  return {accessToken:result.access_token,refreshToken:result.refresh_token,expiresIn:Number(result.expires_in)};
+}
+
 export function createQuickBooksClient(config, fetchImpl = fetch) {
   const root = config.sandbox ? SANDBOX_ROOT : PROD_ROOT;
   let cachedAccessToken = null;
 
   async function accessToken() {
+    if (config.accessTokenProvider?.getAccessToken) {
+      return config.accessTokenProvider.getAccessToken();
+    }
     if (cachedAccessToken) return cachedAccessToken;
     const credentials = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
     const response = await fetchImpl('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {

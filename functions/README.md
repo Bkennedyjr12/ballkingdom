@@ -42,7 +42,9 @@ firebase functions:secrets:set MS_CLIENT_SECRET --project the-ballers-kingdom
 firebase functions:secrets:set MS_REFRESH_TOKEN --project the-ballers-kingdom
 ```
 
-Grant only the deployed Functions runtime service account `roles/secretmanager.secretVersionAdder` on `QBO_REFRESH_TOKEN` and `MS_REFRESH_TOKEN`. It needs this narrow permission because both providers rotate refresh tokens. Do not grant project-wide Secret Manager administration.
+The QuickBooks runtime must have secret-version access plus version-add permission on `QBO_REFRESH_TOKEN`; it reads `versions/latest` at refresh time, writes each Intuit replacement, and reads the exact new version back before any Accounting request is allowed. Grant these permissions only on that secret (for example, a secret-scoped accessor role plus `secretmanager.versions.add` through a narrow custom role). Microsoft currently retains its existing version-add path. Do not grant project-wide Secret Manager administration.
+
+QuickBooks refreshes are serialized by `integrationControl/qbo-credential-rotation`. That Firestore document contains only a short owner lease, numeric expiry, and redacted source/stored version receipts—never access or refresh credentials. An active lease is never stolen; an expired lease can be recovered. A secret-version write or readback failure fails closed before the Accounting host is called.
 
 ## QuickBooks service catalog
 

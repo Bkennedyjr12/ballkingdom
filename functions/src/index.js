@@ -8,12 +8,17 @@ import {onSchedule} from 'firebase-functions/v2/scheduler';
 import {onCall, onRequest, HttpsError} from 'firebase-functions/v2/https';
 import {defineSecret, defineString} from 'firebase-functions/params';
 import {createGraphClient} from './providers/microsoft-graph.js';
-import {createQuickBooksClient} from './providers/quickbooks.js';
+import {createQuickBooksClient,refreshQuickBooksAccessToken} from './providers/quickbooks.js';
 import {createAppointmentApprovalRepository,createIntegrationService} from './orchestration.js';
 import {createCommerceService} from './commerce/commerce-service.js';
 import {createOrderRepository} from './commerce/order-repository.js';
 import {readCommerceFeatureFlags} from './commerce/feature-flags.js';
 import {createLazyProvider} from './commerce/lazy-provider.js';
+import {
+  createFirestoreQuickBooksRefreshLeaseStore,
+  createQuickBooksRefreshSecretStore,
+  createQuickBooksTokenCoordinator,
+} from './commerce/quickbooks-token-coordinator.js';
 import {createQuickBooksWebhookProcessor} from './providers/quickbooks-webhooks.js';
 import {buildMicrosoftAuthUrl,buildQuickBooksAuthUrl,exchangeMicrosoftCode,exchangeQuickBooksCode} from './providers/oauth.js';
 
@@ -133,10 +138,24 @@ function graphClient() {
   });
 }
 
+let qboTokenCoordinator;
+function quickBooksTokenCoordinator() {
+  if (qboTokenCoordinator) return qboTokenCoordinator;
+  const projectId=process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
+  if (!projectId) throw new Error('Google Cloud project is unavailable');
+  qboTokenCoordinator=createQuickBooksTokenCoordinator({
+    secretStore:createQuickBooksRefreshSecretStore({client:secretManager,projectId}),
+    leaseStore:createFirestoreQuickBooksRefreshLeaseStore({db}),
+    refresh:refreshToken=>refreshQuickBooksAccessToken({
+      clientId:QBO_CLIENT_ID.value(),clientSecret:QBO_CLIENT_SECRET.value(),refreshToken,
+    }),
+  });
+  return qboTokenCoordinator;
+}
+
 function quickBooksClient() {
   return createQuickBooksClient({
-    clientId:QBO_CLIENT_ID.value(),clientSecret:QBO_CLIENT_SECRET.value(),refreshToken:QBO_REFRESH_TOKEN.value(),realmId:QBO_REALM_ID.value(),
-    onRefreshToken: token => addSecretVersion('QBO_REFRESH_TOKEN', token),
+    realmId:QBO_REALM_ID.value(),accessTokenProvider:quickBooksTokenCoordinator(),
   });
 }
 
