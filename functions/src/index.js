@@ -186,10 +186,6 @@ export function createRefundControlRepository({db:database,fieldValue,baseReposi
         const [existing,totalSnapshot,orderSnapshot] = await Promise.all([
           transaction.get(reference),transaction.get(totalReference),transaction.get(orderReference),
         ]);
-        if (existing.exists) {
-          const data = existing.data();
-          return {reviewId:reference.id,amountCents:data.amountCents,status:data.status,duplicate:true};
-        }
         const order = orderSnapshot.data();
         if (!orderSnapshot.exists || !['paid','fulfilled'].includes(order.status)
           || order.amountCents !== input.authoritativeTotalAmountCents
@@ -198,6 +194,10 @@ export function createRefundControlRepository({db:database,fieldValue,baseReposi
           const error = new Error('Refund state changed');
           error.code = 'REFUND_STATE_CONFLICT';
           throw error;
+        }
+        if (existing.exists) {
+          const data = existing.data();
+          return {reviewId:reference.id,amountCents:data.amountCents,status:data.status,duplicate:true};
         }
         const pendingAmountCents = Number(totalSnapshot.data()?.pendingAmountCents ?? 0);
         const authoritativeUnrefundedAmountCents = order.amountCents
@@ -245,6 +245,7 @@ export function createRefundControlRepository({db:database,fieldValue,baseReposi
     async completeRefundReconciliation(input = {}) {
       const {orderId,amountCents,adminUid,evidenceId} = input;
       if (!safeId(orderId) || !safeId(adminUid) || !safeDigest(evidenceId) || !safeDigest(input.orderBinding)
+        || !safeDigest(input.reviewId)
         || !['paid','fulfilled'].includes(input.expectedStatus)
         || !Number.isSafeInteger(input.expectedRefundedAmountCents)
         || !Number.isSafeInteger(input.cumulativeRefundedAmountCents)
@@ -253,14 +254,21 @@ export function createRefundControlRepository({db:database,fieldValue,baseReposi
       }
       const reference = orders.doc(orderId);
       const receipt = audits.doc();
+      const totalReference = reviewTotals.doc(orderId);
+      const matchingReviews = reviews.where('orderId','==',orderId)
+        .where('amountCents','==',amountCents)
+        .where('status','==','pending_operator_action')
+        .limit(2);
       return database.runTransaction(async transaction => {
-        const snapshot = await transaction.get(reference);
+        const [snapshot,totalSnapshot,matchingSnapshot] = await Promise.all([
+          transaction.get(reference),transaction.get(totalReference),transaction.get(matchingReviews),
+        ]);
         if (!snapshot.exists) throw new Error('Order was not found');
         const order = snapshot.data();
-        if (order.status === 'refunded' && order.refundEvidenceId === evidenceId
+        if (order.refundEvidenceId === evidenceId
           && order.refundedAmountCents === input.cumulativeRefundedAmountCents
           && order.lastReconciledRefundAmountCents === amountCents) {
-          return {completed:true,duplicate:true,status:'refunded'};
+          return {completed:order.status === 'refunded',duplicate:true,status:order.status};
         }
         const conflict = order.status !== input.expectedStatus
           || Number(order.refundedAmountCents ?? 0) !== input.expectedRefundedAmountCents
@@ -277,9 +285,43 @@ export function createRefundControlRepository({db:database,fieldValue,baseReposi
           }));
           return {completed:false,duplicate:false,status:order.status,errorCode:'refund_state_conflict'};
         }
+        const pendingAmountCents = Number(totalSnapshot.data()?.pendingAmountCents ?? 0);
+        const matchingDocuments = matchingSnapshot.docs ?? [];
+        if (matchingDocuments.length !== 1) {
+          const errorCode = matchingDocuments.length > 1
+            ? 'refund_review_ambiguous' : 'refund_review_missing';
+          transaction.update(reference,{
+            refundReconciliation:{status:'manual_review',errorCode},
+            updatedAt:fieldValue.serverTimestamp(),
+          });
+          transaction.create(receipt,audit({
+            orderId,event:'refund_manual_review',errorCode,actorUid:adminUid,
+          }));
+          return {completed:false,duplicate:false,status:order.status,errorCode};
+        }
+        const matchingReview = matchingDocuments[0];
+        if (!Number.isSafeInteger(pendingAmountCents) || pendingAmountCents < amountCents) {
+          transaction.update(reference,{
+            refundReconciliation:{status:'manual_review',errorCode:'refund_review_total_conflict'},
+            updatedAt:fieldValue.serverTimestamp(),
+          });
+          transaction.create(receipt,audit({
+            orderId,event:'refund_manual_review',errorCode:'refund_review_total_conflict',actorUid:adminUid,
+          }));
+          return {completed:false,duplicate:false,status:order.status,errorCode:'refund_review_total_conflict'};
+        }
+        transaction.update(matchingReview.ref,{
+          status:'resolved',resolvedByUid:adminUid,resolutionEvidenceId:evidenceId,
+          resolvedAt:fieldValue.serverTimestamp(),updatedAt:fieldValue.serverTimestamp(),
+        });
+        transaction.set(totalReference,{
+          orderId,pendingAmountCents:pendingAmountCents-amountCents,
+          updatedAt:fieldValue.serverTimestamp(),
+        });
         if (input.cumulativeRefundedAmountCents < order.amountCents) {
           transaction.update(reference,{
             refundedAmountCents:input.cumulativeRefundedAmountCents,refundEvidenceId:evidenceId,
+            lastReconciledRefundAmountCents:amountCents,
             refundReconciliation:{status:'manual_review',errorCode:'partial_refund_requires_manual_review'},
             updatedAt:fieldValue.serverTimestamp(),
           });

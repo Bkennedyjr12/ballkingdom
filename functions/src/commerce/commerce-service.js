@@ -1028,6 +1028,7 @@ export function createCommerceService({
           cumulativeRefundedAmountCents:normalizedRefunds.cumulativeRefundedAmountCents,
           evidenceId:normalizedRefunds.evidenceId,
           orderBinding:refundOrderBinding(order),
+          reviewId:refundReviewIdempotencyKey(request),
         });
       } catch {
         return preserveForManualReview('refund_state_conflict');

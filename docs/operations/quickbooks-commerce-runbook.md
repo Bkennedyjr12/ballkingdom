@@ -63,6 +63,7 @@ The authoritative Firestore and Storage Rules sources, mappings, Java runtime, a
 7. In QuickBooks, confirm company, customer, original Invoice, original Payment, payment method, requested amount, and current unrefunded amount. Execute once through the documented QuickBooks operator UI. Do not use a website callable or an undocumented API.
 8. Read back the current refund/reversal in QuickBooks Payments and current documented Accounting entities. Confirm the original payment method shows the expected refund lifecycle.
 9. Run `reconcileRefund`. It may set `refunded` only when the current documented Accounting evidence exactly binds the same realm, order reference, Invoice, Payment, currency, and amount. Missing, partial, stale, ambiguous, wrong-realm, deleted, pending, or undocumented evidence preserves `paid`/`fulfilled` and records manual review.
+   When exact external evidence is reconciled, the same Firestore transaction resolves the single matching pending refund-review work item and subtracts its amount from the pending-review total. A retry with the same evidence is a no-op and cannot decrement twice. Zero matching work items, conflicting totals, or multiple legacy matches are manual-review conditions; the order and pending work remain unchanged.
 10. Verify settlement/deposit separately. A refund acceptance is not settlement. Compare the merchant settlement/deposit view and original payment method; record only redacted timestamps and safe handles.
 
 ## Scoped Firebase commands
@@ -102,6 +103,8 @@ In protected Firestore operator tooling, filter `commerceAudit` for `refund_revi
 - Evidence mismatches realm, order, invoice, payment, currency, or amount: record `refund_evidence_mismatch`; investigate in QuickBooks and do not coerce local state.
 - Accounting does not document the processor refund in the exact supported shape: preserve the order and require manual accounting review.
 - Duplicate request: return the same stable internal work item; never create a second provider action.
+- Stale duplicate request after the order status, cumulative refund amount, total, or immutable Accounting binding changes: reject it; never return the old pending work item as current.
+- Multiple legacy pending work items for the same order and amount: preserve the order and all pending totals, record `refund_review_ambiguous`, and resolve nothing until an operator disambiguates the records.
 
 ## Outage and rollback
 

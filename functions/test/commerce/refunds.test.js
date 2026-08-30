@@ -128,15 +128,38 @@ function transactionDatabase(seed = {}, {retryOnce = false} = {}) {
   let transactionAttempts = 0;
   let queue = Promise.resolve();
   let autoId = 0;
-  const collection = name => ({doc:id => {
-    const documentId = id ?? `auto-${++autoId}`;
-    return {path:`${name}/${documentId}`,id:documentId};
-  }});
+  const collection = name => {
+    const buildQuery = (filters = [],maximum = Infinity) => {
+      const query = {
+      doc(id) {
+        const documentId = id ?? `auto-${++autoId}`;
+        return {path:`${name}/${documentId}`,id:documentId};
+      },
+      where(field,operator,value) {
+        assert.equal(operator,'==');
+        return buildQuery([...filters,[field,value]],maximum);
+      },
+      limit(value) { return buildQuery(filters,value); },
+      async get() {
+        const docs = [...documents]
+          .filter(([path,data]) => path.startsWith(`${name}/`)
+            && filters.every(([field,value]) => data[field] === value))
+          .slice(0,maximum)
+          .map(([path,data]) => ({id:path.slice(name.length+1),ref:{path,id:path.slice(name.length+1)},data:()=>structuredClone(data)}));
+        return {docs,size:docs.length,empty:docs.length===0};
+      },
+      };
+      query._isQuery=true;
+      return query;
+    };
+    return buildQuery();
+  };
   const execute = async callback => {
     transactionAttempts += 1;
     const writes = [];
     const transaction = {
       async get(reference) {
+        if (reference?._isQuery) return reference.get();
         const value = documents.get(reference.path);
         return {exists:value !== undefined,data:()=>value === undefined ? undefined : structuredClone(value)};
       },
@@ -161,6 +184,7 @@ function transactionDatabase(seed = {}, {retryOnce = false} = {}) {
           retryOnce = false;
           transactionAttempts += 1;
           const noCommit = {get:async reference => {
+            if (reference?._isQuery) return reference.get();
             const value = documents.get(reference.path);
             return {exists:value !== undefined,data:()=>structuredClone(value)};
           },create(){},set(){},update(){}};
@@ -179,6 +203,8 @@ const serverTimestamp = Object.freeze({serverTimestamp:()=>'<server-time>'});
 const orderBinding = createHash('sha256').update(
   'refund-order-binding\0realm-1\0invoice-1\0bk-order-order-1'
 ).digest('hex');
+const reviewId = (orderId,amountCents) => createHash('sha256')
+  .update(`refund-review\0${orderId}\0${amountCents}`).digest('hex');
 
 test('refund controls require authentication, admin claim, and App Check', async () => {
   for (const context of [
@@ -406,24 +432,105 @@ test('stateful refund repository rejects review after authoritative order become
   assert.equal([...database.documents].some(([path])=>path.startsWith('commerceRefundReviews/')),false);
 });
 
+test('stateful refund repository rejects a stale idempotent review after order state or binding changes', async () => {
+  for (const mutate of [
+    order => { order.providerRefs.providerOrderRef='bk-order-changed'; },
+    order => { order.status='refunded'; order.refundedAmountCents=4900; },
+  ]) {
+    const database = transactionDatabase({'orders/order-1':structuredClone(paidOrder)});
+    const repository = createRefundControlRepository({db:database,fieldValue:serverTimestamp});
+    const input = {
+      orderId:'order-1',amountCents:1000,reason:'Original',adminUid:'admin-1',
+      authoritativeTotalAmountCents:4900,authoritativeRefundedAmountCents:0,
+      orderBinding,idempotencyKey:reviewId('order-1',1000),
+    };
+    await repository.recordRefundReview(input);
+    mutate(database.documents.get('orders/order-1'));
+    await assert.rejects(
+      repository.recordRefundReview({...input,reason:'Changed',adminUid:'admin-2'}),
+      error => error.code === 'REFUND_STATE_CONFLICT',
+    );
+    assert.equal(database.documents.get(`commerceRefundReviews/${input.idempotencyKey}`).status,'pending_operator_action');
+  }
+});
+
 test('stateful refund repository serializes identical reconciliation and preserves partial status', async () => {
   const database = transactionDatabase({'orders/order-1':structuredClone(paidOrder)});
   const repository = createRefundControlRepository({db:database,fieldValue:serverTimestamp});
+  await repository.recordRefundReview({
+    orderId:'order-1',amountCents:1000,reason:'First partial',adminUid:'admin-1',
+    authoritativeTotalAmountCents:4900,authoritativeRefundedAmountCents:0,
+    orderBinding,idempotencyKey:reviewId('order-1',1000),
+  });
   const partial = await repository.completeRefundReconciliation({
     orderId:'order-1',amountCents:1000,adminUid:'admin-1',evidenceId:'c'.repeat(64),orderBinding,
     expectedStatus:'fulfilled',expectedRefundedAmountCents:0,cumulativeRefundedAmountCents:1000,
+    reviewId:reviewId('order-1',1000),
   });
   assert.equal(partial.completed,false);
   assert.equal(database.documents.get('orders/order-1').status,'fulfilled');
   assert.equal(database.documents.get('orders/order-1').refundedAmountCents,1000);
 
+  await repository.recordRefundReview({
+    orderId:'order-1',amountCents:3900,reason:'Remaining amount',adminUid:'admin-1',
+    authoritativeTotalAmountCents:4900,authoritativeRefundedAmountCents:1000,
+    orderBinding,idempotencyKey:reviewId('order-1',3900),
+  });
   const input = {
     orderId:'order-1',amountCents:3900,adminUid:'admin-1',evidenceId:'d'.repeat(64),orderBinding,
     expectedStatus:'fulfilled',expectedRefundedAmountCents:1000,cumulativeRefundedAmountCents:4900,
+    reviewId:reviewId('order-1',3900),
   };
   const results = await Promise.all([
     repository.completeRefundReconciliation(input),repository.completeRefundReconciliation(input),
   ]);
   assert.equal(database.documents.get('orders/order-1').status,'refunded');
   assert.equal(results.filter(result=>result.duplicate).length,1);
+});
+
+test('partial reconciliation resolves one review and releases pending cents exactly once', async () => {
+  const database = transactionDatabase({'orders/order-1':structuredClone(paidOrder)});
+  const repository = createRefundControlRepository({db:database,fieldValue:serverTimestamp});
+  const firstReview = {
+    orderId:'order-1',amountCents:1000,reason:'Approved partial',adminUid:'admin-1',
+    authoritativeTotalAmountCents:4900,authoritativeRefundedAmountCents:0,
+    orderBinding,idempotencyKey:reviewId('order-1',1000),
+  };
+  await repository.recordRefundReview(firstReview);
+  const reconciliation = {
+    orderId:'order-1',amountCents:1000,adminUid:'admin-1',evidenceId:'e'.repeat(64),orderBinding,
+    expectedStatus:'fulfilled',expectedRefundedAmountCents:0,cumulativeRefundedAmountCents:1000,
+    reviewId:firstReview.idempotencyKey,
+  };
+  const first = await repository.completeRefundReconciliation(reconciliation);
+  const duplicate = await repository.completeRefundReconciliation(reconciliation);
+  assert.equal(first.completed,false);
+  assert.equal(duplicate.duplicate,true);
+  assert.equal(database.documents.get(`commerceRefundReviews/${firstReview.idempotencyKey}`).status,'resolved');
+  assert.equal(database.documents.get('commerceRefundReviewTotals/order-1').pendingAmountCents,0);
+
+  await repository.recordRefundReview({
+    orderId:'order-1',amountCents:3900,reason:'Remaining refund',adminUid:'admin-1',
+    authoritativeTotalAmountCents:4900,authoritativeRefundedAmountCents:1000,
+    orderBinding,idempotencyKey:reviewId('order-1',3900),
+  });
+  assert.equal(database.documents.get('commerceRefundReviewTotals/order-1').pendingAmountCents,3900);
+});
+
+test('multiple legacy pending matches preserve state and create manual review', async () => {
+  const database = transactionDatabase({
+    'orders/order-1':structuredClone(paidOrder),
+    'commerceRefundReviews/legacy-a':{orderId:'order-1',amountCents:1000,status:'pending_operator_action'},
+    'commerceRefundReviews/legacy-b':{orderId:'order-1',amountCents:1000,status:'pending_operator_action'},
+    'commerceRefundReviewTotals/order-1':{orderId:'order-1',pendingAmountCents:2000},
+  });
+  const repository = createRefundControlRepository({db:database,fieldValue:serverTimestamp});
+  const result = await repository.completeRefundReconciliation({
+    orderId:'order-1',amountCents:1000,adminUid:'admin-1',evidenceId:'f'.repeat(64),orderBinding,
+    expectedStatus:'fulfilled',expectedRefundedAmountCents:0,cumulativeRefundedAmountCents:1000,
+    reviewId:reviewId('order-1',1000),
+  });
+  assert.equal(result.errorCode,'refund_review_ambiguous');
+  assert.equal(database.documents.get('orders/order-1').status,'fulfilled');
+  assert.equal(database.documents.get('commerceRefundReviewTotals/order-1').pendingAmountCents,2000);
 });
