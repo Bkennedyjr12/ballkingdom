@@ -54,6 +54,7 @@ test('Firebase wiring keeps the integration codebase path and secret boundaries 
   assert.match(indexSource, /export const requestPilotSignInLink = onCall\(\{[^}]*enforceAppCheck:true/s);
   assert.match(indexSource, /export const createDigitalOrder = onCall\(\{[^}]*enforceAppCheck:true/s);
   assert.match(indexSource, /export const getOrderStatus = onCall\(\{[^}]*enforceAppCheck:true/s);
+  assert.match(indexSource, /export const getBuyerCommerceCapability = onCall\(\{[^}]*enforceAppCheck:true/s);
   assert.match(indexSource, /export const getCommerceReleaseState = onCall\(\{[^}]*enforceAppCheck:true/s);
   assert.match(indexSource, /export const reconcileCommerceOrders = onSchedule\(\{schedule:'every 5 minutes',[\s\S]*?secrets:QBO_SECRETS,[\s\S]*?runtimeCommerceService\(\{withQuickBooks:true\}\)/);
   assert.match(indexSource, /export const dispatchCommerceEffects = onSchedule\(\{schedule:'every 5 minutes',[\s\S]*?secrets:\[COMMERCE_PILOT_RECIPIENT_EMAIL,\.\.\.QBO_SECRETS,\.\.\.MS_SECRETS\],[\s\S]*?dispatchPendingEffects/);

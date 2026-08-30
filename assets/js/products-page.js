@@ -1,4 +1,5 @@
 import { getPrimaryProducts } from './product-catalog.js';
+import { getCommerceBoundary, validateCapabilityResponse } from './commerce-client.js';
 
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -28,12 +29,12 @@ async function applyCommerceAvailability() {
   controls.forEach(control => control.addEventListener('click', event => {
     if (control.getAttribute('aria-disabled') === 'true') event.preventDefault();
   }));
-  const boundary = window.__BALLERS_COMMERCE__;
+  const boundary = await getCommerceBoundary();
   const unavailable = control => control.insertAdjacentHTML('afterend','<span class="commerce-unavailable" role="status">Purchasing is temporarily unavailable</span>');
-  if (!boundary || typeof boundary.getReleaseState !== 'function') { controls.forEach(unavailable); return; }
+  if (!boundary) { controls.forEach(unavailable); return; }
   try {
-    const release = await boundary.getReleaseState();
-    const products = Array.isArray(release?.products) ? release.products : [];
+    const release = validateCapabilityResponse(await boundary.getBuyerCommerceCapability());
+    const products = release.products;
     controls.forEach(control => {
       const active = products.some(item => item && item.sku === control.dataset.commerceSku && item.active === true && Object.keys(item).every(key => ['sku','active'].includes(key)));
       if (!active) { unavailable(control); return; }

@@ -228,6 +228,15 @@ export const getOrderStatus = onCall({region:REGION,enforceAppCheck:true}, async
   }
 });
 
+export const getBuyerCommerceCapability = onCall({region:REGION,enforceAppCheck:true}, async request => {
+  try {
+    const service = runtimeCommerceService();
+    return await service.getBuyerCommerceCapability({app:request.app});
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
 export const verifyOrderPayment = onCall({
   region:REGION,
   secrets:QBO_SECRETS,

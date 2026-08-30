@@ -16,7 +16,7 @@ Avoid a centered SaaS checkout modal, gradient payment buttons, generic green su
 
 - Added a shared order-status page with separate identity and invoice actions, a server-priced summary, normalized status announcements, fulfillment terms, and protected-delivery controls.
 - The browser exposes no QuickBooks/Intuit pay URL and collects no payment credentials. URL query assertions never establish order state.
-- Commerce depends on an injected, reviewed Firebase/Auth/App Check boundary. No production adapter was guessed while the Task 7 runtime/Rules release remains parked. Without the boundary, both product and order actions fail closed.
+- Commerce now targets the real regional callable names through a narrow Firebase runtime boundary that supplies Firebase ID and App Check tokens. The reviewed browser tests inject that boundary; the production runtime/bootstrap remains deliberately absent while Task 7 Rules and fulfillment are parked. Without it, both product and order actions fail closed.
 - Product activation requires the exact matching server SKU with `active:true`; otherwise no buyer navigation occurs.
 - Status accepts only the public four-field allowlist and seven normalized states. Unknown fields, accounting identifiers, provider URLs, or malformed values fail closed.
 - Polling is bounded to 12 attempts and stops on terminal state. The test boundary uses one immediate read without changing the production bound.
@@ -25,9 +25,9 @@ Avoid a centered SaaS checkout modal, gradient payment buttons, generic green su
 
 ## Verification
 
-- Task 9 browser suite: 7 tests.
+- Task 9 browser suite: 13 tests.
 - Existing storefront suite: 18 unit/content tests and 4 existing browser flows.
-- Full Functions suite: 291 passed with 2 explicit environment-gated Rules/Storage emulator skips.
+- Full Functions suite: 295 passed with 2 explicit environment-gated Rules/Storage emulator skips.
 - Functions syntax check and `git diff --check`: passed.
 - Secure repository scan: completed. It reported only pre-existing synthetic token-like strings in Functions test fixtures; no Task 9 production credential or secret material was added.
 - Root production dependency audit: 0 vulnerabilities. Functions audit retains the pre-existing `uuid` transitive advisory (7 moderate paths) whose offered automatic fix is a breaking Firebase Admin downgrade; Task 9 added no dependency and did not force an unrelated breaking change.
@@ -36,3 +36,13 @@ Avoid a centered SaaS checkout modal, gradient payment buttons, generic green su
 
 - No live API, Auth, App Check, QuickBooks, Graph, email, payment, invoice, grant, deploy, push, or Firebase operation was performed.
 - Purchases remain inactive. Authoritative Firestore/Storage Rules recovery, emulator proof, production adapter review, and release approval remain blockers.
+
+## Review fix round 1
+
+- Added a separate App Check-enforced `getBuyerCommerceCapability` callable. It returns only `{products:[{sku,active}]}` and does not alter the administrator-only release-state endpoint. An item can become active only when the server catalog, digital flag, and protected-fulfillment activation all agree; fulfillment activation remains false.
+- Reconciled the real owner-authorized status endpoint to the exact browser allowlist: `{orderHandle,status,message,downloadReady}`. Amounts, currency, email, accounting identifiers, provider fields, and URLs are absent.
+- Added safe mappings for invoice-send pending, payment verification, paid, fulfillment delay, fulfillment, cancellation/refund, and manual support.
+- Moved the email action return to the exact gated product route. Direct order routes require the exact active SKU before identity or invoice actions enable.
+- Existing owner status remains readable through an authenticated handle even if new sales pause; the handle never authorizes the read.
+- Added coverage for identical allowed/mismatched/duplicate auth-request rendering, invalid/replayed email links, signed-out/wrong-owner denial, strict capability/status contracts, exact-SKU gating, terminal/timeout polling bounds, reduced motion, and safe grant replay/retry.
+- Full Functions verification after reconciliation: 295 passed with the same 2 explicit Rules/Storage environment skips.

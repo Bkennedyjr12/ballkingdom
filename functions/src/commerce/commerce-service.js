@@ -1,5 +1,5 @@
 import {createHash, timingSafeEqual, randomUUID} from 'node:crypto';
-import {getCommerceItem as getCatalogItem} from './catalog.js';
+import {getCommerceItem as getCatalogItem, listCommerceCapabilities as getCatalogCapabilities} from './catalog.js';
 import {isReconciliationTerminalStatus, newOrder} from './order-state.js';
 import {verifyQuickBooksPaymentEvidence} from './quickbooks-payment-verifier.js';
 import {readCommerceFeatureFlags} from './feature-flags.js';
@@ -98,6 +98,31 @@ function safeOrderStatus(status) {
   return status;
 }
 
+function customerSafeOrderStatus(status) {
+  if (['created','invoice_processing'].includes(status)) return 'invoice_send_pending';
+  if (['pending_payment','payment_verifying','invoiced'].includes(status)) return 'payment_verification_pending';
+  if (['paid','fulfilling'].includes(status)) return 'paid';
+  if (status === 'fulfilled') return 'fulfilled';
+  if (['cancelled','refunded'].includes(status)) return 'cancelled';
+  return 'manual_support';
+}
+
+function customerStatus(order) {
+  const status = order.status === 'paid' && order.lastErrorCode
+    ? 'fulfillment_delayed'
+    : customerSafeOrderStatus(order.status);
+  const messages = {
+    invoice_send_pending:'Your QuickBooks invoice email is being prepared. No payment is verified yet.',
+    payment_verification_pending:'QuickBooks sent payment instructions to your email. Payment verification is pending.',
+    paid:'We have verified your payment. Protected delivery is being prepared.',
+    fulfillment_delayed:'We have verified your payment; delivery is delayed.',
+    fulfilled:'Payment and protected delivery are verified.',
+    cancelled:'This order is cancelled. No delivery is available.',
+    manual_support:'This order needs manual support before it can continue.',
+  };
+  return Object.freeze({status,message:messages[status],downloadReady:status === 'fulfilled'});
+}
+
 function isExactlyUnpaid(evidence, order) {
   const invoice = evidence?.invoice;
   return evidence?.realmId === order.providerRefs.realmId
@@ -148,6 +173,8 @@ export function createCommerceService({
   graph,
   auth,
   getCommerceItem = getCatalogItem,
+  listCommerceCapabilities = getCatalogCapabilities,
+  isDigitalFulfillmentAvailable = () => false,
   readFeatureFlags: readFlags = readCommerceFeatureFlags,
   getApprovedPilotEmail,
   getCurrentUser,
@@ -160,12 +187,13 @@ export function createCommerceService({
   clock = () => new Date(),
   sleep = () => new Promise(resolve => setTimeout(resolve, 25)),
   actionCodeSettings = Object.freeze({
-    url:'https://ballkingdom.com/finish-sign-in',
+    url:'https://ballkingdom.com/order-status.html?sku=home-inspection-study-guide',
     handleCodeInApp:true,
   }),
 } = {}) {
   if (!repository || typeof readFlags !== 'function' || typeof getApprovedPilotEmail !== 'function'
-    || typeof getCommerceItem !== 'function' || typeof idFactory !== 'function'
+    || typeof getCommerceItem !== 'function' || typeof listCommerceCapabilities !== 'function'
+    || typeof isDigitalFulfillmentAvailable !== 'function' || typeof idFactory !== 'function'
     || typeof workerIdFactory !== 'function' || typeof clock !== 'function') {
     throw new TypeError('Commerce service dependencies are required');
   }
@@ -626,12 +654,19 @@ export function createCommerceService({
         && order.authorizedRecipientBinding !== identity.authorizedRecipientBinding) {
         throw commerceError('AUTH_SESSION_INVALID', 'Authentication is no longer valid');
       }
-      return Object.freeze({
-        orderHandle,
-        amountCents:order.amountCents,
-        currency:order.currency,
-        status:safeOrderStatus(order.status),
-      });
+      return Object.freeze({orderHandle,...customerStatus(order)});
+    },
+
+    async getBuyerCommerceCapability(appCheckContext) {
+      if (!appCheckContext?.app) throw commerceError('APP_CHECK_REQUIRED', 'App Check is required');
+      const flags = readFlags();
+      const releaseReady = flags.digitalInvoicePilotEnabled === true
+        && isDigitalFulfillmentAvailable() === true;
+      const products = listCommerceCapabilities().map(item => Object.freeze({
+        sku:item.sku,
+        active:releaseReady && item.active === true,
+      }));
+      return Object.freeze({products:Object.freeze(products)});
     },
 
     async verifyOrderPayment(input = {}) {

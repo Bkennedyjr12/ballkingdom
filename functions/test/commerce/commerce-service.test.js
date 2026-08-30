@@ -453,6 +453,17 @@ test('returns one generic auth-link result while suppressing mismatched and disa
   assert.deepEqual(disabled.repository.disabledAudits, [{event:'pilot_auth_request_allowed_disabled'}]);
 });
 
+test('approved email link returns to the exact gated product route', async () => {
+  let captured;
+  const state=fixture({auth:{async generateSignInWithEmailLink(email,settings){captured={email,settings};return 'https://example.test/synthetic';}}});
+  assert.deepEqual(await state.service.requestPilotSignInLink({email:pilotEmail},appCheck),{status:'request_received'});
+  assert.equal(captured.email,pilotEmail);
+  assert.deepEqual(captured.settings,{
+    url:'https://ballkingdom.com/order-status.html?sku=home-inspection-study-guide',
+    handleCodeInApp:true,
+  });
+});
+
 test('mismatched auth-link candidates make no persistence, limiter, Admin, or Graph call', async () => {
   const limiterKeys = [];
   const state = fixture({authRequestLimiter:async key => { limiterKeys.push(key); return true; }});
@@ -1438,7 +1449,9 @@ test('status is owner-authorized and contains no email or accounting identifiers
   }, ownerAuth);
   const status = await state.service.getOrderStatus({orderHandle:result.orderHandle}, ownerAuth);
   assert.deepEqual(status, {
-    orderHandle:result.orderHandle,amountCents:4900,currency:'USD',status:'payment_verification_pending',
+    orderHandle:result.orderHandle,status:'payment_verification_pending',
+    message:'QuickBooks sent payment instructions to your email. Payment verification is pending.',
+    downloadReady:false,
   });
   assert.equal(JSON.stringify(status).includes(pilotEmail), false);
   assert.equal(JSON.stringify(status).includes('invoice-1'), false);
@@ -1450,6 +1463,40 @@ test('status is owner-authorized and contains no email or accounting identifiers
     state.service.getOrderStatus({orderHandle:`${result.orderHandle}x`}, ownerAuth),
     {code:'ORDER_NOT_FOUND'}
   );
+});
+
+test('buyer catalog capability requires App Check and stays inactive until every release gate is active', async () => {
+  const state = fixture();
+  await assert.rejects(state.service.getBuyerCommerceCapability({}), {code:'APP_CHECK_REQUIRED'});
+  assert.deepEqual(await state.service.getBuyerCommerceCapability(appCheck), {
+    products:[{sku:'home-inspection-study-guide',active:false}],
+  });
+  assert.deepEqual(Object.keys((await state.service.getBuyerCommerceCapability(appCheck)).products[0]), ['sku','active']);
+});
+
+test('owner status projects every internal state to the strict buyer allowlist', async () => {
+  const state = fixture();
+  const result = await state.service.createDigitalOrder({sku:catalogItem.sku,customerName:'Ada',idempotencyKey:'status-map'}, ownerAuth);
+  const order = state.repository.orders.get(result.orderHandle);
+  const cases = [
+    ['invoice_processing','invoice_send_pending',false],
+    ['invoiced','payment_verification_pending',false],
+    ['paid','paid',false],
+    ['fulfilling','paid',false],
+    ['fulfilled','fulfilled',true],
+    ['cancelled','cancelled',false],
+    ['refunded','cancelled',false],
+    ['manual_review','manual_support',false],
+  ];
+  for (const [internal,publicStatus,downloadReady] of cases) {
+    order.status=internal;
+    const status=await state.service.getOrderStatus({orderHandle:result.orderHandle},ownerAuth);
+    assert.equal(status.status,publicStatus);
+    assert.equal(status.downloadReady,downloadReady);
+    assert.deepEqual(Object.keys(status),['orderHandle','status','message','downloadReady']);
+  }
+  order.status='paid';order.lastErrorCode='delivery_failed';
+  assert.equal((await state.service.getOrderStatus({orderHandle:result.orderHandle},ownerAuth)).status,'fulfillment_delayed');
 });
 
 test('status abuse control receives only a separate fixed-length digest, never the UID', async () => {

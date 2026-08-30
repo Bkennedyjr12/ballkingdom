@@ -29,3 +29,10 @@ export function getCommerceItem(sku) {
 export function listPublicCommerceItems() {
   return Object.freeze(Object.values(ITEMS).filter(isPurchasable));
 }
+
+export function listCommerceCapabilities() {
+  return Object.freeze(Object.values(ITEMS).map(item => Object.freeze({
+    sku:item.sku,
+    active:isPurchasable(item),
+  })));
+}
