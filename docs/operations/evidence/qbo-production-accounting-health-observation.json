@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "observedAtUtc": "2026-08-30T23:30:50Z",
+  "attestationUpdatedAtUtc": "2026-08-30T23:34:41Z",
   "project": "the-ballers-kingdom",
   "environment": "production",
   "method": {
@@ -16,25 +17,70 @@
     "accessTokenRetained": false,
     "providerPayloadRetained": false
   },
-  "oauthRefresh": {
-    "attempted": true,
-    "httpStatus": 200,
-    "successful": true
-  },
-  "accountingCompanyInfo": {
-    "attempted": true,
-    "httpStatus": 200,
-    "successful": true,
-    "companyName": "The Ballers Kingdom",
-    "expectedCompanyNameMatched": true
+  "chronology": [
+    {
+      "sequence": 1,
+      "event": "approved_read_only_health_check",
+      "observedAtUtc": "2026-08-30T23:30:50Z",
+      "oauthRefreshHttpStatus": 200,
+      "companyInfoHttpStatus": 200,
+      "companyName": "The Ballers Kingdom",
+      "expectedCompanyNameMatched": true,
+      "providerReturnedRotatedRefreshCredential": true,
+      "rotatedRefreshCredentialPersisted": false,
+      "retentionReason": "The one-shot test intentionally retained no provider payload or credential value."
+    },
+    {
+      "sequence": 2,
+      "event": "deployment_pinned_credential_reuse_check",
+      "successful": false,
+      "failureClass": "The previously stored deployment-pinned refresh credential was no longer accepted after provider rotation.",
+      "providerErrorCodeRetained": false,
+      "freshCompanyInfoReadCompleted": false
+    },
+    {
+      "sequence": 3,
+      "event": "user_approved_oauth_reconnect",
+      "approvalConfirmed": true,
+      "callbackCompleted": true,
+      "callbackUserMessage": "QuickBooks connected",
+      "providerRecordMutation": false,
+      "secretVersionsAdded": [
+        {
+          "secretName": "QBO_REFRESH_TOKEN",
+          "version": "3",
+          "state": "ENABLED",
+          "createdAtUtc": "2026-08-30T23:33:25.619014Z"
+        },
+        {
+          "secretName": "QBO_REALM_ID",
+          "version": "3",
+          "state": "ENABLED",
+          "createdAtUtc": "2026-08-30T23:33:25.273445Z"
+        }
+      ],
+      "olderVersions": {
+        "versions": ["1", "2"],
+        "remainEnabled": true,
+        "valuesAccessed": false,
+        "cleanupStatus": "separate_lifecycle_review_required"
+      }
+    }
+  ],
+  "currentHealth": {
+    "resolved": false,
+    "freshHealthReadAfterReconnect": false,
+    "blocker": "rotating_token_persistence_runtime_fix_unreviewed_undeployed",
+    "reason": "The current adapter discards future rotated refresh credentials and defineSecret binding remains deployment-version-pinned. A local code fix is in progress but is not yet reviewed or deployed."
   },
   "mutationBoundary": {
     "providerRecordsCreated": false,
     "providerRecordsUpdated": false,
     "providerRecordsDeleted": false,
     "emailOrInvoiceSent": false,
-    "secretChanged": false,
+    "secretChangedByApprovedReconnectCallback": true,
+    "secretValuesRetainedInEvidence": false,
     "deploymentPerformed": false
   },
-  "scopeBoundary": "This dated check resolves production Accounting OAuth health and company-identity readback only. It is not Intuit sandbox proof, entity-write proof, invoice-send proof, payment proof, webhook proof, settlement proof, or continuing health beyond the observation time."
+  "scopeBoundary": "The first dated read remains proof that OAuth refresh and CompanyInfo succeeded at that time. Continuing production Accounting health is unresolved until rotating credential persistence is fixed, reviewed, deployed, and followed by a fresh safe read. The reconnect changed only approved secret versions and no Accounting record. This is not Intuit sandbox, entity-write, invoice-send, payment, webhook, refund, or settlement proof."
 }

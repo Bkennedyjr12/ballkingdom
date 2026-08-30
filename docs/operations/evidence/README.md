@@ -1,6 +1,7 @@
 # Commerce preflight evidence checksums
 
-Recorded: 2026-08-30T22:49:03Z
+Initialized: 2026-08-30T22:49:03Z  
+Last updated: 2026-08-30T23:34:41Z
 
 These artifacts are sanitized, read-only preflight evidence. They authorize no deployment, provider configuration, secret access, outbound effect, or pilot activation.
 
@@ -20,7 +21,7 @@ These artifacts are sanitized, read-only preflight evidence. They authorize no d
 | `firebase-rules/firebase-target-attestation.json` | file bytes | `9a513be278260632bc526808cbd0fbd0379ac07ee52d31976613a73897853ff2` |
 | `intuit-production-app-observation.json` | file bytes | `2d861594dcc1ccc44f24f0d9d263aaa044cf5d719f69d0e843ee8c998bd4ad15` |
 | `intuit-production-app-observation.json` | canonical JSON from `jq -cS .` plus LF | `f93c3264d76cad6065f83d1d6ef22190421633d3a80c22ad226744cb78b49937` |
-| `qbo-production-accounting-health-observation.json` | file bytes | `50c675df2205a9bf99f50509885fdeef721b0747facaa3551bedabd654520ec2` |
-| `qbo-production-accounting-health-observation.json` | canonical JSON from `jq -cS .` plus LF | `cec93bc108edba5819a16a9d59d341d26315d33777056f1fa82b6e96d7ad8505` |
+| `qbo-production-accounting-health-observation.json` | file bytes | `c0c6b106a23ebf5fb8d1f352a5c7725d07cdb0c55a784c81ef99811ca810c213` |
+| `qbo-production-accounting-health-observation.json` | canonical JSON from `jq -cS .` plus LF | `b8f0bfee68a2e0b505ecdbd07a3d5663cc834d8a02cac8fb78db66dee5202e9d` |
 
 The canonical structured observation hashes cover only their sanitized observation artifacts. They do not contain or hash any Intuit credential, key, token, realm identifier, OAuth grant, or provider response payload.

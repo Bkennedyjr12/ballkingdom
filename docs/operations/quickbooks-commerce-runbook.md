@@ -36,6 +36,12 @@ Secret Manager names (values must never appear in source, screenshots, logs, com
 
 Non-secret rollout state is committed in `functions/.env.the-ballers-kingdom`. Before any pilot deployment, read it back and require the reviewed digital/service Boolean values. No secret value belongs there.
 
+### Rotating QuickBooks refresh credentials
+
+Production commerce is currently blocked by `rotating_token_persistence_runtime_fix_unreviewed_undeployed`. The first approved health check proved one refresh and CompanyInfo read, but Intuit returned a rotated refresh credential that the no-payload-retention test deliberately did not persist. Reuse of the deployment-pinned stored credential then failed. Brian approved the exact OAuth reconnect; the existing callback completed and added enabled version 3 for `QBO_REFRESH_TOKEN` and `QBO_REALM_ID` without mutating an Accounting record. Versions 1 and 2 remain enabled and were not read.
+
+Do not treat reconnect callback success, a new secret version, or a historical CompanyInfo response as continuing health. The adapter must persist every future rotated refresh credential safely to Secret Manager and the runtime must consume the intended version without logging or storing the value elsewhere. That implementation is still local/unreviewed/undeployed. Do not run another production health check or pilot action until it is reviewed and separately deployed. After deployment, run one approved read-only refresh/CompanyInfo check and retain only statuses and the exact company-name match. Review old-version disablement separately against rollback and audit needs; never delete or disable versions merely to tidy the list.
+
 ## Local and sandbox verification
 
 Use synthetic `.invalid` recipients only. Never deliver a production authentication or invoice email from a test.
