@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:storefront:unit": "node --test tests/product-catalog.test.mjs tests/storefront-html.test.mjs",
+    "test:storefront:browser": "playwright test tests/storefront-browser.spec.mjs",
+    "test:storefront": "npm run test:storefront:unit && npm run test:storefront:browser",
     "hi:ingest": "node home-inspection-guide/scripts/ingest-images.mjs",
     "hi:add": "node home-inspection-guide/scripts/add-thread-images.mjs",
     "hi:build": "node home-inspection-guide/scripts/build-guide.mjs && cp home-inspection-guide/index.html home-inspection-guide/full-study-guide.html",
