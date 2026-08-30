@@ -920,3 +920,20 @@ body.theme-training .training-hero::before {
 .custom-solutions-band .btn-primary { background: #080808; color: #fff; }
 @media (max-width: 900px) { .product-offer-grid, .delivery-ledger { grid-template-columns: 1fr; } .product-offer-grid::before { top: 0; bottom: 0; left: 1rem; right: auto; width: 1px; height: auto; } .product-offer { min-height: 0; margin-left: 1rem; } .delivery-ledger__item + .delivery-ledger__item { padding-left: 0; border-left: 0; border-top: 1px solid #3b3b3b; } }
 @media (prefers-reduced-motion: reduce) { .product-offer { transition: none; } }
+.btn-disabled { cursor: not-allowed; opacity: .72; }
+.career-route { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 2.5rem; background: #343434; border: 1px solid #343434; }
+.career-route__step { position: relative; padding: 2rem; background: #111; color: #c9c9c9; }
+.career-route__step span { display: inline-grid; width: 2.35rem; height: 2.35rem; place-items: center; border: 1px solid var(--gold); color: var(--gold); font-family: var(--font-display); }
+.career-route__step h3 { margin-top: 1.5rem; color: #fff; }
+.snapshot-sheet { padding: clamp(2rem, 6vw, 5rem); background: #f7f5ef; color: #171717; box-shadow: 0 28px 75px rgba(0,0,0,.3); }
+.snapshot-sheet h2, .snapshot-sheet h3 { color: #111; }
+.snapshot-sheet__intro { max-width: 680px; font-size: 1.15rem; }
+.snapshot-sheet__grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid #c5c0b4; }
+.blueprint-locks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 2.5rem; }
+.blueprint-lock { padding: 2rem; border: 1px solid #333; background: #101010; color: #bfc1c5; }
+.blueprint-lock span { color: var(--gold); font-family: var(--font-display); font-size: .72rem; letter-spacing: .15em; text-transform: uppercase; }
+.blueprint-lock h3 { color: #fff; }
+.human-service-panel { padding: 7rem 0; background: #0a0a0a; border-top: 1px solid var(--gold); color: #d2d2d2; }
+.human-service-panel h2 { max-width: 900px; color: #fff; font-size: clamp(2.5rem, 6vw, 5.4rem); }
+.human-service-panel p { max-width: 760px; }
+@media (max-width: 780px) { .career-route, .snapshot-sheet__grid, .blueprint-locks { grid-template-columns: 1fr; } }

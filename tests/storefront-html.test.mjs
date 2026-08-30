@@ -23,3 +23,22 @@ test('storefront has one h1 and a main landmark', async () => {
   assert.equal((html.match(/<h1\b/gi) || []).length, 1);
   assert.match(html, /<main\b/i);
 });
+
+test('career page explains the complete value ladder', async () => {
+  const html = await read('career-blueprint.html');
+  for (const value of [
+    'Career Opportunity Snapshot',
+    'Personalized Career Opportunity Blueprint',
+    'Career Strategy &amp; Network Navigation',
+    'five business days',
+    'not guaranteed'
+  ]) assert.match(html, new RegExp(escapeRegExp(value), 'i'));
+});
+
+test('career intake remains fail closed until Phase 2', async () => {
+  const html = await read('career-blueprint.html');
+  assert.match(html, /data-career-intake-pending/);
+  assert.match(html, /aria-disabled=["']true["']/);
+  assert.doesNotMatch(html, /<input[^>]+type=["']file["']/i);
+  assert.doesNotMatch(html, /quickbooks|intuit|\.pdf/i);
+});
