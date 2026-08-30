@@ -58,7 +58,15 @@ const TRANSITIONS = Object.freeze({
 });
 
 function invalidOrder() {
-  throw new Error('Invalid order');
+  const error = new Error('Invalid order');
+  error.code = 'ORDER_INVALID';
+  throw error;
+}
+
+function invalidTransition() {
+  const error = new Error('Invalid order transition');
+  error.code = 'INVALID_ORDER_TRANSITION';
+  throw error;
 }
 
 function isRequiredString(value) {
@@ -75,10 +83,26 @@ function initialStatus(orderType) {
   invalidOrder();
 }
 
+function normalizeCustomer(customer) {
+  if (
+    !customer ||
+    typeof customer !== 'object' ||
+    Array.isArray(customer) ||
+    !Object.hasOwn(customer, 'name') ||
+    !isRequiredString(customer.name) ||
+    (Object.hasOwn(customer, 'email') && !isRequiredString(customer.email))
+  ) {
+    invalidOrder();
+  }
+
+  const normalized = {name: customer.name};
+  if (Object.hasOwn(customer, 'email')) normalized.email = customer.email;
+  return Object.freeze(normalized);
+}
+
 export function newOrder({item, customer} = {}) {
   if (
     !item ||
-    !customer ||
     !isRequiredString(item.sku) ||
     !isRequiredString(item.name) ||
     !Number.isInteger(item.amountCents) ||
@@ -97,16 +121,20 @@ export function newOrder({item, customer} = {}) {
     currency: item.currency,
     orderType: item.orderType,
     fulfillmentType: item.fulfillmentType,
-    customer: Object.freeze({...customer}),
+    customer: normalizeCustomer(customer),
     status: initialStatus(item.orderType),
   });
 }
 
 export function transitionOrder(order, event) {
-  const nextStatus = TRANSITIONS[order?.status]?.[event?.type];
-  if (!ORDER_STATUSES.has(order?.status) || !nextStatus) {
-    throw new Error('Invalid order transition');
+  if (!ORDER_STATUSES.has(order?.status) || !Object.hasOwn(TRANSITIONS, order.status)) {
+    invalidTransition();
   }
+  const transitions = TRANSITIONS[order.status];
+  if (!Object.hasOwn(transitions, event?.type)) {
+    invalidTransition();
+  }
+  const nextStatus = transitions[event.type];
 
   const nextOrder = {...order, status: nextStatus};
   if (event.type === 'FULFILLMENT_FAILED') {

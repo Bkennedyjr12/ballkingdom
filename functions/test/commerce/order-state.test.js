@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {newOrder, transitionOrder} from '../../src/commerce/order-state.js';
+import {publicCommerceError} from '../../src/commerce/public-errors.js';
 
 const digitalItem = {
   sku: 'study-guide',
@@ -20,6 +21,15 @@ const serviceItem = {
   fulfillmentType: 'service_handoff',
 };
 
+function captureError(operation) {
+  try {
+    operation();
+  } catch (error) {
+    return error;
+  }
+  assert.fail('Expected operation to throw');
+}
+
 test('creates digital orders pending payment from the server item', () => {
   const order = newOrder({item: digitalItem, customer: {name: 'Ada', email: 'ada@example.test'}});
 
@@ -33,6 +43,36 @@ test('creates digital orders pending payment from the server item', () => {
     customer: {name: 'Ada', email: 'ada@example.test'},
     status: 'pending_payment',
   });
+});
+
+test('projects only permitted customer fields and freezes the normalized customer', () => {
+  const order = newOrder({
+    item: digitalItem,
+    customer: {
+      name: 'Ada',
+      email: 'ada@example.test',
+      accessToken: 'must-not-be-retained',
+      payment: {cardNumber: '4111111111111111'},
+      credentials: {password: 'must-not-be-retained'},
+    },
+  });
+
+  assert.deepEqual(order.customer, {name: 'Ada', email: 'ada@example.test'});
+  assert.equal(Object.isFrozen(order.customer), true);
+  assert.equal(Object.hasOwn(order.customer, 'accessToken'), false);
+  assert.equal(Object.hasOwn(order.customer, 'payment'), false);
+  assert.equal(Object.hasOwn(order.customer, 'credentials'), false);
+});
+
+test('rejects non-string permitted customer fields', () => {
+  assert.throws(
+    () => newOrder({item: digitalItem, customer: {name: {display: 'Ada'}}}),
+    {code: 'ORDER_INVALID'}
+  );
+  assert.throws(
+    () => newOrder({item: digitalItem, customer: {name: 'Ada', email: {value: 'ada@example.test'}}}),
+    {code: 'ORDER_INVALID'}
+  );
 });
 
 test('creates service orders pending invoice approval', () => {
@@ -49,6 +89,22 @@ test('allows verified payment to advance exactly once', () => {
     () => transitionOrder({status: 'paid'}, {type: 'PAYMENT_VERIFIED'}),
     /Invalid order transition/
   );
+});
+
+test('rejects inherited event names instead of reading transition prototypes', () => {
+  for (const type of ['toString', 'constructor', '__proto__']) {
+    assert.throws(
+      () => transitionOrder({status: 'pending_payment'}, {type}),
+      {code: 'INVALID_ORDER_TRANSITION'}
+    );
+  }
+});
+
+test('maps an actual invalid transition to the safe invalid-order public code', () => {
+  const error = captureError(() => transitionOrder({status: 'paid'}, {type: 'PAYMENT_VERIFIED'}));
+
+  assert.equal(error.code, 'INVALID_ORDER_TRANSITION');
+  assert.deepEqual(publicCommerceError(error), {code: 'invalid-order'});
 });
 
 test('does not treat a browser payment redirect as payment proof', () => {

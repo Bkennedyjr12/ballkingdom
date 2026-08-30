@@ -34,7 +34,9 @@ function matchesExpected(result, expected) {
 
 export function validatePaymentResult(result, expected) {
   if (!matchesExpected(result, expected)) {
-    throw new Error('Payment verification mismatch');
+    const error = new Error('Payment verification mismatch');
+    error.code = 'PAYMENT_VERIFICATION_MISMATCH';
+    throw error;
   }
 
   return Object.freeze({providerPaymentRef: result.providerPaymentRef});
