@@ -1,6 +1,7 @@
 # Commerce preflight evidence checksums
 
-Initialized: 2026-08-30T22:49:03Z  
+Initialized: 2026-08-30T22:49:03Z
+
 Last updated: 2026-08-30T23:34:41Z
 
 These artifacts are sanitized, read-only preflight evidence. They authorize no deployment, provider configuration, secret access, outbound effect, or pilot activation.
