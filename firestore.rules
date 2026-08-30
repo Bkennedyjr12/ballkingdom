@@ -1,38 +1,266 @@
 rules_version = '2';
 
-// Commerce-only deny fragment for local verification. This repository does not
-// contain the authoritative production Firestore ruleset, so firebase.json does
-// not configure this file for deployment. Merge these matches into the verified
-// production rules source before any rules release.
+// Companion-only additive rules. Before any deployment, fetch the live ruleset
+// and merge this namespace into it; never treat the live rules as blank.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Firebase Admin SDK calls bypass Rules. Browser clients stay denied even
-    // when their Firebase Auth token contains admin: true.
+    function isOwner(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && 'companionOwner' in request.auth.token
+        && request.auth.token.companionOwner == true;
+    }
+
+    function activeClientMembership(uid, membershipId, clientId) {
+      let membership = get(/databases/$(database)/documents/owners/$(uid)/portalMemberships/$(membershipId)).data;
+      return request.auth != null
+        && membership.uid == request.auth.uid
+        && membership.role == 'client'
+        && membership.clientId == clientId
+        && membership.status == 'active';
+    }
+
+    function activeAgentMembership(uid, membershipId, grantId, clientId) {
+      let membership = get(/databases/$(database)/documents/owners/$(uid)/portalMemberships/$(membershipId)).data;
+      let grant = get(/databases/$(database)/documents/owners/$(uid)/clientAgentGrants/$(grantId)).data;
+      return request.auth != null
+        && membership.uid == request.auth.uid
+        && membership.role == 'agent'
+        && membership.clientId == clientId
+        && membership.grantId == grantId
+        && membership.status == 'active'
+        && grant.agentUid == request.auth.uid
+        && grant.clientId == clientId
+        && grant.status == 'active';
+    }
+
+    function activeDocumentRelease(uid, releaseId, audience, documentId) {
+      let release = get(/databases/$(database)/documents/owners/$(uid)/documentReleases/$(releaseId)).data;
+      return release.audience == audience
+        && release.documentId == documentId
+        && !('revokedAt' in release);
+    }
+
+    function stringList(value) {
+      return value is list && value.size() <= 20
+        && (value.size() < 1 || value[0] is string)
+        && (value.size() < 2 || value[1] is string)
+        && (value.size() < 3 || value[2] is string)
+        && (value.size() < 4 || value[3] is string)
+        && (value.size() < 5 || value[4] is string)
+        && (value.size() < 6 || value[5] is string)
+        && (value.size() < 7 || value[6] is string)
+        && (value.size() < 8 || value[7] is string)
+        && (value.size() < 9 || value[8] is string)
+        && (value.size() < 10 || value[9] is string)
+        && (value.size() < 11 || value[10] is string)
+        && (value.size() < 12 || value[11] is string)
+        && (value.size() < 13 || value[12] is string)
+        && (value.size() < 14 || value[13] is string)
+        && (value.size() < 15 || value[14] is string)
+        && (value.size() < 16 || value[15] is string)
+        && (value.size() < 17 || value[16] is string)
+        && (value.size() < 18 || value[17] is string)
+        && (value.size() < 19 || value[18] is string)
+        && (value.size() < 20 || value[19] is string);
+    }
+
+    function validMedia(uid, captureId, value) {
+      return value is map
+        && value.keys().hasAll([
+          'id', 'captureId', 'schemaVersion', 'privacy', 'mimeType', 'byteSize',
+          'createdAt', 'updatedAt', 'storagePath', 'generation'
+        ])
+        && value.keys().hasOnly([
+          'id', 'captureId', 'schemaVersion', 'privacy', 'mimeType', 'fileName',
+          'byteSize', 'checksum', 'incomplete', 'createdAt', 'updatedAt',
+          'storagePath', 'generation', 'md5Hash'
+        ])
+        && value.id is string
+        && value.captureId == captureId
+        && value.schemaVersion == 1
+        && value.privacy == 'private'
+        && value.mimeType is string
+        && value.byteSize is int && value.byteSize >= 0
+        && value.createdAt is string
+        && value.updatedAt is string
+        && value.storagePath == 'inspector-companion/' + uid + '/originals/' + captureId + '/' + value.id
+        && value.generation is string
+        && (!('fileName' in value) || value.fileName is string)
+        && (!('checksum' in value) || value.checksum is string)
+        && (!('incomplete' in value) || value.incomplete is bool)
+        && (!('md5Hash' in value) || value.md5Hash is string);
+    }
+
+    function validMediaList(uid, captureId, value) {
+      return value is list && value.size() <= 10
+        && (value.size() < 1 || validMedia(uid, captureId, value[0]))
+        && (value.size() < 2 || validMedia(uid, captureId, value[1]))
+        && (value.size() < 3 || validMedia(uid, captureId, value[2]))
+        && (value.size() < 4 || validMedia(uid, captureId, value[3]))
+        && (value.size() < 5 || validMedia(uid, captureId, value[4]))
+        && (value.size() < 6 || validMedia(uid, captureId, value[5]))
+        && (value.size() < 7 || validMedia(uid, captureId, value[6]))
+        && (value.size() < 8 || validMedia(uid, captureId, value[7]))
+        && (value.size() < 9 || validMedia(uid, captureId, value[8]))
+        && (value.size() < 10 || validMedia(uid, captureId, value[9]));
+    }
+
+    function validCapture(uid, captureId, data) {
+      return data.keys().hasAll([
+          'id', 'schemaVersion', 'privacy', 'kind', 'state', 'topicIds',
+          'mediaIds', 'createdAt', 'updatedAt', 'cloudCommittedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'schemaVersion', 'privacy', 'kind', 'state', 'rejectedFrom',
+          'sessionId', 'topicIds', 'mediaIds', 'title', 'source', 'body',
+          'createdAt', 'updatedAt', 'media', 'cloudCommittedAt'
+        ])
+        && data.id == captureId
+        && data.schemaVersion == 1
+        && data.privacy == 'private'
+        && data.kind in ['photo', 'audio', 'scan', 'note']
+        && data.state in [
+          'draft', 'needs_transcript', 'needs_tagging', 'reviewed',
+          'approved_personal', 'approved_sanitized', 'rejected'
+        ]
+        && stringList(data.topicIds)
+        && stringList(data.mediaIds)
+        && data.createdAt is string
+        && data.updatedAt is string
+        && data.cloudCommittedAt is timestamp
+        && (!('rejectedFrom' in data) || data.rejectedFrom in [
+          'draft', 'needs_transcript', 'needs_tagging', 'reviewed',
+          'approved_personal', 'approved_sanitized'
+        ])
+        && (!('sessionId' in data) || data.sessionId is string)
+        && (!('title' in data) || data.title is string)
+        && (!('source' in data) || data.source is string)
+        && ((data.kind == 'note' && data.body is string) || !('body' in data))
+        && (!('media' in data) || validMediaList(uid, captureId, data.media));
+    }
+
+    match /inspectorCompanion/{uid}/captures/{captureId} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid) && validCapture(uid, captureId, request.resource.data);
+      allow update: if isOwner(uid)
+        && validCapture(uid, captureId, request.resource.data)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.schemaVersion == resource.data.schemaVersion
+        && request.resource.data.privacy == resource.data.privacy
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    match /owners/{uid}/{collection}/{documentId} {
+      allow read: if isOwner(uid)
+        && collection in [
+          'clients', 'properties', 'jobs', 'auditEvents', 'integrationCommands',
+          'serviceConfigs', 'availabilityConfigs', 'crmInquiries', 'crmTasks',
+          'inspections', 'observations',
+          'mediaAssets', 'reports', 'copilotRequests', 'copilotDispositions',
+          'liveEvidence', 'copilotAudit', 'contractorReferrals'
+        ];
+      allow write: if false;
+    }
+
+    match /owners/{uid}/reports/{reportId}/versions/{versionId} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    match /owners/{uid}/portalMemberships/{membershipId} {
+      allow read: if isOwner(uid) || (
+        request.auth != null && resource.data.uid == request.auth.uid
+      );
+      allow write: if false;
+    }
+
+    match /owners/{uid}/clientAgentGrants/{grantId} {
+      allow read: if isOwner(uid) || (
+        request.auth != null
+        && resource.data.agentUid == request.auth.uid
+        && resource.data.status == 'active'
+      );
+      allow write: if false;
+    }
+
+    match /owners/{uid}/documentReleases/{releaseId} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    match /owners/{uid}/clientPortalProjections/{projectionId} {
+      allow read: if isOwner(uid) || (
+        request.auth != null
+        && resource.data.uid == request.auth.uid
+        && activeClientMembership(uid, resource.data.membershipId, resource.data.clientId)
+        && (
+          resource.data.kind == 'invoiceStatus'
+          || (
+            resource.data.kind == 'signedAgreement'
+            && get(/databases/$(database)/documents/owners/$(uid)/agreements/$(resource.data.agreementId)).data.clientId == resource.data.clientId
+            && get(/databases/$(database)/documents/owners/$(uid)/agreements/$(resource.data.agreementId)).data.status == 'signed'
+          )
+          || (
+            resource.data.kind == 'releasedReport'
+            && activeDocumentRelease(uid, resource.data.releaseId, 'client', resource.data.reportVersionId)
+          )
+        )
+      );
+      allow write: if false;
+    }
+
+    match /owners/{uid}/agentPortalProjections/{projectionId} {
+      allow read: if isOwner(uid) || (
+        request.auth != null
+        && resource.data.uid == request.auth.uid
+        && resource.data.kind in ['appointment', 'propertySummary', 'releasedReport']
+        && activeAgentMembership(
+          uid, resource.data.membershipId, resource.data.grantId, resource.data.clientId
+        )
+        && (
+          resource.data.kind != 'releasedReport'
+          || (
+            activeDocumentRelease(uid, resource.data.releaseId, 'agent', resource.data.reportVersionId)
+            && get(/databases/$(database)/documents/owners/$(uid)/documentReleases/$(resource.data.releaseId)).data.grantId == resource.data.grantId
+          )
+        )
+      );
+      allow write: if false;
+    }
+
+    // BEGIN LOCAL COMMERCE MERGE CANDIDATE
+    // Direct clients cannot read or write server-authoritative commerce state.
     match /orders/{document=**} {
       allow read, write: if false;
     }
-
     match /commerceAudit/{document=**} {
       allow read, write: if false;
     }
-
     match /commerceEffects/{document=**} {
       allow read, write: if false;
     }
-
     match /commerceReservations/{document=**} {
       allow read, write: if false;
     }
-
     match /commerceWebhookHints/{document=**} {
       allow read, write: if false;
     }
-
     match /commerceRateLimits/{document=**} {
       allow read, write: if false;
     }
-
     match /fulfillmentGrants/{document=**} {
+      allow read, write: if false;
+    }
+    match /commerceRefundReviews/{document=**} {
+      allow read, write: if false;
+    }
+    match /commerceRefundReviewTotals/{document=**} {
+      allow read, write: if false;
+    }
+    // END LOCAL COMMERCE MERGE CANDIDATE
+
+    match /{document=**} {
       allow read, write: if false;
     }
   }

@@ -102,3 +102,16 @@ The authoritative deployed Rules originals and exact bucket are now independentl
 - Candidate hashes remained unchanged: Firestore `78138d8cd5ffd417c932c670bc2327c33886a43c4c880c7de6a3ba33d056f122`; Storage `5d5bc0155f2f2c2a39b0b837714903e4337a0868ec0997375ad4e14d36e03de8`.
 
 This emulator proof removes the former Java/SDK authorization-test blocker only. It does not activate Rules, map a production ruleset, establish live persistence, place a paid artifact, or make fulfillment runtime-ready.
+
+## Reviewed root mapping step
+
+- Replaced repository-root `firestore.rules` and `storage.rules` byte-for-byte with the accepted candidates and added explicit Firestore Rules/indexes and Storage Rules mappings to `firebase.json`.
+- Preserved both Rules filenames in both Hosting ignore lists and preserved all unrelated Firebase configuration.
+- Root hashes now exactly match the reviewed candidates: Firestore `78138d8cd5ffd417c932c670bc2327c33886a43c4c880c7de6a3ba33d056f122`; Storage `5d5bc0155f2f2c2a39b0b837714903e4337a0868ec0997375ad4e14d36e03de8`.
+- Retained the exact mapping patch byte-for-byte in deterministic gzip form at `docs/operations/evidence/firebase-rules/root-mapping-activation.diff.gz` with SHA-256 `2bb9e742b0c4cca8f2caadda8cb496210dade393ed687735be9d70144555a7a9`.
+- Reran the Java emulator matrix from the mapped root files: 10 passed, 0 failed, 0 skipped. Signed-out and authenticated identities are supplied by Rules test contexts; no Auth emulator or production identity call is required.
+- Complete Git-tracked Functions suite: 337 passed, 0 failed, with only the two conditional emulator tests skipped outside their emulator run. Functions static checks passed.
+- Storefront verification passed 18 unit/content tests and 4 Playwright browser flows; Home Inspection companion verification also passed.
+- The decompressed exact mapping patch passes `git apply -R --check`, all root/candidate hash comparisons pass, every Hosting target still ignores both Rules files, and `git diff --check` passes.
+- The repository security checker reported only existing synthetic values in tests, including an unrelated concurrent QuickBooks coordinator test; no Task 7 mapping/evidence file was flagged. The existing seven moderate transitive `uuid` audit findings remain unchanged and have only a breaking forced downgrade path.
+- Runtime remains `ready:false` with no active artifact or callable fulfillment activation. No dry run, deployment, upload, secret access, provider call, or flag change occurred.

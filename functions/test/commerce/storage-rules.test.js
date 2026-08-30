@@ -6,27 +6,34 @@ import {deleteObject, getBytes, listAll, ref, uploadBytes} from 'firebase/storag
 
 const rootUrl = new URL('../../../', import.meta.url);
 
-test('the local Storage fragment denies direct access to every paid artifact', async () => {
+test('mapped Storage rules deny direct access to every paid artifact', async () => {
   const rules = await readFile(new URL('storage.rules', rootUrl), 'utf8');
-  assert.doesNotMatch(rules, /request\.auth|\.token\.admin|allow\s+[^:]+:\s*if\s+true/);
-  assert.match(rules, /match \/private-commerce\/\{artifact=\*\*\}/);
-  assert.match(rules, /allow read, write: if false;/);
+  const commerceBlock = rules.match(
+    /\/\/ BEGIN LOCAL COMMERCE MERGE CANDIDATE([\s\S]*?)\/\/ END LOCAL COMMERCE MERGE CANDIDATE/
+  )?.[1];
+  assert.ok(commerceBlock);
+  assert.doesNotMatch(commerceBlock, /request\.auth|\.token\.admin|allow\s+[^:]+:\s*if\s+true/);
+  assert.match(commerceBlock, /match \/private-commerce\/\{artifact=\*\*\}/);
+  assert.match(commerceBlock, /allow read, write: if false;/);
 });
 
-test('the unverified Storage fragment is neither mapped for deploy nor hostable', async () => {
+test('the reviewed Storage candidate is byte-exactly mapped but never hostable', async () => {
   const config = JSON.parse(await readFile(new URL('firebase.json', rootUrl), 'utf8'));
-  assert.equal(config.storage, undefined);
+  const rootRules = await readFile(new URL('storage.rules', rootUrl));
+  const candidateRules = await readFile(new URL(
+    'docs/operations/evidence/firebase-rules/merge-candidates/storage.rules', rootUrl
+  ));
+  assert.deepEqual(config.storage, {rules:'storage.rules'});
+  assert.deepEqual(rootRules, candidateRules);
   for (const hosting of config.hosting) {
     assert.equal(hosting.ignore.includes('storage.rules'), true);
   }
 });
 
-test('candidate Storage rules deny paid artifacts while preserving retained owner media behavior', {
+test('mapped root Storage rules deny paid artifacts while preserving retained owner media behavior', {
   skip:!process.env.FIREBASE_STORAGE_EMULATOR_HOST && 'Storage emulator is required',
 }, async () => {
-  const rules = await readFile(new URL(
-    'docs/operations/evidence/firebase-rules/merge-candidates/storage.rules',rootUrl
-  ), 'utf8');
+  const rules = await readFile(new URL('storage.rules',rootUrl), 'utf8');
   const projectId = `demo-ballkingdom-commerce-storage-${process.pid}`;
   const bucketUrl = `gs://${projectId}.appspot.com`;
   const environment = await initializeTestEnvironment({projectId,storage:{rules}});

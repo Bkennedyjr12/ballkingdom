@@ -15,21 +15,31 @@ const COMMERCE_COLLECTIONS = [
   'fulfillmentGrants',
 ];
 
-test('commerce rules explicitly deny every direct client operation without an admin bypass', async () => {
+test('mapped Firestore rules explicitly deny commerce operations without an admin bypass', async () => {
   const rules = await readFile(new URL('firestore.rules', rootUrl), 'utf8');
+  const commerceBlock = rules.match(
+    /\/\/ BEGIN LOCAL COMMERCE MERGE CANDIDATE([\s\S]*?)\/\/ END LOCAL COMMERCE MERGE CANDIDATE/
+  )?.[1];
 
-  assert.doesNotMatch(rules, /request\.auth|\.token\.admin|allow\s+[^:]+:\s*if\s+true/);
+  assert.ok(commerceBlock);
+  assert.doesNotMatch(commerceBlock, /request\.auth|\.token\.admin|allow\s+[^:]+:\s*if\s+true/);
   for (const collectionName of COMMERCE_COLLECTIONS) {
-    assert.match(rules, new RegExp(
+    assert.match(commerceBlock, new RegExp(
       `match /${collectionName}/\\{document=\\*\\*\\} \\{\\s*allow read, write: if false;\\s*\\}`
     ));
   }
 });
 
-test('the standalone commerce rules artifact is not configured as the deployable production ruleset', async () => {
+test('the reviewed Firestore candidate is byte-exactly mapped at the repository root', async () => {
   const config = JSON.parse(await readFile(new URL('firebase.json', rootUrl), 'utf8'));
+  const rootRules = await readFile(new URL('firestore.rules', rootUrl));
+  const candidateRules = await readFile(new URL(
+    'docs/operations/evidence/firebase-rules/merge-candidates/firestore.rules', rootUrl
+  ));
 
-  assert.equal(config.firestore?.rules, undefined);
+  assert.equal(config.firestore?.rules, 'firestore.rules');
+  assert.equal(config.firestore?.indexes, 'firestore.indexes.json');
+  assert.deepEqual(rootRules, candidateRules);
   for (const hosting of config.hosting) {
     assert.equal(hosting.ignore.includes('firestore.rules'), true);
   }
@@ -63,12 +73,10 @@ test('the index manifest supports the bounded due-effect dispatcher', async () =
   }]);
 });
 
-test('candidate Firestore rules deny commerce clients while preserving retained owner reads', {
+test('mapped root Firestore rules deny commerce clients while preserving retained owner reads', {
   skip: !process.env.FIRESTORE_EMULATOR_HOST && 'Firestore emulator is required',
 }, async () => {
-  const rules = await readFile(new URL(
-    'docs/operations/evidence/firebase-rules/merge-candidates/firestore.rules',rootUrl
-  ), 'utf8');
+  const rules = await readFile(new URL('firestore.rules',rootUrl), 'utf8');
   const environment = await initializeTestEnvironment({
     projectId:`demo-ballkingdom-commerce-firestore-${process.pid}`,
     firestore:{rules},
