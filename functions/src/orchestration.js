@@ -1,4 +1,51 @@
 import {buildInvoiceRequest, isApprovalDue, validateAppointment} from './domain/workflow.js';
+import {randomUUID} from 'node:crypto';
+
+export function createAppointmentApprovalRepository({db,fieldValue,Timestamp,clock=()=>new Date(),claimIdFactory=randomUUID,auditRef}) {
+  const ref=id=>db.collection('appointments').doc(id);
+  const audit=id=>auditRef(id);
+  return Object.freeze({
+    claimApproval:(id,uid)=>db.runTransaction(async transaction=>{
+      const appointmentRef=ref(id);
+      const snapshot=await transaction.get(appointmentRef);
+      if(!snapshot.exists)return null;
+      const data=snapshot.data();
+      const approval=data.invoiceApproval??{};
+      const now=clock().getTime();
+      const leaseExpiresAt=approval.leaseExpiresAt?.toMillis?.()??0;
+      if(approval.status!=='pending'&&!(approval.status==='processing'&&leaseExpiresAt<=now))return null;
+      const claimId=claimIdFactory();
+      transaction.update(appointmentRef,{
+        'invoiceApproval.status':'processing','invoiceApproval.approvedBy':uid,
+        'invoiceApproval.claimId':claimId,'invoiceApproval.claimedAt':Timestamp.fromMillis(now),
+        'invoiceApproval.leaseExpiresAt':Timestamp.fromMillis(now+5*60*1000),
+        'invoiceApproval.approvedAt':fieldValue.serverTimestamp(),
+      });
+      transaction.set(audit(id),{appointmentId:id,event:'invoice_approval_claimed',approvedBy:uid,claimId,createdAt:fieldValue.serverTimestamp()});
+      return {id,...data,approvalClaimId:claimId};
+    }),
+    completeApproval:(id,claimId,receipt)=>db.runTransaction(async transaction=>{
+      const appointmentRef=ref(id);const snapshot=await transaction.get(appointmentRef);
+      if(!snapshot.exists||snapshot.data().invoiceApproval?.claimId!==claimId)throw new Error('Invoice approval claim was lost');
+      transaction.update(appointmentRef,{'invoiceApproval.status':'completed','invoiceApproval.claimId':null,'invoiceApproval.leaseExpiresAt':null,'invoiceApproval.completedAt':fieldValue.serverTimestamp(),'invoiceApproval.receipt':receipt});
+      transaction.set(audit(id),{appointmentId:id,event:'invoice_delivered',receipt,createdAt:fieldValue.serverTimestamp()});
+    }),
+    failApproval:(id,claimId,error)=>db.runTransaction(async transaction=>{
+      const appointmentRef=ref(id);const snapshot=await transaction.get(appointmentRef);
+      if(!snapshot.exists||snapshot.data().invoiceApproval?.claimId!==claimId)throw new Error('Invoice approval claim was lost');
+      transaction.update(appointmentRef,{'invoiceApproval.status':'pending','invoiceApproval.claimId':null,'invoiceApproval.leaseExpiresAt':null,'invoiceApproval.lastError':error.message,'invoiceApproval.failedAt':fieldValue.serverTimestamp()});
+      transaction.set(audit(id),{appointmentId:id,event:'invoice_delivery_failed',error:error.message,createdAt:fieldValue.serverTimestamp()});
+      return true;
+    }),
+    quarantineApproval:(id,claimId,error)=>db.runTransaction(async transaction=>{
+      const appointmentRef=ref(id);const snapshot=await transaction.get(appointmentRef);
+      if(!snapshot.exists||snapshot.data().invoiceApproval?.claimId!==claimId)throw new Error('Invoice approval claim was lost');
+      transaction.update(appointmentRef,{'invoiceApproval.status':'manual_review','invoiceApproval.claimId':null,'invoiceApproval.leaseExpiresAt':null,'invoiceApproval.lastErrorCode':error.code,'invoiceApproval.failedAt':fieldValue.serverTimestamp()});
+      transaction.set(audit(id),{appointmentId:id,event:'invoice_delivery_manual_review',errorCode:error.code,createdAt:fieldValue.serverTimestamp()});
+      return true;
+    }),
+  });
+}
 
 export function createIntegrationService({repository, graph, quickbooks, commerce = null,
   readFeatureFlags = () => ({digitalInvoicePilotEnabled:false,serviceQboSendEnabled:false}),

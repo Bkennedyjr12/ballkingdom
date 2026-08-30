@@ -13,11 +13,13 @@ Implemented the independently gated service-invoice migration at the existing ad
 - Exact QuickBooks Accounting Invoice/Payment evidence moves a service order from `invoiced` to `paid` without a digital fulfillment grant.
 - Catalog-priced training appointments with no explicit server amount remain entirely on the unchanged legacy Graph/PDF path even when the service flag is enabled; no partial commerce order is created and no browser amount is trusted.
 - Appointment approval now has a unique five-minute claim lease, exact-claim completion/failure, and expiry reclaim. A crash after QuickBooks completion can safely reclaim the administrator gate and reuse the completed Invoice effects; ambiguous sends quarantine both the commerce order and appointment approval for manual review.
+- The production appointment-approval repository is exported and exercised against serialized transactional state: parallel one-winner claims, the exact five-minute boundary, unique reclaim IDs, stale-claim rejection for every terminal operation, and successful current-claim completion/failure/quarantine.
+- Create-timeout coverage now models a provider-side committed deterministic Invoice followed by client timeout, lease expiry/recovery, a second idempotent create attempt resolving to the same single provider Invoice ID, and exactly one send.
 
 ## Verification
 
-- Focused Task 8 suite: 60 passed, 0 failed.
-- Full Functions suite: 290 passed, 0 failed, 2 expected environment skips (Rules/Storage emulator prerequisites).
+- Focused Task 8 suite: 61 passed, 0 failed.
+- Full Functions suite: 291 passed, 0 failed, 2 expected environment skips (Rules/Storage emulator prerequisites).
 - Functions syntax check: passed.
 - `git diff --check`: passed.
 - Secure repository scan: completed; only pre-existing synthetic test-token patterns were reported, with no production credential added by Task 8.

@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createIntegrationService} from '../../src/orchestration.js';
+import {createAppointmentApprovalRepository,createIntegrationService} from '../../src/orchestration.js';
 import {createCommerceService} from '../../src/commerce/commerce-service.js';
-import {readFile} from 'node:fs/promises';
 
 const appointment = Object.freeze({
   serviceType:'inspection',serviceName:'Home Inspection',customerName:'Ada',
@@ -89,8 +88,9 @@ test('service flag creates an operational order but waits for approval before on
   });
 });
 
-function integratedHarness({storedInvoice=false,ambiguousSend=false}={}) {
-  const calls={create:0,send:0,fulfill:0};
+function integratedHarness({storedInvoice=false,ambiguousSend=false,createTimeout=false}={}) {
+  const calls={create:0,send:0,fulfill:0,uniqueInvoiceIds:new Set()};
+  let now=new Date('2026-08-29T18:00:00Z');
   const order={id:'appt-1',sku:'service-inspection',name:'Home Inspection',amountCents:45000,
     currency:'USD',orderType:'service',fulfillmentType:'scheduled_service',
     customer:{name:'Ada',email:'ada@example.com'},status:'pending_invoice_approval',
@@ -102,7 +102,7 @@ function integratedHarness({storedInvoice=false,ambiguousSend=false}={}) {
   const repository={
     async beginServiceInvoiceApproval(){if(order.status==='pending_invoice_approval') order.status='invoice_processing';return order.status;},
     async getOrder(){return structuredClone(order);},
-    async claimEffect(_id,name){if(effects[name].status!=='pending')return false;effects[name].status='claimed';return {claimId:`${name}-claim`};},
+    async claimEffect(_id,name){if(effects[name].status!=='pending')return false;effects[name].status='claimed';effects[name].leaseExpiresAt=new Date(now.getTime()+5*60*1000);return {claimId:`${name}-claim-${calls.create+calls.send}`};},
     async getEffect(_id,name){return {...effects[name]};},
     async completeEffect(_id,name,_worker,_claim,result={}){effects[name].status='completed';Object.assign(order.providerRefs,result.providerRefs??{});},
     async markEffectDispatchStarted(){effects.invoice_send.dispatchStartedAt=new Date();},
@@ -111,21 +111,22 @@ function integratedHarness({storedInvoice=false,ambiguousSend=false}={}) {
     async claimPaymentVerification(){order.paymentVerificationClaim={claimId:'pay-claim',workerId:'payment-verification-test'};return {claimId:'pay-claim'};},
     async completeVerifiedServiceOrder(){order.status='paid';},
     async completeVerifiedDigitalOrder(){calls.fulfill+=1;},
+    async recoverExpiredEffects(at){for(const effect of Object.values(effects)){if(effect.status==='claimed'&&effect.leaseExpiresAt<=at&&effect.dispatchStartedAt==null)effect.status='pending';}return {recoveredCreateOrderIds:['appt-1'],recoveredSendOrderIds:[],manualReviewOrderIds:[],recoveredPilotAuthBindings:[],manualReviewPilotAuthBindings:[]};},
   };
   const evidence=()=>({realmId:'realm-1',invoice:{invoiceId:'invoice-1',providerOrderRef:'bk-order-appt-1',
     totalAmountCents:45000,balanceCents:0,currency:'USD',entityState:'present',paymentState:'paid'},
     payments:[{providerPaymentRef:'payment-1',totalAmountCents:45000,unappliedAmountCents:0,entityState:'present',
       applications:[{linkedTxnId:'invoice-1',linkedTxnType:'Invoice',amountCents:45000}]}]});
   const quickbooks={
-    async createCommerceInvoice(){calls.create+=1;return {invoiceId:'invoice-1',customerId:'customer-1',documentNumber:'1001'};},
+    async createCommerceInvoice(){calls.create+=1;calls.uniqueInvoiceIds.add('invoice-1');if(createTimeout&&calls.create===1){const error=new Error('timeout after provider commit');error.code='PROVIDER_TIMEOUT';throw error;}return {invoiceId:'invoice-1',customerId:'customer-1',documentNumber:'1001'};},
     async getInvoice(){return evidence();},
     async sendInvoice(){calls.send+=1;return {invoiceId:'invoice-1',sendAccepted:true};},
   };
   const service=createCommerceService({repository,quickbooks,graph:null,getApprovedPilotEmail:()=>'',
     readFeatureFlags:()=>({digitalInvoicePilotEnabled:false,serviceQboSendEnabled:true}),
-    workerIdFactory:purpose=>`${purpose}-test`,sleep:()=>Promise.resolve(),
+    workerIdFactory:purpose=>`${purpose}-test`,sleep:()=>Promise.resolve(),clock:()=>now,
     fulfillDigitalOrder:async()=>{calls.fulfill+=1;}});
-  return {service,order,effects,calls};
+  return {service,order,effects,calls,advance:ms=>{now=new Date(now.getTime()+ms);},repository};
 }
 
 test('parallel approved service retries create and send exactly one Invoice', async()=>{
@@ -145,6 +146,21 @@ test('a stored deterministic Invoice is recovered without another create',async(
   await service.approveServiceInvoice({appointmentId:'appt-1'});
   assert.equal(calls.create,0);
   assert.equal(calls.send,1);
+  assert.equal(order.status,'invoiced');
+});
+
+test('create timeout after provider commit recovers one deterministic Invoice and sends once',async()=>{
+  const {service,calls,order,advance,repository}=integratedHarness({createTimeout:true});
+  await assert.rejects(service.approveServiceInvoice({appointmentId:'appt-1'}),error=>error.code==='ORDER_PROCESSING_PENDING');
+  assert.equal(calls.create,1);
+  assert.equal(calls.send,0);
+  advance(5*60*1000);
+  await repository.recoverExpiredEffects(new Date('2026-08-29T18:05:00Z'));
+  await service.approveServiceInvoice({appointmentId:'appt-1'});
+  assert.equal(calls.create,2);
+  assert.equal(calls.uniqueInvoiceIds.size,1);
+  assert.equal(calls.send,1);
+  assert.equal(order.providerRefs.invoiceId,'invoice-1');
   assert.equal(order.status,'invoiced');
 });
 
@@ -207,10 +223,50 @@ test('ambiguous service send quarantines the appointment instead of reopening ap
   assert.equal(quarantined,true);
 });
 
-test('production appointment approval uses a bounded exact-claim lease and expiry reclaim',async()=>{
-  const source=await readFile(new URL('../../src/index.js',import.meta.url),'utf8');
-  assert.match(source,/approval\.status === 'processing' && leaseExpiresAt <= now/);
-  assert.match(source,/'invoiceApproval\.claimId':claimId/);
-  assert.match(source,/now\+5\*60\*1000/);
-  assert.match(source,/invoiceApproval\?\.claimId !== claimId/);
+function approvalRepositoryFixture() {
+  const documents=new Map([['appointments/appt-1',{...appointment,invoiceApproval:{status:'pending'}}]]);
+  let queue=Promise.resolve();let audit=0;let now=new Date('2026-08-29T18:00:00Z');let claim=0;
+  const reference=path=>({path});
+  const db={
+    collection(name){return {doc(id){return reference(`${name}/${id}`);}};},
+    runTransaction(callback){
+      const run=queue.then(async()=>callback({
+        async get(ref){const data=documents.get(ref.path);return {exists:data!==undefined,data:()=>data};},
+        update(ref,patch){const data=documents.get(ref.path);for(const [key,value] of Object.entries(patch)){const parts=key.split('.');let target=data;while(parts.length>1){const part=parts.shift();target[part]??={};target=target[part];}target[parts[0]]=value;}documents.set(ref.path,data);},
+        set(ref,value){documents.set(ref.path,value);},
+      }));
+      queue=run.catch(()=>{});return run;
+    },
+  };
+  const Timestamp={fromMillis(ms){return {toMillis:()=>ms};}};
+  const repository=createAppointmentApprovalRepository({db,Timestamp,fieldValue:{serverTimestamp:()=>({server:true})},
+    clock:()=>now,claimIdFactory:()=>`claim-${++claim}`,auditRef:()=>reference(`audit/${++audit}`)});
+  return {repository,document:()=>documents.get('appointments/appt-1'),advance:ms=>{now=new Date(now.getTime()+ms);}};
+}
+
+test('real appointment repository serializes claims, enforces lease boundary, and rejects stale claimants',async()=>{
+  const {repository,document,advance}=approvalRepositoryFixture();
+  const [first,parallel]=await Promise.all([repository.claimApproval('appt-1','admin-a'),repository.claimApproval('appt-1','admin-b')]);
+  assert.equal([first,parallel].filter(Boolean).length,1);
+  const winner=first??parallel;
+  assert.equal(await repository.claimApproval('appt-1','admin-c'),null);
+  advance(5*60*1000-1);
+  assert.equal(await repository.claimApproval('appt-1','admin-c'),null);
+  advance(1);
+  const reclaimed=await repository.claimApproval('appt-1','admin-c');
+  assert.ok(reclaimed);
+  assert.notEqual(reclaimed.approvalClaimId,winner.approvalClaimId);
+  await assert.rejects(repository.completeApproval('appt-1',winner.approvalClaimId,{}),/claim was lost/);
+  await assert.rejects(repository.failApproval('appt-1',winner.approvalClaimId,{message:'stale'}),/claim was lost/);
+  await assert.rejects(repository.quarantineApproval('appt-1',winner.approvalClaimId,{code:'stale'}),/claim was lost/);
+  await repository.completeApproval('appt-1',reclaimed.approvalClaimId,{invoiceId:'invoice-1'});
+  assert.equal(document().invoiceApproval.status,'completed');
+  const failed=approvalRepositoryFixture();
+  const failureClaim=await failed.repository.claimApproval('appt-1','admin');
+  await failed.repository.failApproval('appt-1',failureClaim.approvalClaimId,{message:'retry'});
+  assert.equal(failed.document().invoiceApproval.status,'pending');
+  const quarantined=approvalRepositoryFixture();
+  const quarantineClaim=await quarantined.repository.claimApproval('appt-1','admin');
+  await quarantined.repository.quarantineApproval('appt-1',quarantineClaim.approvalClaimId,{code:'invoice_send_unknown'});
+  assert.equal(quarantined.document().invoiceApproval.status,'manual_review');
 });
