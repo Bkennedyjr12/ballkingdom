@@ -5,7 +5,11 @@
     "codebase": "ballkingdom-integrations"
   },
   "firestore": {
+    "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
   },
   "hosting": [
     {
@@ -13,6 +17,8 @@
       "public": ".",
       "ignore": [
         "firebase.json",
+        "firestore.rules",
+        "storage.rules",
         "firestore.indexes.json",
         ".firebaserc",
         ".git/**",
@@ -39,6 +45,7 @@
         "home-inspection-guide/src/**",
         "home-inspection-guide/input/**",
         "home-inspection-guide/audit/**",
+        "home-inspection-guide/public/assets/guide.pdf",
         "home-inspection-guide/README.md",
         "hosting/**"
       ],
@@ -67,6 +74,8 @@
       "public": "hosting/theballerskingdom-redirect/public",
       "ignore": [
         "firebase.json",
+        "firestore.rules",
+        "storage.rules",
         "**/.*"
       ],
       "redirects": [

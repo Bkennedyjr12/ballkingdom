@@ -1,0 +1,34 @@
+--- deployed-original/firestore.rules
++++ local-merge-candidate/firestore.rules
+@@ -231,0 +232,31 @@
++    // BEGIN LOCAL COMMERCE MERGE CANDIDATE
++    // Direct clients cannot read or write server-authoritative commerce state.
++    match /orders/{document=**} {
++      allow read, write: if false;
++    }
++    match /commerceAudit/{document=**} {
++      allow read, write: if false;
++    }
++    match /commerceEffects/{document=**} {
++      allow read, write: if false;
++    }
++    match /commerceReservations/{document=**} {
++      allow read, write: if false;
++    }
++    match /commerceWebhookHints/{document=**} {
++      allow read, write: if false;
++    }
++    match /commerceRateLimits/{document=**} {
++      allow read, write: if false;
++    }
++    match /fulfillmentGrants/{document=**} {
++      allow read, write: if false;
++    }
++    match /commerceRefundReviews/{document=**} {
++      allow read, write: if false;
++    }
++    match /commerceRefundReviewTotals/{document=**} {
++      allow read, write: if false;
++    }
++    // END LOCAL COMMERCE MERGE CANDIDATE
++

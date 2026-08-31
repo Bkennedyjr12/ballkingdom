@@ -42,7 +42,11 @@ firebase functions:secrets:set MS_CLIENT_SECRET --project the-ballers-kingdom
 firebase functions:secrets:set MS_REFRESH_TOKEN --project the-ballers-kingdom
 ```
 
-Grant only the deployed Functions runtime service account `roles/secretmanager.secretVersionAdder` on `QBO_REFRESH_TOKEN` and `MS_REFRESH_TOKEN`. It needs this narrow permission because both providers rotate refresh tokens. Do not grant project-wide Secret Manager administration.
+The QuickBooks runtime must have secret-scoped version access/add permissions on `QBO_REFRESH_TOKEN` and `QBO_REALM_ID`. It reads only the exact paired versions published in protected `integrationControl/qbo-credential-binding`; a newer orphan version is never selected. Each Intuit replacement is added, read back by exact version, and atomically published with the unchanged realm version before any Accounting request is allowed. Neither credential is a Firebase `defineSecret` binding. Microsoft retains its existing version-add path. Do not grant project-wide Secret Manager administration.
+
+QuickBooks refreshes are serialized by `integrationControl/qbo-credential-refresh-attempt` and fenced by the binding generation. Before Intuit is called, the claim records one dispatch attempt. Only an expired never-started claim can be recovered; a started timeout/crash/expiry permanently requires operator reconnect. Reconnect first fences the generation, then publishes token and realm versions as one verified pair. Partial writes remain unreferenced orphans; the prior pair metadata is retained for audit while runtime stays unavailable until an operator completes reconnect. The control and `integrationAlerts` receipts contain only redacted state/reason/timing/attempt/version metadata—never credential values. External operations have bounded deadlines below the claim duration, and a secret-version write/readback/publish failure fails closed before Accounting.
+
+After first deployment of this binding model, runtime access intentionally fails closed until an approved QuickBooks OAuth reconnect publishes the initial exact pair. Old/orphan Secret Manager versions are an operator cleanup task and must not be disabled or destroyed without a separate rollback/audit review.
 
 ## QuickBooks service catalog
 
@@ -57,6 +61,22 @@ Before live approval, add two service items with no fixed sales price:
 - `Home Inspection`
 
 Appointments must use these names exactly. Training appointments may omit `amountCents`; the QuickBooks catalog price is then used. Consulting and inspection appointments require a positive integer `amountCents`.
+
+## QuickBooks commerce invoices and payment evidence
+
+Commerce invoices stay entirely on the QuickBooks Online Accounting API and use only the `com.intuit.quickbooks.accounting` scope. The adapter uses the documented Invoice create/read/send operations, Payment read operation, and Invoice/Payment change-data-capture query. It does not call an Intuit Payments API host and does not construct a customer payment URL.
+
+Each commerce Invoice stores `bk-order-${orderId}` in `PrivateNote`. Invoice creation uses a deterministic `requestid`; long order references are shortened only for that provider idempotency parameter, while the complete order reference remains on the Invoice. Before returning an Invoice ID, the adapter reads the Invoice back and requires exact customer, order reference, total, full unpaid balance, currency, item, quantity, unit-price, and line-amount agreement. `documentNumber` is a string or `null`, as Intuit documents when the `CustomTxnNumber` preference is enabled and no number is supplied.
+
+The send method accepts only the documented result for the requested Invoice and recipient: `EmailStatus:'EmailSent'`, matching `BillEmail.Address`, and populated email `DeliveryInfo`. It still returns only `{invoiceId,sendAccepted:true}`. That result means the provider recorded its send operation; it is not proof of inbox delivery or payment.
+
+Service invoicing has an independent, default-off `COMMERCE_SERVICE_QBO_SEND_ENABLED` gate. When false, the established administrator approval flow continues to create the legacy QuickBooks invoice, fetch its PDF, and deliver that PDF through Microsoft Graph without creating a commerce order. The digital pilot flag cannot change this behavior.
+
+When the service flag is separately enabled, an accepted appointment creates a service order in `pending_invoice_approval`, but no invoice is created or sent until the existing App Check-protected administrator `approveInvoice` gate is used. Approval leases the create and send effects separately, reuses authoritative stored Invoice identifiers, and never retries a send whose dispatch outcome is ambiguous. QuickBooks sends the invoice; Graph continues to carry booking confirmations and other operational mail but does not send a duplicate invoice PDF. Firestore retains only the QuickBooks customer, Invoice, document, order-reference, and normalized send receipt fields—never PDF bytes, provider URLs, or raw provider payloads. Payment state changes only after the same independently fetched QuickBooks Accounting evidence used by digital orders verifies the exact bound Invoice and Payment.
+
+Payment completion requires a fresh exact Invoice read and its linked Payment read. Provider amounts are converted to integer cents inside the new commerce evidence methods, and their raw QuickBooks payloads do not leave the adapter. The legacy appointment `createInvoice()` return remains unchanged for compatibility and still includes its existing `raw` member. Verification accepts only one present Invoice with the expected realm, order reference, currency, `TotalAmt`, and zero `Balance`, plus exactly one present Payment with the exact `TotalAmt`, zero `UnappliedAmt`, and one full application to that Invoice. Deleted, voided, partial, reversed, split, overpaid, underpaid, unapplied, missing, contradictory, or unknown evidence fails closed. `completed` is an internal conclusion made only after those checks; it is not an Intuit status field.
+
+Change data capture is a polling aid only. Its normalized Invoice/Payment IDs must be refetched through the exact read methods before verification. No webhook is assumed or configured by this package.
 
 ## Appointment example
 

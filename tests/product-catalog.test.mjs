@@ -19,6 +19,13 @@ test('all commerce states fail closed before payment integration', () => {
   }
 });
 
+test('shows the approved founding price without claiming checkout is active', () => {
+  const guide = getProductBySlug('home-inspection-study-guide');
+  assert.equal(guide.priceLabel, '$49 founding price · Checkout coming soon');
+  assert.equal(guide.availability, 'coming-soon');
+  assert.doesNotMatch(JSON.stringify(guide), /private-commerce|guide-v1\.pdf|2bdf6b760b/i);
+});
+
 test('approved names and five-business-day promise are exact', () => {
   assert.equal(getProductBySlug('personalized-career-opportunity-blueprint').name, 'Personalized Career Opportunity Blueprint');
   const human = getProductBySlug('career-strategy-network-navigation');

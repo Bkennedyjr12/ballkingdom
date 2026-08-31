@@ -18,7 +18,8 @@ const PRODUCTS = Object.freeze([
     summary: 'A structured visual study guide for learning inspection systems, field observations, report language, and practical next steps.',
     delivery: 'instant-download',
     availability: 'coming-soon',
-    priceLabel: 'Price to be announced',
+    commerceSku: 'home-inspection-study-guide',
+    priceLabel: '$49 founding price · Checkout coming soon',
     href: 'products.html#home-inspection-study-guide',
     cta: 'Get the Home Inspection Guide',
     disclaimer: 'Learning resource only; it does not replace licensing requirements, supervised field experience, or professional judgment.'

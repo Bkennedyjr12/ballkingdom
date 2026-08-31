@@ -20,7 +20,7 @@ export function createGraphClient(config, fetchImpl = fetch) {
       client_secret: config.clientSecret,
       refresh_token: config.refreshToken,
       grant_type: 'refresh_token',
-      scope: 'offline_access Mail.Send',
+      scope: 'offline_access User.Read Mail.Send',
     });
     const response = await fetchImpl(`https://login.microsoftonline.com/${encodeURIComponent(config.tenantId)}/oauth2/v2.0/token`, {
       method: 'POST', headers: {'content-type':'application/x-www-form-urlencoded'}, body,
@@ -34,6 +34,22 @@ export function createGraphClient(config, fetchImpl = fetch) {
 
   async function send(message) {
     const token = await accessToken();
+    const profileResponse = await fetchImpl(`${GRAPH_ROOT}/me?$select=mail,userPrincipalName`, {
+      headers:{authorization:`Bearer ${token}`,accept:'application/json'},
+    });
+    await expectResponse(profileResponse, 'Microsoft sender validation');
+    let profile;
+    try {
+      profile = await profileResponse.json();
+    } catch {
+      throw new Error('Microsoft sender validation returned an invalid profile');
+    }
+    const identities = [profile?.mail,profile?.userPrincipalName]
+      .filter(value => typeof value === 'string')
+      .map(value => value.trim().toLowerCase());
+    if (!identities.includes(sender)) {
+      throw new Error('Microsoft delegated mailbox is not the configured sender');
+    }
     const response = await fetchImpl(`${GRAPH_ROOT}/me/sendMail`, {
       method: 'POST',
       headers: {authorization:`Bearer ${token}`,'content-type':'application/json'},
@@ -44,6 +60,28 @@ export function createGraphClient(config, fetchImpl = fetch) {
   }
 
   return {
+    async sendPilotAuthLink({to, link} = {}) {
+      const recipient = String(to ?? '').trim().toLowerCase();
+      let actionLink;
+      try {
+        actionLink = new URL(String(link ?? ''));
+      } catch {
+        throw new Error('Pilot authentication email input is invalid');
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)
+        || recipient.length > 254
+        || actionLink.protocol !== 'https:') {
+        throw new Error('Pilot authentication email input is invalid');
+      }
+      return send({
+        subject:'Your secure sign-in link — The Ballers Kingdom',
+        body:{
+          contentType:'HTML',
+          content:`<p>Use this one-time secure link to sign in to The Ballers Kingdom:</p><p><a href="${escapeHtml(actionLink.href)}">Finish secure sign-in</a></p><p>If you did not request this link, you can ignore this message.</p>`,
+        },
+        toRecipients:[{emailAddress:{address:recipient}}],
+      });
+    },
     async sendConfirmation({to, customerName, serviceName, startsAt}) {
       const when = new Intl.DateTimeFormat('en-US', {
         dateStyle:'full', timeStyle:'short', timeZone:'America/Los_Angeles',

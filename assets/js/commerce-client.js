@@ -1,0 +1,75 @@
+const SKU='home-inspection-study-guide';
+const MAX_POLLS=12;
+const POLL_DELAY_MS=5000;
+const STATUS_KEYS=Object.freeze(['orderHandle','status','message','downloadReady']);
+const SAFE_STATUSES=new Set(['invoice_send_pending','payment_verification_pending','paid','fulfillment_delayed','fulfilled','cancelled','manual_support']);
+const TERMINAL_STATUSES=new Set(['fulfilled','cancelled','manual_support']);
+const FUNCTION_ORIGIN='https://us-west1-the-ballers-kingdom.cloudfunctions.net';
+
+function isPlainRecord(value){return value!==null&&typeof value==='object'&&!Array.isArray(value)&&Object.getPrototypeOf(value)===Object.prototype;}
+function validateStatusResponse(value){
+  if(!isPlainRecord(value)||Object.keys(value).some(key=>!STATUS_KEYS.includes(key)))throw new Error('Unexpected order status response');
+  if(typeof value.orderHandle!=='string'||value.orderHandle.length<1||value.orderHandle.length>128||!SAFE_STATUSES.has(value.status)||typeof value.message!=='string'||value.message.length>300||typeof value.downloadReady!=='boolean'||value.downloadReady!==(value.status==='fulfilled'))throw new Error('Invalid order status response');
+  return Object.freeze({...value});
+}
+function validateOrderResponse(value){
+  const keys=['orderHandle','amountCents','currency','status','message'];
+  if(!isPlainRecord(value)||Object.keys(value).some(key=>!keys.includes(key))||typeof value.orderHandle!=='string'||value.orderHandle.length<1||value.orderHandle.length>128||!Number.isSafeInteger(value.amountCents)||value.amountCents<=0||value.currency!=='USD'||value.status!=='payment_verification_pending'||typeof value.message!=='string'||value.message.length>300)throw new Error('Invalid order response');
+  return Object.freeze({...value});
+}
+function validateCapabilityResponse(value){
+  if(!isPlainRecord(value)||Object.keys(value).length!==1||!Array.isArray(value.products))throw new Error('Invalid capability response');
+  const products=value.products.map(item=>{if(!isPlainRecord(item)||Object.keys(item).length!==2||Object.keys(item)[0]!=='sku'||Object.keys(item)[1]!=='active'||typeof item.sku!=='string'||item.sku.length<1||item.sku.length>128||typeof item.active!=='boolean')throw new Error('Invalid capability response');return Object.freeze({...item});});
+  return Object.freeze({products:Object.freeze(products)});
+}
+function validBoundary(boundary){const required=['getBuyerCommerceCapability','requestPilotSignInLink','completeEmailLink','createDigitalOrder','getOrderStatus','createDownloadGrant','redeemDownloadGrant'];return boundary&&required.every(name=>typeof boundary[name]==='function')?boundary:null;}
+async function realCallable(name,data,{auth=false}={}){
+  const runtime=window.__BALLERS_FIREBASE_RUNTIME__;
+  if(!runtime||typeof runtime.getAppCheckToken!=='function')throw new Error('Firebase App Check is unavailable');
+  const appCheckToken=await runtime.getAppCheckToken();
+  if(typeof appCheckToken!=='string'||!appCheckToken)throw new Error('Firebase App Check is unavailable');
+  const headers={'Content-Type':'application/json','X-Firebase-AppCheck':appCheckToken};
+  if(auth){if(typeof runtime.getIdToken!=='function')throw new Error('Firebase Auth is unavailable');const idToken=await runtime.getIdToken();if(typeof idToken!=='string'||!idToken)throw new Error('Firebase Auth is unavailable');headers.Authorization=`Bearer ${idToken}`;}
+  const response=await fetch(`${FUNCTION_ORIGIN}/${name}`,{method:'POST',headers,body:JSON.stringify({data}),credentials:'omit',referrerPolicy:'no-referrer'});
+  const envelope=await response.json();
+  if(!response.ok||!isPlainRecord(envelope)||Object.keys(envelope).length!==1||!Object.hasOwn(envelope,'data'))throw new Error('Firebase callable failed');
+  return envelope.data;
+}
+function realBoundary(){
+  const runtime=window.__BALLERS_FIREBASE_RUNTIME__;
+  if(!runtime||typeof runtime.completeEmailLink!=='function')return null;
+  return Object.freeze({
+    getBuyerCommerceCapability:()=>realCallable('getBuyerCommerceCapability',{}),
+    requestPilotSignInLink:data=>realCallable('requestPilotSignInLink',data),
+    completeEmailLink:data=>runtime.completeEmailLink(data),
+    createDigitalOrder:data=>realCallable('createDigitalOrder',data,{auth:true}),
+    getOrderStatus:data=>realCallable('getOrderStatus',data,{auth:true}),
+    createDownloadGrant(){throw new Error('Protected delivery runtime is not released');},
+    redeemDownloadGrant(){throw new Error('Protected delivery runtime is not released');},
+  });
+}
+async function getCommerceBoundary(){return validBoundary(window.__BALLERS_COMMERCE__)??validBoundary(realBoundary());}
+function setStatus(message){const node=document.querySelector('[data-commerce-status]');if(node)node.textContent=message;}
+function setStep(status){const index=status==='fulfilled'?3:status==='paid'||status==='fulfillment_delayed'?2:status==='invoice_send_pending'||status==='payment_verification_pending'?1:0;document.querySelectorAll('.commerce-rail li').forEach((node,nodeIndex)=>{node.classList.toggle('is-current',nodeIndex===index);node.classList.toggle('is-complete',nodeIndex<index);});const stage=document.querySelector('[data-stage-number]');const labels=['Identity','Invoice email','Verification','Protected delivery'];if(stage)stage.textContent=`0${index+1} / ${labels[index]}`;}
+function renderStatus(status){setStep(status.status);setStatus(status.message);const panel=document.querySelector('[data-download-panel]');if(panel)panel.hidden=!status.downloadReady;const support=document.querySelector('[data-support]');if(support)support.hidden=status.status!=='manual_support';}
+async function pollStatus(boundary,orderHandle,{delay=POLL_DELAY_MS,maxPolls=MAX_POLLS}={}){for(let attempt=0;attempt<maxPolls;attempt+=1){const status=validateStatusResponse(await boundary.getOrderStatus({orderHandle}));renderStatus(status);if(TERMINAL_STATUSES.has(status.status))return status;if(attempt+1<maxPolls)await new Promise(resolve=>window.setTimeout(resolve,delay));}if(maxPolls>1)setStatus('Payment verification is taking longer than expected. Return later while the server continues checking QuickBooks.');return null;}
+
+async function initialize(){
+  const authForm=document.querySelector('[data-auth-form]');const orderForm=document.querySelector('[data-order-form]');if(!authForm||!orderForm)return;const orderButton=document.querySelector('[data-order-button]');const authButton=authForm.querySelector('button');let orderHandle=null;let polling=false;
+  const boundary=await getCommerceBoundary();
+  const query=new URLSearchParams(window.location.search);
+  const existingHandle=query.get('order');
+  let existingStatusLoaded=false;
+  if(boundary&&typeof existingHandle==='string'&&existingHandle.length>0&&existingHandle.length<=128){try{polling=true;orderHandle=existingHandle;await pollStatus(boundary,orderHandle,{delay:window.__commerceTestCalls?0:POLL_DELAY_MS,maxPolls:window.__commerceTestCalls?1:MAX_POLLS});existingStatusLoaded=true;}catch{setStatus('We could not safely read this order. Sign in as its verified owner to continue.');document.querySelector('[data-support]').hidden=false;}finally{polling=false;}}
+  let capability;
+  try{capability=validateCapabilityResponse(await boundary?.getBuyerCommerceCapability());}catch{capability=null;}
+  const requestedSku=query.get('sku');
+  const active=requestedSku===SKU&&capability?.products.some(item=>item.sku===requestedSku&&item.active===true)===true;
+  if(!boundary||!active){if(orderButton)orderButton.disabled=true;if(authButton)authButton.disabled=true;if(!existingStatusLoaded&&!existingHandle)setStatus('Purchasing is temporarily unavailable. No payment or invoice request was created.');return;}
+  orderButton.disabled=false;authButton.disabled=false;
+  authForm?.addEventListener('submit',async event=>{event.preventDefault();const email=new FormData(authForm).get('email');try{const result=await boundary.requestPilotSignInLink({email:String(email||'')});if(!isPlainRecord(result)||Object.keys(result).length!==1||result.status!=='request_received')throw new Error('Invalid response');}catch{/* Deliberately indistinguishable public outcome. */}setStatus('If this address is eligible, a sign-in link request has been received. Use only the newest approved link.');});
+  orderForm?.addEventListener('submit',async event=>{event.preventDefault();orderButton.disabled=true;try{const email=String(new FormData(authForm).get('email')||'');const signIn=await boundary.completeEmailLink({email});if(!isPlainRecord(signIn)||Object.keys(signIn).length!==1||signIn.signedIn!==true)throw new Error('Invalid sign-in result');const customerName=String(new FormData(orderForm).get('customerName')||'').trim();const idempotencyKey=globalThis.crypto?.randomUUID?.()??`order-${Date.now().toString(36)}`;const created=validateOrderResponse(await boundary.createDigitalOrder({sku:SKU,customerName,idempotencyKey}));orderHandle=created.orderHandle;const safeUrl=new URL(window.location.href);safeUrl.search='';safeUrl.searchParams.set('sku',SKU);safeUrl.searchParams.set('order',orderHandle);history.replaceState(null,'',safeUrl);document.querySelector('[data-price]').textContent=new Intl.NumberFormat('en-US',{style:'currency',currency:created.currency}).format(created.amountCents/100);setStatus('QuickBooks sent payment instructions to your email. Payment verification is pending.');setStep('payment_verification_pending');polling=true;await pollStatus(boundary,orderHandle,{delay:window.__commerceTestCalls?0:POLL_DELAY_MS,maxPolls:window.__commerceTestCalls?1:MAX_POLLS});polling=false;}catch{setStatus('We could not safely create or read this order. The sign-in link may be expired, modified, already used, or may not own this order. Request a newly approved link to continue.');document.querySelector('[data-support]').hidden=false;}});
+  document.querySelector('[data-download-button]')?.addEventListener('click',async event=>{const button=event.currentTarget;if(!orderHandle||polling)return;button.disabled=true;let nonce=null;try{const grant=await boundary.createDownloadGrant({orderHandle});if(!isPlainRecord(grant)||typeof grant.grant!=='string'||grant.grant.length<32||Object.keys(grant).some(key=>!['grant','expiresAt'].includes(key)))throw new Error('Invalid grant');nonce=grant.grant;const oneAttemptNonce=nonce;nonce=null;await boundary.redeemDownloadGrant({orderHandle,grant:oneAttemptNonce});setStatus('Your protected delivery started. This one-time grant has been cleared.');}catch{setStatus('That one-time delivery attempt could not be completed. Your verified order is still safe; request a new download when ready.');}finally{nonce=null;button.disabled=false;}});
+}
+if(typeof document!=='undefined')initialize();
+export{MAX_POLLS,SAFE_STATUSES,validateStatusResponse,validateOrderResponse,validateCapabilityResponse,pollStatus,getCommerceBoundary};

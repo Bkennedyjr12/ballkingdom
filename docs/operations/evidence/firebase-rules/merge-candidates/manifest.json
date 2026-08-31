@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-08-30T23:00:00Z",
+  "status": "accepted-mapped-locally-emulator-verified-undeployed",
+  "firestore": {
+    "sourceRuleset": "projects/the-ballers-kingdom/rulesets/2c9d612b-dd17-406f-9a0f-86230c57420c",
+    "sourcePath": "../firestore/2c9d612b-dd17-406f-9a0f-86230c57420c/firestore.rules",
+    "sourceSha256": "0d700ff33ee25eb5032ce04308e30ffc91d04e5c3a548bf7118bb641c5ae94a5",
+    "candidatePath": "firestore.rules",
+    "candidateBytes": 11136,
+    "candidateSha256": "78138d8cd5ffd417c932c670bc2327c33886a43c4c880c7de6a3ba33d056f122",
+    "diffPath": "firestore.diff",
+    "diffBytes": 1076,
+    "diffSha256": "ba7119afb613fbbe1f382e394d4334f9e41ae1b12478dc0fac0533d3d45625f1",
+    "preservationProof": "Removing the single BEGIN/END LOCAL COMMERCE MERGE CANDIDATE block yields a byte-exact source body."
+  },
+  "storage": {
+    "sourceRuleset": "projects/the-ballers-kingdom/rulesets/6a0d2e24-723d-4512-a4e1-7f2288550997",
+    "sourcePath": "../storage/6a0d2e24-723d-4512-a4e1-7f2288550997/storage.rules",
+    "sourceSha256": "fb9987658560321e9cb039f0d0bed04c581fe5abe83cba440cbabfac8a1f86ef",
+    "candidatePath": "storage.rules",
+    "candidateBytes": 8250,
+    "candidateSha256": "5d5bc0155f2f2c2a39b0b837714903e4337a0868ec0997375ad4e14d36e03de8",
+    "diffPath": "storage.diff",
+    "diffBytes": 354,
+    "diffSha256": "7a44c367595dca82e37e8842839259cdc68485ae20abba3d08e2dd76727e8757",
+    "verifiedBucket": "the-ballers-kingdom.firebasestorage.app",
+    "preservationProof": "Removing the single BEGIN/END LOCAL COMMERCE MERGE CANDIDATE block yields a byte-exact source body."
+  },
+  "releaseBoundary": {
+    "firebaseMappingsChanged": true,
+    "rootRulesReplaced": true,
+    "emulatorVerified": true,
+    "artifactPresent": false,
+    "runtimeReady": false
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-08-30T22:49:03Z",
+  "account": "lilpelejr12@gmail.com",
+  "project": "the-ballers-kingdom",
+  "bucket": "the-ballers-kingdom.firebasestorage.app",
+  "request": {
+    "api": "Google Cloud Storage JSON API v1",
+    "method": "GET",
+    "urlTemplate": "https://storage.googleapis.com/storage/v1/b/the-ballers-kingdom.firebasestorage.app/o?maxResults=1000&fields=items(name,generation,metageneration,size,timeCreated,updated),nextPageToken[&pageToken={urlEncodedNextPageToken}]",
+    "authorizationBoundary": "existing gcloud user credential with x-goog-user-project=the-ballers-kingdom; token not retained or displayed",
+    "contentRead": false
+  },
+  "pagination": {
+    "pageSize": 1000,
+    "pagesRead": 1,
+    "nextPageTokenExhausted": true,
+    "objectCount": 1
+  },
+  "privacy": {
+    "fullObjectNamesRetained": false,
+    "objectNameHandling": "full names were sorted and hashed in memory; the private owner-scoped name is represented only by its SHA-256 and non-identifying top-level prefix"
+  },
+  "sortedFullNameManifest": {
+    "lineFormat": "one exact object name plus LF per sorted line",
+    "sha256": "db7d5c49aef8fe5ccd56b52b11022d25587fb4b9a98031e10b70e7cb930905a9"
+  },
+  "objects": [
+    {
+      "nameSha256": "d078ec86860b4e8bbdabde9370b181c9bec41d62fbd3a468f01b38b7b0e8cf2c",
+      "topLevelPrefix": "owners",
+      "generation": "1785951381246665",
+      "metageneration": "1",
+      "sizeBytes": "461036",
+      "timeCreated": "2026-08-05T17:36:21.284Z",
+      "updated": "2026-08-05T17:36:21.284Z"
+    }
+  ],
+  "candidateMatches": [
+    {"mode": "case-insensitive extended regular expression", "pattern": "^private-commerce/", "count": 0},
+    {"mode": "case-insensitive extended regular expression", "pattern": "home-inspection-study-guide", "count": 0},
+    {"mode": "case-insensitive extended regular expression", "pattern": "study[-_ ]?guide", "count": 0},
+    {"mode": "case-insensitive extended regular expression", "pattern": "\\.pdf$", "count": 0}
+  ]
+}

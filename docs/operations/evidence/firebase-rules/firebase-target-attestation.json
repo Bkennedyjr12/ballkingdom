@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-08-30T22:49:03Z",
+  "commands": [
+    "firebase target --project the-ballers-kingdom --account lilpelejr12@gmail.com",
+    "firebase firestore:databases:list --project the-ballers-kingdom --account lilpelejr12@gmail.com"
+  ],
+  "sanitizedResult": {
+    "account": "lilpelejr12@gmail.com",
+    "project": "the-ballers-kingdom",
+    "hostingTargets": {
+      "public": ["ballkingdom-com"],
+      "inspector": ["the-ballers-kingdom"]
+    },
+    "firestoreDatabases": ["projects/the-ballers-kingdom/databases/(default)"]
+  },
+  "credentialsOrTokensRetained": false
+}

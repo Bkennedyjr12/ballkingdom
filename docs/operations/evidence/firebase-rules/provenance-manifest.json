@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-08-30T22:53:12Z",
+  "account": "lilpelejr12@gmail.com",
+  "project": "the-ballers-kingdom",
+  "retrieval": {
+    "api": "Firebase Rules API v1",
+    "releaseListRequest": "GET https://firebaserules.googleapis.com/v1/projects/the-ballers-kingdom/releases?pageSize=100",
+    "rulesetRequestTemplate": "GET https://firebaserules.googleapis.com/v1/projects/the-ballers-kingdom/rulesets/{rulesetId}",
+    "authorizationBoundary": "existing gcloud user credential with x-goog-user-project=the-ballers-kingdom; token not retained or displayed",
+    "decodingMethod": "jq 1.7.1-apple enumerated every .source.files[] entry and decoded each JSON content string directly to UTF-8 bytes; no base64 layer was present",
+    "sourceCompletenessMethod": "for each current Ruleset response, the retained source-projection.json is exactly {source: response.source}; its canonical hash is jq -cS over that complete projection. Only non-source server metadata (top-level Ruleset name, createTime, and metadata) is excluded from the source projection, and remains recorded separately in this manifest.",
+    "toolVersions": {
+      "firebaseCli": "15.16.0",
+      "gcloudCli": "571.0.0",
+      "curl": "8.7.1",
+      "jq": "1.7.1-apple"
+    },
+    "immediateReleaseReadback": {
+      "method": "the identical release-list GET was repeated after both ruleset GETs",
+      "result": "byte-identical",
+      "beforeResponseSha256": "7cfd1b0d971a289af3ca8354066b1348717a87a59537177528098737d57e4cc0",
+      "afterResponseSha256": "7cfd1b0d971a289af3ca8354066b1348717a87a59537177528098737d57e4cc0",
+      "canonicalReleaseProjectionSha256": "8cf3d01bea4de6129a2572ef39042ebb8089e842b31026d81cea3f641008c3d1"
+    }
+  },
+  "rules": [
+    {
+      "service": "cloud.firestore",
+      "releaseName": "projects/the-ballers-kingdom/releases/cloud.firestore",
+      "releaseCreateTime": "2026-07-17T18:02:07.376878Z",
+      "releaseUpdateTime": "2026-08-01T18:17:27.444200Z",
+      "rulesetName": "projects/the-ballers-kingdom/rulesets/2c9d612b-dd17-406f-9a0f-86230c57420c",
+      "rulesetCreateTime": "2026-08-01T18:17:20.210799Z",
+      "sourceFileCount": 1,
+      "sourceProjectionRetainedPath": "firestore/2c9d612b-dd17-406f-9a0f-86230c57420c/source-projection.json",
+      "canonicalFullSourceProjectionSha256": "3a0dd7432c26fd8ecafe0d9f48bcd8b49956ae2d57dfe701bd314f1c286483b5",
+      "sourceFiles": [
+        {
+          "sourceFileName": "firestore.rules",
+          "retainedPath": "firestore/2c9d612b-dd17-406f-9a0f-86230c57420c/firestore.rules",
+          "byteSize": 10192,
+          "sha256": "0d700ff33ee25eb5032ce04308e30ffc91d04e5c3a548bf7118bb641c5ae94a5"
+        }
+      ]
+    },
+    {
+      "service": "firebase.storage",
+      "releaseName": "projects/the-ballers-kingdom/releases/firebase.storage/the-ballers-kingdom.firebasestorage.app",
+      "releaseCreateTime": "2026-07-17T18:02:06.555820Z",
+      "releaseUpdateTime": "2026-08-01T18:17:26.884345Z",
+      "rulesetName": "projects/the-ballers-kingdom/rulesets/6a0d2e24-723d-4512-a4e1-7f2288550997",
+      "rulesetCreateTime": "2026-07-25T16:21:33.435711Z",
+      "sourceFileCount": 1,
+      "sourceProjectionRetainedPath": "storage/6a0d2e24-723d-4512-a4e1-7f2288550997/source-projection.json",
+      "canonicalFullSourceProjectionSha256": "828a26842313d88f6903d418ab3304fae0fdd574f8a4645e86f0166307d8c851",
+      "sourceFiles": [
+        {
+          "sourceFileName": "storage.rules",
+          "retainedPath": "storage/6a0d2e24-723d-4512-a4e1-7f2288550997/storage.rules",
+          "byteSize": 7999,
+          "sha256": "fb9987658560321e9cb039f0d0bed04c581fe5abe83cba440cbabfac8a1f86ef"
+        }
+      ]
+    }
+  ],
+  "releaseBoundary": "The retained files are immutable deployed originals only. They are not merged commerce policy, are not referenced by firebase.json, and are not deployment authorization."
+}

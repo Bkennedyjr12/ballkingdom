@@ -1,0 +1,181 @@
+rules_version = '2';
+
+// Companion-only additive rules. Before any deployment, fetch the live ruleset
+// and merge this namespace into it; never treat the live rules as blank.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isOwner(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && 'companionOwner' in request.auth.token
+        && request.auth.token.companionOwner == true;
+    }
+
+    function activeClient(uid, membershipId, clientId) {
+      return request.auth != null
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/portalMemberships/$(membershipId)
+        ).data.uid == request.auth.uid
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/portalMemberships/$(membershipId)
+        ).data.role == 'client'
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/portalMemberships/$(membershipId)
+        ).data.clientId == clientId
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/portalMemberships/$(membershipId)
+        ).data.status == 'active';
+    }
+
+    function activeAgent(uid, membershipId, grantId, clientId) {
+      return request.auth != null
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/portalMemberships/$(membershipId)
+        ).data.uid == request.auth.uid
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/portalMemberships/$(membershipId)
+        ).data.role == 'agent'
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/portalMemberships/$(membershipId)
+        ).data.clientId == clientId
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/portalMemberships/$(membershipId)
+        ).data.grantId == grantId
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/portalMemberships/$(membershipId)
+        ).data.status == 'active'
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/clientAgentGrants/$(grantId)
+        ).data.agentUid == request.auth.uid
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/clientAgentGrants/$(grantId)
+        ).data.clientId == clientId
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/clientAgentGrants/$(grantId)
+        ).data.status == 'active';
+    }
+
+    function activeRelease(uid, releaseId, audience, reportId, versionId, clientId) {
+      return firestore.get(
+          /databases/(default)/documents/owners/$(uid)/documentReleases/$(releaseId)
+        ).data.audience == audience
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/documentReleases/$(releaseId)
+        ).data.reportId == reportId
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/documentReleases/$(releaseId)
+        ).data.documentId == versionId
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/documentReleases/$(releaseId)
+        ).data.reportVersionId == versionId
+        && firestore.get(
+          /databases/(default)/documents/owners/$(uid)/documentReleases/$(releaseId)
+        ).data.clientId == clientId
+        && !('revokedAt' in firestore.get(
+          /databases/(default)/documents/owners/$(uid)/documentReleases/$(releaseId)
+        ).data);
+    }
+
+    function approvedMedia() {
+      return request.resource != null
+        && request.resource.size <= 500 * 1024 * 1024
+        && request.resource.contentType != null
+        && request.resource.contentType.matches(
+          '^(audio/[^;]+|video/[^;]+|image/[^;]+|application/pdf)$'
+        );
+    }
+
+    function approvedInspectionMedia() {
+      return request.resource != null
+        && request.resource.size <= 500 * 1024 * 1024
+        && request.resource.contentType != null
+        && request.resource.contentType.matches('^(audio/[^;]+|video/[^;]+|image/[^;]+)$');
+    }
+
+    match /inspector-companion/{uid}/{path=**} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && approvedMedia();
+    }
+
+    match /owners/{uid}/inspections/{inspectionId}/media/pending/{mediaId} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid) && resource == null && approvedInspectionMedia();
+      allow update: if false;
+    }
+
+    match /owners/{uid}/inspections/{inspectionId}/media/confirmed/{mediaId} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    match /owners/{uid}/inspections/{inspectionId}/media/{mediaId} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    match /owners/{uid}/reports/{reportId}/versions/{versionId}/{artifact} {
+      allow read: if artifact in ['report.pdf', 'projection.json']
+        && (isOwner(uid) || (
+          resource.metadata.reportVersionId == versionId
+          &&
+          'clientMembershipId' in resource.metadata
+          && 'clientReleaseId' in resource.metadata
+          && activeClient(uid, resource.metadata.clientMembershipId, resource.metadata.clientId)
+          && activeRelease(uid, resource.metadata.clientReleaseId, 'client', reportId, versionId, resource.metadata.clientId)
+        ) || (
+          resource.metadata.reportVersionId == versionId
+          &&
+          'agentMembershipId' in resource.metadata
+          && 'releaseId' in resource.metadata
+          && activeAgent(uid, resource.metadata.agentMembershipId, resource.metadata.grantId, resource.metadata.clientId)
+          && activeRelease(uid, resource.metadata.releaseId, 'agent', reportId, versionId, resource.metadata.clientId)
+          && firestore.get(
+            /databases/(default)/documents/owners/$(uid)/documentReleases/$(resource.metadata.releaseId)
+          ).data.grantId == resource.metadata.grantId
+        ));
+      allow write: if false;
+    }
+
+    match /owners/{uid}/agreements/{agreementId}/signed/{agreementVersionId}/{artifact} {
+      allow read: if artifact == 'signed.pdf'
+        && (isOwner(uid) || (
+          'clientMembershipId' in resource.metadata
+          && activeClient(uid, resource.metadata.clientMembershipId, resource.metadata.signerClientId)
+          && firestore.get(
+            /databases/(default)/documents/owners/$(uid)/agreements/$(agreementId)
+          ).data.clientId == resource.metadata.signerClientId
+          && firestore.get(
+            /databases/(default)/documents/owners/$(uid)/agreements/$(agreementId)
+          ).data.status == 'signed'
+        ) || (
+          request.auth != null
+          && resource.metadata.signerClientUid == request.auth.uid
+          && firestore.get(
+            /databases/(default)/documents/owners/$(uid)/portalSigningAccess/$(resource.metadata.signingAccessId)
+          ).data.uid == request.auth.uid
+          && firestore.get(
+            /databases/(default)/documents/owners/$(uid)/portalSigningAccess/$(resource.metadata.signingAccessId)
+          ).data.status == 'active'
+          && firestore.get(
+            /databases/(default)/documents/owners/$(uid)/portalSigningAccess/$(resource.metadata.signingAccessId)
+          ).data.clientId == resource.metadata.signerClientId
+          && firestore.get(
+            /databases/(default)/documents/owners/$(uid)/portalSigningAccess/$(resource.metadata.signingAccessId)
+          ).data.agreementId == agreementId
+          && resource.metadata.agreementId == agreementId
+          && firestore.get(
+            /databases/(default)/documents/owners/$(uid)/agreements/$(agreementId)
+          ).data.clientId == resource.metadata.signerClientId
+          && firestore.get(
+            /databases/(default)/documents/owners/$(uid)/agreements/$(agreementId)
+          ).data.status == 'signed'
+        ));
+      allow read: if artifact == 'evidence.json' && isOwner(uid);
+      allow write: if false;
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
