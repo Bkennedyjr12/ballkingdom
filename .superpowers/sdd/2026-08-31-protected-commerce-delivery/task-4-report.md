@@ -88,3 +88,25 @@ TDD and verification evidence:
 - Storefront unit/content suite: 21 passed.
 - `git diff --check`: clean.
 - No real authentication email, invoice, payment, deployment, provider mutation, or activation occurred.
+
+## Returning-buyer round 3/5
+
+Implemented the two controller-approved corrections while leaving the accepted timing residual unchanged:
+
+- Completed resume-link effects can be atomically reissued up to five total deliveries. Each reissue resets only the completed dispatch state, increments a durable issuance counter, and records a redacted `effect_reissued` receipt.
+- Concurrent reissue requests serialize through the Firestore transaction: exactly one transitions `completed` back to `pending`, and exactly one claimant crosses the dispatch boundary. Pending, claimed, manual-review, and capped effects cannot be reset.
+- Ambiguous sends remain permanently quarantined in `manual_review`; a later request cannot retry them.
+- Missing/foreign orders plus wrong SKU, order type, customer assignment, unsafe handle, oversize handle, and expanded schemas all return the same generic response without Admin-link generation, persistence, or Graph delivery.
+- The returning-buyer browser integration now invokes the production commerce service, captures the exact link passed to the mocked `graph.sendPilotAuthLink`, uses a Firebase-shaped Admin Auth stub whose `continueUrl` is the actual `actionCodeSettings.url`, extracts that exact continuation, and completes the existing-order browser flow without calling `createDigitalOrder`.
+- Per controller ruling, no artificial timing envelope was added around uncancellable Firebase Admin Auth work. The residual is accepted given the random opaque handle, generic response, approved-recipient binding, and App Check boundary.
+
+TDD and verification evidence:
+
+- RED: completed-effect reissue tests observed one delivery instead of five; parallel reissue tests observed one total delivery instead of two; repository transitions returned `false` for the first valid reissue.
+- GREEN: complete Functions suite — 409 passed, 2 documented emulator-only skips, 0 failed (411 total).
+- Functions syntax/check gate: passed.
+- Commerce browser suite: 28 passed, including the exact mocked Graph-link continuation.
+- Storefront unit/content suite: 21 passed.
+- `git diff --check`: clean.
+- Secure repository scan completed; reported only known synthetic/test patterns and the existing public Firebase web configuration, with no new secret material.
+- No real authentication email, invoice, payment, deployment, provider mutation, feature-flag activation, or catalog/tax mutation occurred.

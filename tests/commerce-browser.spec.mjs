@@ -1,9 +1,63 @@
 import { test, expect } from '@playwright/test';
-import {buildPilotActionCodeSettings} from '../functions/src/commerce/commerce-service.js';
+import {createHash} from 'node:crypto';
+import {createCommerceService} from '../functions/src/commerce/commerce-service.js';
 
 const activeRelease = Object.freeze({
   products: [{sku:'home-inspection-study-guide',active:true}],
 });
+
+async function captureServerDeliveredResumeLink(request){
+  const approvedEmail='approved@example.test';
+  const binding=createHash('sha256').update(`binding\0${approvedEmail}`).digest('hex');
+  const order={
+    id:'safe-order-1',sku:'home-inspection-study-guide',orderType:'digital_product',
+    customerUid:'customer-uid',authorizedRecipientBinding:binding,
+  };
+  const effects=new Map();
+  const delivered=[];
+  let claimSequence=0;
+  const repository={
+    async getOrder(orderId){return orderId===order.id?order:null;},
+    async createPilotAuthEmailEffect(effectBinding){
+      if(effects.has(effectBinding))return false;
+      effects.set(effectBinding,{status:'pending',claim:null,dispatchAttemptCount:0});
+      return true;
+    },
+    async claimPilotAuthEmailEffect(effectBinding,workerId){
+      const effect=effects.get(effectBinding);
+      if(!effect || effect.status!=='pending')return false;
+      const claimId=`claim-${++claimSequence}`;
+      Object.assign(effect,{status:'claimed',claim:{claimId,workerId}});
+      return {claimId};
+    },
+    async markPilotAuthDispatchStarted(effectBinding){effects.get(effectBinding).dispatchAttemptCount=1;return true;},
+    async completePilotAuthEmailEffect(effectBinding){effects.get(effectBinding).status='completed';return true;},
+    async recordPilotAuthEmailFailure(){throw new Error('synthetic auth delivery failed');},
+  };
+  const auth={
+    async generateSignInWithEmailLink(email,settings){
+      expect(email).toBe(approvedEmail);
+      const link=new URL('https://the-ballers-kingdom.firebaseapp.com/__/auth/action');
+      link.searchParams.set('apiKey','synthetic-public-config');
+      link.searchParams.set('mode','signIn');
+      link.searchParams.set('oobCode','return-link');
+      link.searchParams.set('continueUrl',settings.url);
+      return link.toString();
+    },
+  };
+  const graph={async sendPilotAuthLink(message){delivered.push(structuredClone(message));return {accepted:true};}};
+  const service=createCommerceService({
+    repository,auth,graph,
+    readFeatureFlags:()=>({digitalInvoicePilotEnabled:true,serviceQboSendEnabled:false}),
+    getApprovedPilotEmail:()=>approvedEmail,
+    workerIdFactory:()=> 'browser-contract-worker',
+  });
+
+  expect(await service.requestPilotSignInLink(request,{app:{appId:'browser-contract'}}))
+    .toEqual({status:'request_received'});
+  expect(delivered).toHaveLength(1);
+  return delivered[0].link;
+}
 
 async function installCommerceMock(page, scenario = 'pending') {
   await page.addInitScript(({release, scenario}) => {
@@ -181,10 +235,13 @@ test('returning buyer completes email-link auth and resumes the existing late-fu
   await page.getByRole('button',{name:/Email me a sign-in link/i}).click();
   const request=await page.evaluate(()=>window.__commerceTestCalls.find(([name])=>name==='auth')[1]);
   expect(request).toEqual({email:'approved@example.test',orderHandle:'safe-order-1'});
-  const serverSettings=buildPilotActionCodeSettings(request.orderHandle);
-  const returnUrl=new URL(serverSettings.url);
-  returnUrl.searchParams.set('mode','signIn');
-  returnUrl.searchParams.set('oobCode','return-link');
+  const deliveredLink=await captureServerDeliveredResumeLink(request);
+  const firebaseLink=new URL(deliveredLink);
+  expect(firebaseLink.pathname).toBe('/__/auth/action');
+  const returnUrl=new URL(firebaseLink.searchParams.get('continueUrl'));
+  expect(returnUrl.searchParams.get('order')).toBe('safe-order-1');
+  returnUrl.searchParams.set('mode',firebaseLink.searchParams.get('mode'));
+  returnUrl.searchParams.set('oobCode',firebaseLink.searchParams.get('oobCode'));
   await page.goto(`${returnUrl.pathname}${returnUrl.search}`);
   await page.getByLabel(/email address/i).fill('approved@example.test');
   await page.getByRole('button',{name:/Sign in and resume order/i}).click();

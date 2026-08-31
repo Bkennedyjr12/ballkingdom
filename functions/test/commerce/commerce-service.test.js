@@ -115,9 +115,18 @@ function createMemoryRepository() {
       return true;
     },
     async createPilotAuthEmailEffect(binding) {
-      if (authEffects.has(binding)) return false;
+      const existing=authEffects.get(binding);
+      if(existing){
+        if(existing.status!=='completed' || existing.issuanceAttemptCount>=5)return false;
+        Object.assign(existing,{
+          status:'pending',claim:null,dispatchStartedAt:null,dispatchAttemptCount:0,
+          issuanceAttemptCount:existing.issuanceAttemptCount+1,lastClaimId:null,lastErrorCode:null,
+        });
+        return true;
+      }
       authEffects.set(binding, {
         effect:'pilot_auth_email',status:'pending',claim:null,dispatchStartedAt:null,dispatchAttemptCount:0,
+        issuanceAttemptCount:1,
       });
       return true;
     },
@@ -500,6 +509,22 @@ test('authorized existing order produces a server-built resume URL while mismatc
   assert.equal(foreign.calls.links.length,0);
   assert.equal(foreign.calls.graph.length,0);
   assert.equal(foreign.repository.authEffects.size,0);
+
+  for(const order of [
+    {id:'wrong-sku',sku:'another-product',orderType:'digital_product',customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding},
+    {id:'wrong-type',sku:'home-inspection-study-guide',orderType:'service',customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding},
+    {id:'missing-customer',sku:'home-inspection-study-guide',orderType:'digital_product',customerUid:'',authorizedRecipientBinding:pilotBinding},
+  ]){
+    const invalid=fixture();
+    invalid.repository.orders.set(order.id,order);
+    assert.deepEqual(
+      await invalid.service.requestPilotSignInLink({email:pilotEmail,orderHandle:order.id},appCheck),
+      {status:'request_received'}
+    );
+    assert.equal(invalid.calls.links.length,0);
+    assert.equal(invalid.calls.graph.length,0);
+    assert.equal(invalid.repository.authEffects.size,0);
+  }
 });
 
 test('mismatched auth-link candidates make no persistence, limiter, Admin, or Graph call', async () => {
@@ -545,6 +570,60 @@ test('queues and dispatches the approved pilot auth email once across parallel r
   assert.equal(calls.graph.length, 1);
   assert.equal(calls.graph[0].to, pilotEmail);
   assert.equal(Object.hasOwn(results[0], 'link'), false);
+});
+
+test('reissues a completed resume link within a bounded cap',async()=>{
+  const state=fixture();
+  state.repository.orders.set('order-resume-1',{
+    id:'order-resume-1',sku:'home-inspection-study-guide',orderType:'digital_product',
+    customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,
+  });
+
+  for(let attempt=0;attempt<6;attempt+=1){
+    assert.deepEqual(
+      await state.service.requestPilotSignInLink({email:pilotEmail,orderHandle:'order-resume-1'},appCheck),
+      {status:'request_received'}
+    );
+  }
+
+  assert.equal(state.calls.graph.length,5);
+  assert.equal([...state.repository.authEffects.values()][0].issuanceAttemptCount,5);
+});
+
+test('deduplicates parallel resume-link reissues after a completed delivery',async()=>{
+  const state=fixture();
+  state.repository.orders.set('order-resume-1',{
+    id:'order-resume-1',sku:'home-inspection-study-guide',orderType:'digital_product',
+    customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,
+  });
+  const input={email:pilotEmail,orderHandle:'order-resume-1'};
+  await state.service.requestPilotSignInLink(input,appCheck);
+
+  const results=await Promise.all([
+    state.service.requestPilotSignInLink(input,appCheck),
+    state.service.requestPilotSignInLink(input,appCheck),
+    state.service.requestPilotSignInLink(input,appCheck),
+  ]);
+
+  assert.deepEqual(results,Array(3).fill({status:'request_received'}));
+  assert.equal(state.calls.graph.length,2);
+  assert.equal([...state.repository.authEffects.values()][0].issuanceAttemptCount,2);
+});
+
+test('never reissues a resume link after an ambiguous send',async()=>{
+  let attempts=0;
+  const state=fixture({graph:{async sendPilotAuthLink(){attempts+=1;throw new Error('timeout');}}});
+  state.repository.orders.set('order-resume-1',{
+    id:'order-resume-1',sku:'home-inspection-study-guide',orderType:'digital_product',
+    customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,
+  });
+  const input={email:pilotEmail,orderHandle:'order-resume-1'};
+
+  await state.service.requestPilotSignInLink(input,appCheck);
+  await state.service.requestPilotSignInLink(input,appCheck);
+
+  assert.equal(attempts,1);
+  assert.equal([...state.repository.authEffects.values()][0].status,'manual_review');
 });
 
 test('quarantines an ambiguous auth dispatch and never sends it again', async () => {
