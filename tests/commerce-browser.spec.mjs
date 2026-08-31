@@ -60,6 +60,7 @@ async function installProtectedDeliveryRuntime(page,{streamStatus=200,streamType
         let body=new Uint8Array([37,80,68,70,45,49,46,55]);
         if(streamMode==='empty')body=new Uint8Array();
         if(streamMode==='partial-stall')body=new ReadableStream({start(controller){controller.enqueue(new Uint8Array([37,80,68,70]));},cancel(){evidence.readerCancels+=1;}});
+        if(streamMode==='cancel-never')body=new ReadableStream({start(controller){controller.enqueue(new Uint8Array([37,80,68,70]));},cancel(){evidence.readerCancels+=1;return new Promise(()=>{});}});
         if(streamMode==='reader-error')body=new ReadableStream({start(controller){controller.enqueue(new Uint8Array([37,80,68,70]));queueMicrotask(()=>controller.error(new Error('private reader detail')));},cancel(){evidence.readerCancels+=1;}});
         if(streamMode==='oversize'){
           let chunks=0;
@@ -282,6 +283,16 @@ test('partial reader stall is cancelled at the same deadline and never claims su
   const evidence=await expectProtectedFailure(page,{streamMode:'partial-stall'});
   expect(evidence.readerCancels).toBeGreaterThan(0);
   expect(evidence.fetches.filter(call=>call.name==='redeemDownloadGrant')).toHaveLength(1);
+});
+
+test('never-settling reader cancellation cannot block generic failure or UI recovery',async({page})=>{
+  const evidence=await expectProtectedFailure(page,{streamMode:'cancel-never'});
+  expect(evidence.readerCancels).toBeGreaterThan(0);
+  expect(evidence.fetches.filter(call=>call.name==='redeemDownloadGrant')).toHaveLength(1);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(()=>window.__protectedDeliveryEvidence.fetches.filter(call=>call.name==='redeemDownloadGrant').length)).toBe(1);
+  expect(await page.evaluate(()=>window.__protectedDeliveryEvidence.objectUrls)).toHaveLength(0);
+  expect(await page.evaluate(()=>window.__protectedDeliveryEvidence.downloads)).toHaveLength(0);
 });
 
 test('grant response must have exact keys, base64url length, and a future expiration before stream tokens',async({page})=>{

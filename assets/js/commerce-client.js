@@ -34,6 +34,7 @@ function validateDownloadGrant(value,nowMs=Date.now()){
   return Object.freeze({grant:value.grant,expiresAt:value.expiresAt});
 }
 function abortRejection(signal){return new Promise((_,reject)=>{if(signal.aborted)reject(deliveryFailure());else signal.addEventListener('abort',()=>reject(deliveryFailure()),{once:true});});}
+function cancelReader(reader){try{Promise.resolve(reader?.cancel()).catch(()=>{});}catch{}}
 async function readBoundedPdf(response,{signal,onReader}={}){
   const rawLength=response.headers.get('Content-Length');
   let declaredLength=null;
@@ -43,7 +44,7 @@ async function readBoundedPdf(response,{signal,onReader}={}){
   if(typeof onReader==='function')onReader(reader);
   const aborted=abortRejection(signal);
   const chunks=[];let total=0;
-  try{for(;;){const {done,value}=await Promise.race([reader.read(),aborted]);if(done)break;if(!(value instanceof Uint8Array)||value.byteLength<1)continue;total+=value.byteLength;if(total>MAX_PDF_BYTES){await reader.cancel();throw deliveryFailure();}chunks.push(value);}}catch{try{await reader.cancel();}catch{}throw deliveryFailure();}
+  try{for(;;){const {done,value}=await Promise.race([reader.read(),aborted]);if(done)break;if(!(value instanceof Uint8Array)||value.byteLength<1)continue;total+=value.byteLength;if(total>MAX_PDF_BYTES){cancelReader(reader);throw deliveryFailure();}chunks.push(value);}}catch{cancelReader(reader);throw deliveryFailure();}
   if(total<1||(declaredLength!==null&&declaredLength!==total))throw deliveryFailure();
   return new Blob(chunks,{type:'application/pdf'});
 }
@@ -82,7 +83,7 @@ async function realBoundary(){
       const controller=new AbortController();
       const configuredDeadline=Number(window.__commerceTestDownloadTimeoutMs);
       const deadlineMs=Number.isFinite(configuredDeadline)&&configuredDeadline>0?Math.min(configuredDeadline,DOWNLOAD_DEADLINE_MS):DOWNLOAD_DEADLINE_MS;
-      const deadline=window.setTimeout(()=>{controller.abort();try{Promise.resolve(reader?.cancel()).catch(()=>{});}catch{}},deadlineMs);
+      const deadline=window.setTimeout(()=>{controller.abort();cancelReader(reader);},deadlineMs);
       try{
         const response=await Promise.race([fetch(`${FUNCTION_ORIGIN}/redeemDownloadGrant`,{
           method:'POST',
@@ -105,7 +106,7 @@ async function realBoundary(){
       }finally{
         window.clearTimeout(deadline);
         if(!controller.signal.aborted)controller.abort();
-        try{await reader?.cancel();}catch{}
+        cancelReader(reader);
         if(objectUrl!==null)URL.revokeObjectURL(objectUrl);
       }
     },

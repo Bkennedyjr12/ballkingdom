@@ -43,3 +43,11 @@ Addressed all three review findings:
 Review-fix verification:
 
 - `PATH="/opt/homebrew/opt/node@22/bin:$PATH" npx playwright test tests/commerce-browser.spec.mjs` — 26 passed.
+
+## Review round 2/5
+
+Removed every awaited `ReadableStreamDefaultReader.cancel()` path. Cancellation is now best-effort and attaches a rejection handler without allowing a stalled cancellation promise to extend the download deadline or produce an unhandled rejection. Added an adversarial stream whose underlying `cancel()` returns a never-resolving promise; the browser still shows only the generic failure, re-enables the button, performs no retry, and creates no object URL or download.
+
+- Browser verification: 27 passed.
+- Storefront unit/content verification: 21 passed.
+- `git diff --check`: clean.
