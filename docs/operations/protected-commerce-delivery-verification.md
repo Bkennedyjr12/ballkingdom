@@ -1,6 +1,6 @@
 # Protected commerce delivery verification
 
-Status: **pre-release verification completed; purchase activation remains blocked**
+Status: **inactive runtime deployed; App Check token-consumption permission remains blocked**
 
 Reviewed: 2026-08-31
 
@@ -14,6 +14,48 @@ Production project/account: `the-ballers-kingdom` / `lilpelejr12@gmail.com`
 This record covers the inactive protected-download runtime only. It does not authorize or
 record a customer order, authentication email, QuickBooks customer/invoice/payment/refund,
 invoice email, or other provider-side commerce action.
+
+## Production release readback
+
+PR #9 merged the reviewed branch as `c2d75cc74a136a26e2152f52ee7207e9063baa76`.
+The clean detached release worktree deployed only Hosting target `public` and the documented
+20-function allowlist with explicit project `the-ballers-kingdom` and account
+`lilpelejr12@gmail.com`. Firebase Hosting released 140 files to `ballkingdom-com`.
+`createDownloadGrant` and `redeemDownloadGrant` were created in `us-west1`; the other 18
+approved commerce functions were updated. `confirmAcceptedBooking`, Firestore, Storage Rules,
+indexes, and the redirect site were excluded.
+
+Independent provider readback found both new functions `ACTIVE` on Node.js 22. Their provider
+update times were `2026-08-31T20:18:02.392939074Z` for `createDownloadGrant` and
+`2026-08-31T20:18:00.427684882Z` for `redeemDownloadGrant`. The excluded
+`confirmAcceptedBooking` retained its earlier `2026-08-31T14:37:39.770645372Z` update time.
+The deployed environment still reports both commerce flags `false`.
+
+Live checks independently verified:
+
+- the canonical-origin unauthenticated redemption request returns `401` with the exact
+  `Access-Control-Allow-Origin: https://ballkingdom.com` response;
+- a wrong origin returns `403` without an allow-origin response;
+- the canonical preflight returns `204` and permits only `POST`, `Authorization`,
+  `Content-Type`, and `X-Firebase-AppCheck`;
+- direct Firebase Storage media access returns `403`;
+- the canonical and Firebase Hosting order-status pages return `200`;
+- both deployed browser modules byte-match the reviewed merge commit and use the configured
+  five-minute revalidation cache policy; and
+- the immutable private object still matches the frozen bucket, key, generation, size,
+  content type, and MD5 below.
+
+One production permission remains unresolved. The two functions run as the existing default
+runtime service account. Project IAM readback shows that identity has legacy Editor,
+Eventarc receiver, and Cloud Run invoker roles, but does not have
+`roles/firebaseappcheck.tokenVerifier`. The Editor role does not contain
+`firebaseappcheck.appCheckTokens.verify`. Firebase documents that permission as required for
+limited-use App Check token consumption, so an authenticated production redemption cannot be
+represented as verified and is expected to fail closed until the least-privilege binding is
+separately approved and read back. No IAM mutation was made as part of this scoped release.
+Synthetic and emulator coverage remains the stream-success proof; no authentication email,
+real order, invoice, payment, refund, customer email, or other provider mutation was used for
+smoke testing.
 
 ## Verification results
 
@@ -174,7 +216,9 @@ rollback procedure is pre-documented.
    approval gates; this verification does not set them.
 3. Product `active` and the digital invoice pilot flag must remain false until a separately
    approved live-pilot sequence is ready.
-4. A live release needs independent function-state, Hosting/header, immutable-object,
-   unauthenticated, wrong-origin, and direct-Storage denial readback.
+4. Add and independently read back the least-privilege App Check token-verifier role for the
+   deployed runtime service account, then verify limited-use token consumption through the
+   separately approved owner-pilot sequence. The other live function-state, Hosting/header,
+   immutable-object, unauthenticated, wrong-origin, and direct-Storage denial checks passed.
 5. A real customer/authentication email, QuickBooks mutation, payment, refund, or invoice
    email always requires separate action-time authorization.
