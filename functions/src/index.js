@@ -1,6 +1,8 @@
 import {initializeApp} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
+import {getAppCheck} from 'firebase-admin/app-check';
 import {getFirestore, FieldValue, Timestamp} from 'firebase-admin/firestore';
+import {getStorage} from 'firebase-admin/storage';
 import {SecretManagerServiceClient} from '@google-cloud/secret-manager';
 import {createHash,randomUUID} from 'node:crypto';
 import {onDocumentWritten} from 'firebase-functions/v2/firestore';
@@ -19,6 +21,9 @@ import {
 } from './commerce/quickbooks-token-coordinator.js';
 import {createBoundQuickBooksCredentialCoordinator,createFirestoreQuickBooksCredentialStore,publishQuickBooksReconnect} from './commerce/quickbooks-credential-binding.js';
 import {buildMicrosoftAuthUrl,buildQuickBooksAuthUrl,exchangeMicrosoftCode,exchangeQuickBooksCode} from './providers/oauth.js';
+import {createFulfillmentRuntime} from './commerce/fulfillment-runtime.js';
+import {VERIFIED_COMMERCE_BUCKET} from './commerce/private-artifact-stream.js';
+import {createDownloadHttpHandler} from './commerce/download-http.js';
 
 initializeApp();
 const REGION = 'us-west1';
@@ -432,6 +437,27 @@ function runtimeCommerceService({withPilotEmail = false, withQuickBooks = false,
   });
 }
 
+let protectedFulfillmentRuntime;
+let protectedDownloadHttpHandler;
+function fulfillmentRuntime() {
+  if (!protectedFulfillmentRuntime) {
+    protectedFulfillmentRuntime=createFulfillmentRuntime({
+      db,fieldValue:FieldValue,Timestamp,
+      bucket:getStorage().bucket(VERIFIED_COMMERCE_BUCKET),
+    });
+  }
+  return protectedFulfillmentRuntime;
+}
+
+function downloadHttpHandler() {
+  if (!protectedDownloadHttpHandler) {
+    protectedDownloadHttpHandler=createDownloadHttpHandler({
+      auth:getAuth(),appCheck:getAppCheck(),fulfillment:fulfillmentRuntime(),
+    });
+  }
+  return protectedDownloadHttpHandler;
+}
+
 export const requestPilotSignInLink = onCall({
   region:REGION,
   secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...MS_SECRETS],
@@ -465,6 +491,30 @@ export const getOrderStatus = onCall({region:REGION,enforceAppCheck:true}, async
   } catch (error) {
     throw commerceHttpsError(error);
   }
+});
+
+export const createDownloadGrant = onCall({
+  region:REGION,
+  enforceAppCheck:true,
+}, async request => {
+  try {
+    return await fulfillmentRuntime().createDownloadGrant(
+      {orderId:String(request.data?.orderHandle ?? '')},
+      {auth:request.auth,app:request.app},
+    );
+  } catch (error) {
+    if (error?.code === 'FULFILLMENT_INPUT_INVALID') {
+      throw new HttpsError('invalid-argument','Request data is invalid');
+    }
+    if (error?.code === 'AUTH_REQUIRED' || error?.code === 'APP_CHECK_REQUIRED') {
+      throw new HttpsError('permission-denied','This operation is not permitted');
+    }
+    throw new HttpsError('not-found','Digital fulfillment was not found');
+  }
+});
+
+export const redeemDownloadGrant = onRequest({region:REGION}, async (request,response) => {
+  await downloadHttpHandler()(request,response);
 });
 
 export const getBuyerCommerceCapability = onCall({region:REGION,enforceAppCheck:true}, async request => {
