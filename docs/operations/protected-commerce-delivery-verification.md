@@ -1,6 +1,6 @@
 # Protected commerce delivery verification
 
-Status: **inactive runtime deployed; App Check token-consumption permission remains blocked**
+Status: **inactive protected-delivery runtime deployed and independently verified**
 
 Reviewed: 2026-08-31
 
@@ -45,17 +45,19 @@ Live checks independently verified:
 - the immutable private object still matches the frozen bucket, key, generation, size,
   content type, and MD5 below.
 
-One production permission remains unresolved. The two functions run as the existing default
-runtime service account. Project IAM readback shows that identity has legacy Editor,
-Eventarc receiver, and Cloud Run invoker roles, but does not have
-`roles/firebaseappcheck.tokenVerifier`. The Editor role does not contain
-`firebaseappcheck.appCheckTokens.verify`. Firebase documents that permission as required for
-limited-use App Check token consumption, so an authenticated production redemption cannot be
-represented as verified and is expected to fail closed until the least-privilege binding is
-separately approved and read back. No IAM mutation was made as part of this scoped release.
-Synthetic and emulator coverage remains the stream-success proof; no authentication email,
-real order, invoice, payment, refund, customer email, or other provider mutation was used for
-smoke testing.
+The first IAM readback found that the existing runtime service account did not have the
+permission required to consume limited-use App Check tokens. After separate action-time
+approval, the operator granted only `roles/firebaseappcheck.tokenVerifier` to that exact
+service account with the explicit Ballers Kingdom project and account. A separate policy
+readback confirmed the member/role pair, and role metadata confirmed its sole included
+permission is `firebaseappcheck.appCheckTokens.verify`. Both ACTIVE functions independently
+read back the same runtime service-account identity after the change. No function redeploy or
+other IAM role was required.
+
+Synthetic and emulator coverage remains the authenticated stream-success proof because this
+inactive release deliberately did not create a real order or send an authentication link.
+No authentication email, invoice, payment, refund, customer email, or other provider mutation
+was used for smoke testing.
 
 ## Verification results
 
@@ -73,6 +75,7 @@ smoke testing.
 | Patch integrity | `git diff --check` | clean |
 | Repository security scan | secure operator checker | no production credential confirmed; fixture/public-config matches classified below |
 | Hosting package | explicit `hosting:public` dry run | passed; no deployment performed |
+| App Check token consumption IAM | independent project policy and predefined-role readback | exact runtime member has `roles/firebaseappcheck.tokenVerifier`; role grants `firebaseappcheck.appCheckTokens.verify` |
 
 The first emulator attempt could not find the macOS Java runtime. Re-running with the
 already-installed Homebrew OpenJDK 21 binary on `PATH` completed the matrix. Firebase Auth
@@ -216,9 +219,9 @@ rollback procedure is pre-documented.
    approval gates; this verification does not set them.
 3. Product `active` and the digital invoice pilot flag must remain false until a separately
    approved live-pilot sequence is ready.
-4. Add and independently read back the least-privilege App Check token-verifier role for the
-   deployed runtime service account, then verify limited-use token consumption through the
-   separately approved owner-pilot sequence. The other live function-state, Hosting/header,
-   immutable-object, unauthenticated, wrong-origin, and direct-Storage denial checks passed.
+4. Exercise a real limited-use App Check token and fulfilled-order stream only through a
+   separately approved owner-pilot sequence. IAM permission, synthetic/emulator success,
+   function state, Hosting/header, immutable-object, unauthenticated, wrong-origin, and
+   direct-Storage denial checks have passed.
 5. A real customer/authentication email, QuickBooks mutation, payment, refund, or invoice
    email always requires separate action-time authorization.
