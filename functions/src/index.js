@@ -18,7 +18,6 @@ import {
   createQuickBooksRefreshSecretStore,
 } from './commerce/quickbooks-token-coordinator.js';
 import {createBoundQuickBooksCredentialCoordinator,createFirestoreQuickBooksCredentialStore,publishQuickBooksReconnect} from './commerce/quickbooks-credential-binding.js';
-import {createQuickBooksWebhookProcessor} from './providers/quickbooks-webhooks.js';
 import {buildMicrosoftAuthUrl,buildQuickBooksAuthUrl,exchangeMicrosoftCode,exchangeQuickBooksCode} from './providers/oauth.js';
 
 initializeApp();
@@ -33,7 +32,6 @@ const MS_CLIENT_ID = defineSecret('MS_CLIENT_ID');
 const MS_CLIENT_SECRET = defineSecret('MS_CLIENT_SECRET');
 const MS_REFRESH_TOKEN = defineSecret('MS_REFRESH_TOKEN');
 const COMMERCE_PILOT_RECIPIENT_EMAIL = defineSecret('COMMERCE_PILOT_RECIPIENT_EMAIL');
-const QBO_WEBHOOK_VERIFIER_TOKEN = defineSecret('QBO_WEBHOOK_VERIFIER_TOKEN');
 const QBO_REDIRECT_URI = defineString('QBO_REDIRECT_URI',{default:'https://us-west1-the-ballers-kingdom.cloudfunctions.net/quickBooksOAuthCallback'});
 const MS_REDIRECT_URI = defineString('MS_REDIRECT_URI',{default:'https://us-west1-the-ballers-kingdom.cloudfunctions.net/microsoftOAuthCallback'});
 
@@ -545,32 +543,8 @@ export const reconcileRefund = onCall({
   }
 });
 
-export const quickBooksCommerceWebhook = onRequest({
-  region:REGION,
-  secrets:[QBO_WEBHOOK_VERIFIER_TOKEN],
-}, async (request,response) => {
-  if (COMMERCE_QBO_WEBHOOK_ENABLED !== true || readCommerceFeatureFlags().digitalInvoicePilotEnabled !== true) {
-    response.status(404).send('Not found');
-    return;
-  }
-  try {
-    const expectedRealmId=await quickBooksTokenCoordinator().getRealmId();
-    const repository = commerceRepository();
-    const processor = createQuickBooksWebhookProcessor({
-      verifierToken:QBO_WEBHOOK_VERIFIER_TOKEN.value(),
-      expectedRealmId,
-      storeHints:entries => repository.storeWebhookHints(entries),
-    });
-    await processor.acceptQuickBooksWebhook({
-      rawBody:request.rawBody,
-      signature:String(request.get('intuit-signature') ?? ''),
-    });
-    response.status(200).send('Accepted');
-  } catch (error) {
-    if (error?.code === 'WEBHOOK_SIGNATURE_INVALID') response.status(401).send('Rejected');
-    else if (error?.code === 'WEBHOOK_REALM_INVALID') response.status(403).send('Rejected');
-    else response.status(400).send('Rejected');
-  }
+export const quickBooksCommerceWebhook = onRequest({region:REGION}, async (_request,response) => {
+  response.status(404).send('Not found');
 });
 
 export const reconcileCommerceOrders = onSchedule({schedule:'every 5 minutes',

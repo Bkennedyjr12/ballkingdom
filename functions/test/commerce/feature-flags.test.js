@@ -51,6 +51,8 @@ test('Firebase wiring keeps the integration codebase path and secret boundaries 
   assert.equal(firebase.functions.codebase, 'ballkingdom-integrations');
   assert.match(indexSource, /defineSecret\('COMMERCE_PILOT_RECIPIENT_EMAIL'\)/);
   assert.match(indexSource, /const COMMERCE_QBO_WEBHOOK_ENABLED = false;/);
+  assert.doesNotMatch(indexSource, /defineSecret\('QBO_WEBHOOK_VERIFIER_TOKEN'\)/);
+  assert.match(indexSource, /export const quickBooksCommerceWebhook = onRequest\(\{\s*region:REGION\s*\}/s);
   assert.match(indexSource, /export const requestPilotSignInLink = onCall\(\{[^}]*enforceAppCheck:true/s);
   assert.match(indexSource, /export const createDigitalOrder = onCall\(\{[^}]*enforceAppCheck:true/s);
   assert.match(indexSource, /export const getOrderStatus = onCall\(\{[^}]*enforceAppCheck:true/s);
