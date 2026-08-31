@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { createFirebaseCommerceRuntime } from '../assets/js/firebase-commerce-runtime.js';
 
 const verifiedPublicConfig = Object.freeze({
@@ -24,6 +25,7 @@ function createSdk({
   const app = Object.freeze({ name: 'app' });
   const auth = { currentUser };
   const appCheck = Object.freeze({ name: 'app-check' });
+  const inMemoryPersistence = Object.freeze({ type: 'NONE' });
   class ReCaptchaEnterpriseProvider {
     constructor(siteKey) { calls.push(['provider', siteKey]); }
   }
@@ -31,6 +33,8 @@ function createSdk({
     calls,
     initializeApp(config) { calls.push(['initializeApp', config]); return app; },
     getAuth(receivedApp) { calls.push(['getAuth', receivedApp]); return auth; },
+    inMemoryPersistence,
+    setPersistence(receivedAuth, persistence) { calls.push(['setPersistence', receivedAuth, persistence]); return Promise.resolve(); },
     ReCaptchaEnterpriseProvider,
     initializeAppCheck(receivedApp, options) { calls.push(['initializeAppCheck', receivedApp, options]); return appCheck; },
     getToken(receivedAppCheck) { calls.push(['getToken', receivedAppCheck]); return appCheckToken; },
@@ -68,6 +72,8 @@ test('creates a frozen browser runtime with Firebase Auth and App Check initiali
   assert.equal(Object.isFrozen(runtime), true);
   assert.equal(sdk.calls.filter(([name]) => name === 'initializeApp').length, 1);
   assert.equal(sdk.calls.filter(([name]) => name === 'getAuth').length, 1);
+  assert.equal(sdk.calls.filter(([name]) => name === 'setPersistence').length, 1);
+  assert.equal(sdk.calls.find(([name]) => name === 'setPersistence')[2], sdk.inMemoryPersistence);
   assert.equal(sdk.calls.filter(([name]) => name === 'initializeAppCheck').length, 1);
   assert.deepEqual(sdk.calls.find(([name]) => name === 'initializeAppCheck')[2].isTokenAutoRefreshEnabled, true);
   assert.equal(await runtime.getAppCheckToken(), 'verified-app-check-token');
@@ -103,27 +109,24 @@ test('rejects blank email addresses before calling the Firebase sign-in method',
   assert.equal(historyCalls.length, 0);
 });
 
-test('rejects absent users, empty App Check tokens, and malformed SDK results without storage writes', async () => {
-  let writes = 0;
-  const originalLocalStorage = globalThis.localStorage;
-  const originalSessionStorage = globalThis.sessionStorage;
-  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { setItem() { writes += 1; } } });
-  Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: { setItem() { writes += 1; } } });
-  try {
-    const signedOut = createRuntime({ sdk: createSdk({ currentUser: null }) });
-    await assertGenericFailure(() => signedOut.runtime.getIdToken());
+test('rejects absent users, empty App Check tokens, and malformed SDK results', async () => {
+  const signedOut = createRuntime({ sdk: createSdk({ currentUser: null }) });
+  await assertGenericFailure(() => signedOut.runtime.getIdToken());
 
-    const emptyAppCheck = createRuntime({ sdk: createSdk({ appCheckToken: { token: '' } }) });
-    await assertGenericFailure(() => emptyAppCheck.runtime.getAppCheckToken());
+  const emptyAppCheck = createRuntime({ sdk: createSdk({ appCheckToken: { token: '' } }) });
+  await assertGenericFailure(() => emptyAppCheck.runtime.getAppCheckToken());
 
-    const emptyLimitedUse = createRuntime({ sdk: createSdk({ limitedUseToken: { token: '' } }) });
-    await assertGenericFailure(() => emptyLimitedUse.runtime.getLimitedUseAppCheckToken());
+  const emptyLimitedUse = createRuntime({ sdk: createSdk({ limitedUseToken: { token: '' } }) });
+  await assertGenericFailure(() => emptyLimitedUse.runtime.getLimitedUseAppCheckToken());
 
-    const malformedEmailResult = createRuntime({ sdk: createSdk({ signInResult: { user: {} } }) });
-    await assertGenericFailure(() => malformedEmailResult.runtime.completeEmailLink({ email: 'buyer@example.test' }));
-    assert.equal(writes, 0);
-  } finally {
-    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: originalLocalStorage });
-    Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: originalSessionStorage });
-  }
+  const malformedEmailResult = createRuntime({ sdk: createSdk({ signInResult: { user: {} } }) });
+  await assertGenericFailure(() => malformedEmailResult.runtime.completeEmailLink({ email: 'buyer@example.test' }));
+});
+
+test('uses in-memory Auth persistence and contains no application-managed browser storage writes', async () => {
+  const { sdk } = createRuntime();
+  assert.equal(sdk.calls.find(([name]) => name === 'setPersistence')[2], sdk.inMemoryPersistence);
+  const sources = await Promise.all(['firebase-commerce-runtime.js', 'commerce-client.js'].map(file =>
+    readFile(new URL(`../assets/js/${file}`, import.meta.url), 'utf8')));
+  for (const source of sources) assert.doesNotMatch(source, /\b(?:localStorage|sessionStorage|indexedDB)\b/);
 });

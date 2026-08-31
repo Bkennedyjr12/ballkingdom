@@ -27,16 +27,18 @@ function clearEmailActionParameters(location, history) {
 }
 
 function validSdk(sdk) {
-  return sdk && ['initializeApp', 'getAuth', 'ReCaptchaEnterpriseProvider', 'initializeAppCheck', 'getToken', 'getLimitedUseToken', 'isSignInWithEmailLink', 'signInWithEmailLink'].every(name => typeof sdk[name] === 'function');
+  return sdk && ['initializeApp', 'getAuth', 'setPersistence', 'ReCaptchaEnterpriseProvider', 'initializeAppCheck', 'getToken', 'getLimitedUseToken', 'isSignInWithEmailLink', 'signInWithEmailLink'].every(name => typeof sdk[name] === 'function') && sdk.inMemoryPersistence;
 }
 
 function createFirebaseCommerceRuntime({ location, history, sdk, firebaseConfig, recaptchaEnterpriseSiteKey } = {}) {
   let auth;
   let appCheck;
+  let authPersistenceReady;
   try {
     if (!validSdk(sdk) || !firebaseConfig || typeof firebaseConfig !== 'object' || !isNonEmptyString(recaptchaEnterpriseSiteKey)) throw genericError();
     const app = sdk.initializeApp(firebaseConfig);
     auth = sdk.getAuth(app);
+    authPersistenceReady = Promise.resolve(sdk.setPersistence(auth, sdk.inMemoryPersistence));
     appCheck = sdk.initializeAppCheck(app, {
       provider: new sdk.ReCaptchaEnterpriseProvider(recaptchaEnterpriseSiteKey),
       isTokenAutoRefreshEnabled: true,
@@ -54,6 +56,7 @@ function createFirebaseCommerceRuntime({ location, history, sdk, firebaseConfig,
     },
     async getIdToken() {
       try {
+        await authPersistenceReady;
         const user = auth?.currentUser;
         if (!user || typeof user.getIdToken !== 'function') throw genericError();
         const token = await user.getIdToken(true);
@@ -63,6 +66,7 @@ function createFirebaseCommerceRuntime({ location, history, sdk, firebaseConfig,
     },
     async completeEmailLink({ email } = {}) {
       try {
+        await authPersistenceReady;
         const normalizedEmail = typeof email === 'string' ? email.trim() : '';
         const href = location?.href;
         if (!isNonEmptyString(normalizedEmail) || !isNonEmptyString(href) || sdk.isSignInWithEmailLink(auth, href) !== true) throw genericError();
@@ -88,6 +92,8 @@ async function installBrowserRuntime(targetWindow) {
     sdk: {
       initializeApp: appModule.initializeApp,
       getAuth: authModule.getAuth,
+      inMemoryPersistence: authModule.inMemoryPersistence,
+      setPersistence: authModule.setPersistence,
       ReCaptchaEnterpriseProvider: appCheckModule.ReCaptchaEnterpriseProvider,
       initializeAppCheck: appCheckModule.initializeAppCheck,
       getToken: appCheckModule.getToken,
@@ -106,6 +112,13 @@ async function installBrowserRuntime(targetWindow) {
   });
 }
 
-if (typeof window !== 'undefined' && window.document) await installBrowserRuntime(window);
+if (typeof window !== 'undefined' && window.document) {
+  Object.defineProperty(window, '__BALLERS_FIREBASE_RUNTIME_READY__', {
+    configurable: false,
+    enumerable: false,
+    value: installBrowserRuntime(window),
+    writable: false,
+  });
+}
 
 export { createFirebaseCommerceRuntime };

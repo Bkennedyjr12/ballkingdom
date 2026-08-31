@@ -23,8 +23,9 @@ function validateCapabilityResponse(value){
   return Object.freeze({products:Object.freeze(products)});
 }
 function validBoundary(boundary){const required=['getBuyerCommerceCapability','requestPilotSignInLink','completeEmailLink','createDigitalOrder','getOrderStatus','createDownloadGrant','redeemDownloadGrant'];return boundary&&required.every(name=>typeof boundary[name]==='function')?boundary:null;}
+async function firebaseRuntime(){const ready=window.__BALLERS_FIREBASE_RUNTIME_READY__;if(ready&&typeof ready.then==='function'){try{await ready;}catch{return null;}}const runtime=window.__BALLERS_FIREBASE_RUNTIME__;return runtime&&typeof runtime==='object'?runtime:null;}
 async function realCallable(name,data,{auth=false}={}){
-  const runtime=window.__BALLERS_FIREBASE_RUNTIME__;
+  const runtime=await firebaseRuntime();
   if(!runtime||typeof runtime.getAppCheckToken!=='function')throw new Error('Firebase App Check is unavailable');
   const appCheckToken=await runtime.getAppCheckToken();
   if(typeof appCheckToken!=='string'||!appCheckToken)throw new Error('Firebase App Check is unavailable');
@@ -35,8 +36,8 @@ async function realCallable(name,data,{auth=false}={}){
   if(!response.ok||!isPlainRecord(envelope)||Object.keys(envelope).length!==1||!Object.hasOwn(envelope,'data'))throw new Error('Firebase callable failed');
   return envelope.data;
 }
-function realBoundary(){
-  const runtime=window.__BALLERS_FIREBASE_RUNTIME__;
+async function realBoundary(){
+  const runtime=await firebaseRuntime();
   if(!runtime||typeof runtime.completeEmailLink!=='function')return null;
   return Object.freeze({
     getBuyerCommerceCapability:()=>realCallable('getBuyerCommerceCapability',{}),
@@ -48,7 +49,7 @@ function realBoundary(){
     redeemDownloadGrant(){throw new Error('Protected delivery runtime is not released');},
   });
 }
-async function getCommerceBoundary(){return validBoundary(window.__BALLERS_COMMERCE__)??validBoundary(realBoundary());}
+async function getCommerceBoundary(){return validBoundary(window.__BALLERS_COMMERCE__)??validBoundary(await realBoundary());}
 function setStatus(message){const node=document.querySelector('[data-commerce-status]');if(node)node.textContent=message;}
 function setStep(status){const index=status==='fulfilled'?3:status==='paid'||status==='fulfillment_delayed'?2:status==='invoice_send_pending'||status==='payment_verification_pending'?1:0;document.querySelectorAll('.commerce-rail li').forEach((node,nodeIndex)=>{node.classList.toggle('is-current',nodeIndex===index);node.classList.toggle('is-complete',nodeIndex<index);});const stage=document.querySelector('[data-stage-number]');const labels=['Identity','Invoice email','Verification','Protected delivery'];if(stage)stage.textContent=`0${index+1} / ${labels[index]}`;}
 function renderStatus(status){setStep(status.status);setStatus(status.message);const panel=document.querySelector('[data-download-panel]');if(panel)panel.hidden=!status.downloadReady;const support=document.querySelector('[data-support]');if(support)support.hidden=status.status!=='manual_support';}
