@@ -2,8 +2,13 @@
 
 Status: **pre-release verification completed; purchase activation remains blocked**
 
-Reviewed: 2026-08-31  
-Verified implementation commit: `3abd56cae05aa52d92529b0b0554cbb7501bf734`
+Reviewed: 2026-08-31
+
+Final implementation code under test: `cf052c8c39c7f6067bbf06b085c21ed4aa694f92`.
+The evidence-document revision is the Git commit containing this file; it is intentionally
+not represented as a self-referential hash. Documentation-only evidence commits after the
+code-under-test hash do not change the implementation boundary.
+
 Production project/account: `the-ballers-kingdom` / `lilpelejr12@gmail.com`
 
 This record covers the inactive protected-download runtime only. It does not authorize or
@@ -17,10 +22,10 @@ invoice email, or other provider-side commerce action.
 | Node runtime | `/opt/homebrew/opt/node@22/bin/node --version` | `v22.23.2` |
 | Storefront unit/content | `npm run test:storefront:unit` | 21 passed; 0 failed/skipped |
 | Storefront browser | `npm run test:storefront:browser` | 4 passed; 0 failed/skipped |
-| Protected-commerce browser | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" npx playwright test tests/commerce-browser.spec.mjs` | 27 passed; 0 failed/skipped |
-| Functions without emulators | `npm test` in `functions/` | 404 tests; 402 passed; 2 documented emulator-only skips; 0 failed |
+| Protected-commerce browser | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" npx playwright test tests/commerce-browser.spec.mjs` | 28 passed; 0 failed/skipped |
+| Functions without emulators | `npm test` in `functions/` | 411 tests; 409 passed; 2 documented emulator-only skips; 0 failed |
 | Functions syntax | `npm run check` in `functions/` | passed |
-| Rules/emulator matrix | Firestore and Storage emulators with the complete Functions suite | 404 tests; 404 passed; 0 failed/skipped |
+| Rules/emulator matrix | Firestore and Storage emulators with the complete Functions suite | 411 tests; 411 passed; 0 failed/skipped |
 | Root production dependencies | `npm audit --omit=dev` | 0 vulnerabilities |
 | Functions production dependencies | `npm audit --omit=dev` | 7 moderate transitive findings; 0 high/critical |
 | Patch integrity | `git diff --check` | clean |
@@ -40,6 +45,25 @@ The public browser configuration provenance was the Firebase Web App registered 
 Enterprise key was read back through the corresponding Firebase App Check registration and
 canonical-domain allowlist. This evidence intentionally records neither public identifier's
 value nor raw CLI output.
+
+## Accepted timing residual
+
+The App Check-enforced sign-in-link callable returns the same generic body for approved and
+rejected requests and compares the approved pilot address through fixed-length digests with
+`timingSafeEqual`. A residual response-time difference can still exist because only a valid
+approved-recipient and existing-order request proceeds through authoritative order checks,
+Firebase Admin link generation, durable effect creation, and delivery coordination.
+
+The controller accepted this as a documented residual rather than a merge blocker. The order
+handle is a Node `randomUUID()` value with approximately 122 random bits; resume additionally
+requires the single approved pilot email binding and App Check. Artificially racing the valid
+path would not cancel Firebase Admin work and could hide continuing background effects, so no
+dishonest timing envelope was added. If the assumptions fail, an attacker who already knows
+the approved pilot email and obtains or guesses a valid opaque order handle could use latency
+as an additional confirmation signal. Bounded five-delivery reissue, transactional parallel
+deduplication, generic responses, and permanent ambiguous-send quarantine remain compensating
+controls; this residual must be reconsidered before expanding beyond the single-recipient
+owner pilot.
 
 ## Security and packaging controls
 
