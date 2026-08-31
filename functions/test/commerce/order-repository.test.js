@@ -960,6 +960,63 @@ test('creates one protected pilot auth effect and records the one dispatch attem
   assert.equal(JSON.stringify(effect).includes(RECIPIENT_BINDING), false);
 });
 
+test('reissues completed pilot auth effects sequentially up to the bounded cap',async()=>{
+  const {firestore,repository}=repositoryFixture();
+  for(let attempt=1;attempt<=6;attempt+=1){
+    const created=await repository.createPilotAuthEmailEffect(RECIPIENT_BINDING);
+    assert.equal(created,attempt<=5);
+    if(!created)continue;
+    const claim=await repository.claimPilotAuthEmailEffect(
+      RECIPIENT_BINDING,'auth-worker',new Date(`2026-08-29T18:0${attempt}:00.000Z`)
+    );
+    await repository.markPilotAuthDispatchStarted(
+      RECIPIENT_BINDING,'auth-worker',claim.claimId,new Date(`2026-08-29T18:0${attempt}:01.000Z`)
+    );
+    await repository.completePilotAuthEmailEffect(RECIPIENT_BINDING,'auth-worker',claim.claimId);
+  }
+
+  const effect=firestore.collection('commerceEffects').find(item=>item.effect==='pilot_auth_email');
+  assert.equal(effect.status,'completed');
+  assert.equal(effect.issuanceAttemptCount,5);
+  assert.equal(effect.dispatchAttemptCount,1);
+});
+
+test('deduplicates parallel pilot auth reissues after completion',async()=>{
+  const {repository}=repositoryFixture();
+  await repository.createPilotAuthEmailEffect(RECIPIENT_BINDING);
+  const first=await repository.claimPilotAuthEmailEffect(
+    RECIPIENT_BINDING,'auth-worker',new Date('2026-08-29T18:00:00.000Z')
+  );
+  await repository.markPilotAuthDispatchStarted(
+    RECIPIENT_BINDING,'auth-worker',first.claimId,new Date('2026-08-29T18:00:01.000Z')
+  );
+  await repository.completePilotAuthEmailEffect(RECIPIENT_BINDING,'auth-worker',first.claimId);
+
+  assert.deepEqual(
+    await Promise.all(Array.from({length:3},()=>repository.createPilotAuthEmailEffect(RECIPIENT_BINDING))),
+    [true,false,false]
+  );
+});
+
+test('never resets an ambiguous pilot auth effect for reissue',async()=>{
+  const {repository}=repositoryFixture();
+  await repository.createPilotAuthEmailEffect(RECIPIENT_BINDING);
+  const claim=await repository.claimPilotAuthEmailEffect(
+    RECIPIENT_BINDING,'auth-worker',new Date('2026-08-29T18:00:00.000Z')
+  );
+  await repository.markPilotAuthDispatchStarted(
+    RECIPIENT_BINDING,'auth-worker',claim.claimId,new Date('2026-08-29T18:00:01.000Z')
+  );
+  await repository.recordPilotAuthEmailFailure(
+    RECIPIENT_BINDING,'auth-worker',claim.claimId,{code:'timeout'}
+  );
+
+  assert.equal(await repository.createPilotAuthEmailEffect(RECIPIENT_BINDING),false);
+  assert.equal(await repository.claimPilotAuthEmailEffect(
+    RECIPIENT_BINDING,'other-worker',new Date('2026-08-29T18:01:00.000Z')
+  ),false);
+});
+
 test('recovers only pre-dispatch pilot auth leases and quarantines ambiguous dispatches', async () => {
   const firstBinding = 'a'.repeat(64);
   const secondBinding = 'b'.repeat(64);

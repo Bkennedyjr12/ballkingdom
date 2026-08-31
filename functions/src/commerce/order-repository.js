@@ -24,6 +24,7 @@ const SAFE_ERROR_CODE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const SHA256_DIGEST = /^[a-f0-9]{64}$/;
 const EFFECT_TYPES = new Set(['invoice_create', 'invoice_send']);
 const EFFECT_LEASE_MILLISECONDS = 5 * 60 * 1000;
+const PILOT_AUTH_MAX_ISSUANCES = 5;
 const WEBHOOK_ENTITY = new Set(['Invoice', 'Payment']);
 const WEBHOOK_OPERATION = new Set(['Create', 'Update', 'Delete', 'Merge', 'Void']);
 const RATE_LIMIT_SCOPE = new Set(['pilot_auth', 'order_status']);
@@ -635,14 +636,40 @@ export function createOrderRepository({
       const receipt = auditRef();
       return db.runTransaction(async transaction => {
         const existing = await transaction.get(reference);
-        if (existing.exists) return false;
         const timestamp = fieldValue.serverTimestamp();
+        if (existing.exists) {
+          const effect = existing.data();
+          const issuanceAttemptCount = Number.isInteger(effect.issuanceAttemptCount)
+            ? effect.issuanceAttemptCount
+            : 1;
+          if (effect.status !== 'completed' || issuanceAttemptCount >= PILOT_AUTH_MAX_ISSUANCES) {
+            return false;
+          }
+          transaction.set(reference, {
+            ...effect,
+            status: 'pending',
+            claim: null,
+            dispatchStartedAt: null,
+            dispatchAttemptCount: 0,
+            issuanceAttemptCount: issuanceAttemptCount + 1,
+            lastClaimId: null,
+            lastErrorCode: null,
+            nextAttemptAt: Timestamp.fromDate(dateValue(clock(), 'clock')),
+            completedAt: null,
+            updatedAt: timestamp,
+          });
+          transaction.create(receipt, effectReceipt({
+            event: 'effect_reissued', effect: 'pilot_auth_email',
+          }, fieldValue));
+          return true;
+        }
         transaction.create(reference, {
           effect: 'pilot_auth_email',
           status: 'pending',
           claim: null,
           dispatchStartedAt: null,
           dispatchAttemptCount: 0,
+          issuanceAttemptCount: 1,
           lastErrorCode: null,
           nextAttemptAt: Timestamp.fromDate(dateValue(clock(), 'clock')),
           createdAt: timestamp,

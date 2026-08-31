@@ -1,15 +1,70 @@
 import { test, expect } from '@playwright/test';
+import {createHash} from 'node:crypto';
+import {createCommerceService} from '../functions/src/commerce/commerce-service.js';
 
 const activeRelease = Object.freeze({
   products: [{sku:'home-inspection-study-guide',active:true}],
 });
+
+async function captureServerDeliveredResumeLink(request){
+  const approvedEmail='approved@example.test';
+  const binding=createHash('sha256').update(`binding\0${approvedEmail}`).digest('hex');
+  const order={
+    id:'safe-order-1',sku:'home-inspection-study-guide',orderType:'digital_product',
+    customerUid:'customer-uid',authorizedRecipientBinding:binding,
+  };
+  const effects=new Map();
+  const delivered=[];
+  let claimSequence=0;
+  const repository={
+    async getOrder(orderId){return orderId===order.id?order:null;},
+    async createPilotAuthEmailEffect(effectBinding){
+      if(effects.has(effectBinding))return false;
+      effects.set(effectBinding,{status:'pending',claim:null,dispatchAttemptCount:0});
+      return true;
+    },
+    async claimPilotAuthEmailEffect(effectBinding,workerId){
+      const effect=effects.get(effectBinding);
+      if(!effect || effect.status!=='pending')return false;
+      const claimId=`claim-${++claimSequence}`;
+      Object.assign(effect,{status:'claimed',claim:{claimId,workerId}});
+      return {claimId};
+    },
+    async markPilotAuthDispatchStarted(effectBinding){effects.get(effectBinding).dispatchAttemptCount=1;return true;},
+    async completePilotAuthEmailEffect(effectBinding){effects.get(effectBinding).status='completed';return true;},
+    async recordPilotAuthEmailFailure(){throw new Error('synthetic auth delivery failed');},
+  };
+  const auth={
+    async generateSignInWithEmailLink(email,settings){
+      expect(email).toBe(approvedEmail);
+      const link=new URL('https://the-ballers-kingdom.firebaseapp.com/__/auth/action');
+      link.searchParams.set('apiKey','synthetic-public-config');
+      link.searchParams.set('mode','signIn');
+      link.searchParams.set('oobCode','return-link');
+      link.searchParams.set('continueUrl',settings.url);
+      return link.toString();
+    },
+  };
+  const graph={async sendPilotAuthLink(message){delivered.push(structuredClone(message));return {accepted:true};}};
+  const service=createCommerceService({
+    repository,auth,graph,
+    readFeatureFlags:()=>({digitalInvoicePilotEnabled:true,serviceQboSendEnabled:false}),
+    getApprovedPilotEmail:()=>approvedEmail,
+    workerIdFactory:()=> 'browser-contract-worker',
+  });
+
+  expect(await service.requestPilotSignInLink(request,{app:{appId:'browser-contract'}}))
+    .toEqual({status:'request_received'});
+  expect(delivered).toHaveLength(1);
+  return delivered[0].link;
+}
 
 async function installCommerceMock(page, scenario = 'pending') {
   await page.addInitScript(({release, scenario}) => {
     const calls = [];
     window.__commerceTestCalls = calls;
     window.__BALLERS_COMMERCE__ = {
-      async getBuyerCommerceCapability() { calls.push(['release']); return release; },
+      async getBuyerCommerceCapability() { calls.push(['release']); return scenario === 'resume-late' ? {products:[{sku:'home-inspection-study-guide',active:false}]} : release; },
       async requestPilotSignInLink(input) { calls.push(['auth', input]); return {status:'request_received'}; },
       async completeEmailLink() { calls.push(['complete']); return scenario === 'invalid-link' ? {signedIn:false} : {signedIn:true}; },
       async createDigitalOrder(input) {
@@ -18,15 +73,84 @@ async function installCommerceMock(page, scenario = 'pending') {
       },
       async getOrderStatus() {
         calls.push(['status']);
+        if (scenario === 'resume-late') {
+          if (!calls.some(([name]) => name === 'complete')) throw new Error('sign-in required');
+          return {orderHandle:'safe-order-1',status:'fulfilled',message:'Your protected delivery is ready.',downloadReady:true};
+        }
         if (scenario === 'unexpected') return {orderHandle:'safe-order-1',status:'fulfilled',message:'Ready',downloadReady:true,providerUrl:'https://example.invalid'};
         if (scenario === 'fulfilled' || scenario === 'replay') return {orderHandle:'safe-order-1',status:'fulfilled',message:'Your protected delivery is ready.',downloadReady:true};
         if (scenario === 'status-denied') throw new Error('owner denied');
         return {orderHandle:'safe-order-1',status:'payment_verification_pending',message:'QuickBooks sent payment instructions to your email. Payment verification is pending.',downloadReady:false};
       },
-      async createDownloadGrant() { const grant=`single-use-${calls.length.toString().padStart(32,'0')}`; calls.push(['grant',grant]); return {grant,expiresAt:'soon'}; },
+      async createDownloadGrant() { const grant=`single-use-${calls.length.toString().padStart(32,'0')}`; calls.push(['grant',grant]); return {grant,expiresAt:'2099-01-01T00:00:00.000Z'}; },
       async redeemDownloadGrant(input) { calls.push(['redeem',input]); if (scenario === 'replay') throw new Error('consumed'); return {streamed:true}; },
     };
   }, {release:activeRelease, scenario});
+}
+
+async function installProtectedDeliveryRuntime(page,{streamStatus=200,streamType='application/pdf',streamLength=null,streamMode='normal',grant='A'.repeat(43),expiresAt='2099-01-01T00:00:00.000Z',grantExtra=false}={}){
+  await page.route(/\/order-status\.html(?:\?.*)?$/,async route=>{
+    const response=await route.fetch();
+    const body=(await response.text()).replace('<script type="module" src="assets/js/firebase-commerce-runtime.js"></script>','');
+    await route.fulfill({response,body});
+  });
+  await page.addInitScript(({streamStatus,streamType,streamLength,streamMode,grant,expiresAt,grantExtra})=>{
+    const evidence={fetches:[],tokens:[],objectUrls:[],revoked:[],downloads:[],console:[],readerCancels:0};
+    window.__protectedDeliveryEvidence=evidence;
+    window.__commerceTestCalls=[];
+    window.__commerceTestDownloadTimeoutMs=50;
+    window.__BALLERS_FIREBASE_RUNTIME__={
+      async completeEmailLink(){return {signedIn:true};},
+      async getAppCheckToken(){const token=`ordinary-app-check-${evidence.tokens.length}`;evidence.tokens.push(['ordinary',token]);return token;},
+      async getLimitedUseAppCheckToken(){const token=`limited-app-check-${evidence.tokens.length}`;evidence.tokens.push(['limited',token]);return token;},
+      async getIdToken(){const token=`fresh-id-token-${evidence.tokens.length}`;evidence.tokens.push(['id',token]);return token;},
+    };
+    window.__BALLERS_FIREBASE_RUNTIME_READY__=Promise.resolve(window.__BALLERS_FIREBASE_RUNTIME__);
+    const originalFetch=window.fetch.bind(window);
+    window.fetch=async(url,options={})=>{
+      const name=String(url).split('/').pop();
+      evidence.fetches.push({name,method:options.method,headers:{...options.headers},body:options.body,credentials:options.credentials});
+      if(name==='getBuyerCommerceCapability')return new Response(JSON.stringify({data:{products:[{sku:'home-inspection-study-guide',active:true}]}}),{status:200,headers:{'Content-Type':'application/json'}});
+      if(name==='getOrderStatus')return new Response(JSON.stringify({data:{orderHandle:'safe-order-1',status:'fulfilled',message:'Ready.',downloadReady:true}}),{status:200,headers:{'Content-Type':'application/json'}});
+      if(name==='createDownloadGrant'){const data={grant,expiresAt};if(grantExtra)data.unexpected='field';return new Response(JSON.stringify({data}),{status:200,headers:{'Content-Type':'application/json'}});}
+      if(name==='redeemDownloadGrant'){
+        if(streamMode==='never-fetch')return new Promise(()=>{});
+        const headers={'Content-Type':streamType};if(streamLength!==null)headers['Content-Length']=streamLength;
+        let body=new Uint8Array([37,80,68,70,45,49,46,55]);
+        if(streamMode==='empty')body=new Uint8Array();
+        if(streamMode==='partial-stall')body=new ReadableStream({start(controller){controller.enqueue(new Uint8Array([37,80,68,70]));},cancel(){evidence.readerCancels+=1;}});
+        if(streamMode==='cancel-never')body=new ReadableStream({start(controller){controller.enqueue(new Uint8Array([37,80,68,70]));},cancel(){evidence.readerCancels+=1;return new Promise(()=>{});}});
+        if(streamMode==='reader-error')body=new ReadableStream({start(controller){controller.enqueue(new Uint8Array([37,80,68,70]));queueMicrotask(()=>controller.error(new Error('private reader detail')));},cancel(){evidence.readerCancels+=1;}});
+        if(streamMode==='oversize'){
+          let chunks=0;
+          body=new ReadableStream({pull(controller){if(chunks>=81){controller.close();return;}chunks+=1;controller.enqueue(new Uint8Array(1024*1024));},cancel(){evidence.readerCancels+=1;}});
+        }
+        return new Response(body,{status:streamStatus,headers});
+      }
+      return originalFetch(url,options);
+    };
+    const originalCreate=URL.createObjectURL.bind(URL);
+    URL.createObjectURL=blob=>{const value=`blob:protected-${evidence.objectUrls.length+1}`;evidence.objectUrls.push({value,type:blob.type,size:blob.size});return value;};
+    URL.revokeObjectURL=value=>evidence.revoked.push(value);
+    const originalClick=HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click=function(){evidence.downloads.push({download:this.download,href:this.href,connected:this.isConnected});};
+    window.addEventListener('beforeunload',()=>{URL.createObjectURL=originalCreate;HTMLAnchorElement.prototype.click=originalClick;});
+    for(const method of ['log','info','warn','error']){const original=console[method].bind(console);console[method]=(...args)=>{evidence.console.push(args.map(String).join(' '));original(...args);};}
+  },{streamStatus,streamType,streamLength,streamMode,grant,expiresAt,grantExtra});
+}
+
+async function expectProtectedFailure(page,options){
+  await installProtectedDeliveryRuntime(page,options);
+  await page.goto('/order-status.html?sku=home-inspection-study-guide&order=safe-order-1');
+  const button=page.getByRole('button',{name:/Download protected guide/i});
+  await button.click();
+  await expect(page.getByText(/one-time delivery attempt could not be completed/i)).toBeVisible();
+  await expect(button).toBeEnabled();
+  await expect(page.getByText(/protected delivery started/i)).toHaveCount(0);
+  const evidence=await page.evaluate(()=>window.__protectedDeliveryEvidence);
+  expect(evidence.objectUrls).toHaveLength(0);
+  expect(evidence.downloads).toHaveLength(0);
+  return evidence;
 }
 
 test('digital product shows QuickBooks email instructions without a pay URL', async ({page}) => {
@@ -101,6 +225,34 @@ test('signed-out or wrong-owner status denial never reveals order state', async 
   await expect(page.getByRole('button',{name:/download/i})).toHaveCount(0);
 });
 
+test('returning buyer completes email-link auth and resumes the existing late-fulfilled order without creating another order',async({page})=>{
+  await installCommerceMock(page,'resume-late');
+  await page.goto('/order-status.html?sku=home-inspection-study-guide&order=safe-order-1');
+  await expect(page.getByText(/verified owner/i)).toBeVisible();
+  await expect(page.getByRole('button',{name:/Sign in and resume order/i})).toBeVisible();
+  await expect(page.getByLabel(/name/i)).not.toHaveAttribute('required','');
+  await page.getByLabel(/email address/i).fill('approved@example.test');
+  await page.getByRole('button',{name:/Email me a sign-in link/i}).click();
+  const request=await page.evaluate(()=>window.__commerceTestCalls.find(([name])=>name==='auth')[1]);
+  expect(request).toEqual({email:'approved@example.test',orderHandle:'safe-order-1'});
+  const deliveredLink=await captureServerDeliveredResumeLink(request);
+  const firebaseLink=new URL(deliveredLink);
+  expect(firebaseLink.pathname).toBe('/__/auth/action');
+  const returnUrl=new URL(firebaseLink.searchParams.get('continueUrl'));
+  expect(returnUrl.searchParams.get('order')).toBe('safe-order-1');
+  returnUrl.searchParams.set('mode',firebaseLink.searchParams.get('mode'));
+  returnUrl.searchParams.set('oobCode',firebaseLink.searchParams.get('oobCode'));
+  await page.goto(`${returnUrl.pathname}${returnUrl.search}`);
+  await page.getByLabel(/email address/i).fill('approved@example.test');
+  await page.getByRole('button',{name:/Sign in and resume order/i}).click();
+  await expect(page.getByRole('button',{name:/Download protected guide/i})).toBeVisible();
+  await expect(page.getByText(/protected delivery is ready/i)).toBeVisible();
+  const calls=await page.evaluate(()=>window.__commerceTestCalls);
+  expect(calls.filter(([name])=>name==='complete')).toHaveLength(1);
+  expect(calls.filter(([name])=>name==='status')).toHaveLength(2);
+  expect(calls.some(([name])=>name==='create')).toBe(false);
+});
+
 test('390px order status stays usable and keyboard focus is visible', async ({page}) => {
   await page.setViewportSize({width:390,height:844});
   await installCommerceMock(page);
@@ -144,6 +296,104 @@ test('consumed grant denial returns to a safe fulfilled view and a new grant can
   const calls=await page.evaluate(()=>window.__commerceTestCalls);
   expect(calls.filter(([name])=>name==='grant')).toHaveLength(2);
   expect(calls.filter(([name])=>name==='redeem')).toHaveLength(2);
+});
+
+test('real protected delivery uses fresh tokens once and revokes the temporary PDF URL',async({page})=>{
+  await installProtectedDeliveryRuntime(page);
+  await page.goto('/order-status.html?sku=home-inspection-study-guide&order=safe-order-1');
+  await page.getByRole('button',{name:/Download protected guide/i}).click();
+  await expect(page.getByText(/protected delivery started/i)).toBeVisible();
+  const evidence=await page.evaluate(()=>({
+    ...window.__protectedDeliveryEvidence,
+    url:location.href,
+    local:{...localStorage},
+    session:{...sessionStorage},
+    html:document.documentElement.outerHTML,
+  }));
+  const grantCall=evidence.fetches.find(call=>call.name==='createDownloadGrant');
+  const streamCall=evidence.fetches.find(call=>call.name==='redeemDownloadGrant');
+  expect(grantCall.headers.Authorization).toMatch(/^Bearer fresh-id-token-/);
+  expect(grantCall.headers['X-Firebase-AppCheck']).toMatch(/^ordinary-app-check-/);
+  expect(streamCall.headers.Authorization).toMatch(/^Bearer fresh-id-token-/);
+  expect(streamCall.headers['X-Firebase-AppCheck']).toMatch(/^limited-app-check-/);
+  expect(streamCall.credentials).toBe('omit');
+  expect(JSON.parse(streamCall.body)).toEqual({orderHandle:'safe-order-1',grant:'A'.repeat(43)});
+  expect(evidence.objectUrls).toEqual([{value:'blob:protected-1',type:'application/pdf',size:8}]);
+  expect(evidence.downloads).toEqual([{download:'Home Inspection Study Guide.pdf',href:'blob:protected-1',connected:false}]);
+  expect(evidence.revoked).toEqual(['blob:protected-1']);
+  const exposed=JSON.stringify({url:evidence.url,local:evidence.local,session:evidence.session,html:evidence.html,console:evidence.console});
+  for(const secret of ['A'.repeat(43),'fresh-id-token-','ordinary-app-check-','limited-app-check-','private-commerce/'])expect(exposed).not.toContain(secret);
+});
+
+test('failed stream is not retried automatically and a user may request a fresh grant',async({page})=>{
+  await installProtectedDeliveryRuntime(page,{streamStatus:502});
+  await page.goto('/order-status.html?sku=home-inspection-study-guide&order=safe-order-1');
+  const button=page.getByRole('button',{name:/Download protected guide/i});
+  await button.click();
+  await expect(page.getByText(/one-time delivery attempt could not be completed/i)).toBeVisible();
+  let calls=await page.evaluate(()=>window.__protectedDeliveryEvidence.fetches);
+  expect(calls.filter(call=>call.name==='createDownloadGrant')).toHaveLength(1);
+  expect(calls.filter(call=>call.name==='redeemDownloadGrant')).toHaveLength(1);
+  expect(await page.evaluate(()=>window.__protectedDeliveryEvidence.objectUrls)).toHaveLength(0);
+  await button.click();
+  await expect.poll(()=>page.evaluate(()=>window.__protectedDeliveryEvidence.fetches.filter(call=>call.name==='redeemDownloadGrant').length)).toBe(2);
+  calls=await page.evaluate(()=>window.__protectedDeliveryEvidence.fetches);
+  expect(calls.filter(call=>call.name==='createDownloadGrant')).toHaveLength(2);
+  expect(calls.filter(call=>call.name==='redeemDownloadGrant')).toHaveLength(2);
+});
+
+test('non-PDF stream response fails closed without creating a download',async({page})=>{
+  await expectProtectedFailure(page,{streamType:'text/html'});
+});
+
+test('oversized declared PDF fails before a browser download is created',async({page})=>{
+  await expectProtectedFailure(page,{streamLength:String(81*1024*1024)});
+});
+
+for(const [name,options] of [
+  ['empty PDF body',{streamMode:'empty'}],
+  ['zero Content-Length',{streamLength:'0'}],
+  ['malformed Content-Length',{streamLength:'eight'}],
+  ['declared and streamed length mismatch',{streamLength:'9'}],
+  ['stream exceeding 80 MiB without Content-Length',{streamMode:'oversize'}],
+  ['reader failure after partial bytes',{streamMode:'reader-error'}],
+])test(`${name} fails closed without a false download`,async({page})=>{await expectProtectedFailure(page,options);});
+
+test('never-resolving fetch reaches one deadline, re-enables UI, and does not retry',async({page})=>{
+  const evidence=await expectProtectedFailure(page,{streamMode:'never-fetch'});
+  expect(evidence.fetches.filter(call=>call.name==='redeemDownloadGrant')).toHaveLength(1);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(()=>window.__protectedDeliveryEvidence.fetches.filter(call=>call.name==='redeemDownloadGrant').length)).toBe(1);
+});
+
+test('partial reader stall is cancelled at the same deadline and never claims success',async({page})=>{
+  const evidence=await expectProtectedFailure(page,{streamMode:'partial-stall'});
+  expect(evidence.readerCancels).toBeGreaterThan(0);
+  expect(evidence.fetches.filter(call=>call.name==='redeemDownloadGrant')).toHaveLength(1);
+});
+
+test('never-settling reader cancellation cannot block generic failure or UI recovery',async({page})=>{
+  const evidence=await expectProtectedFailure(page,{streamMode:'cancel-never'});
+  expect(evidence.readerCancels).toBeGreaterThan(0);
+  expect(evidence.fetches.filter(call=>call.name==='redeemDownloadGrant')).toHaveLength(1);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(()=>window.__protectedDeliveryEvidence.fetches.filter(call=>call.name==='redeemDownloadGrant').length)).toBe(1);
+  expect(await page.evaluate(()=>window.__protectedDeliveryEvidence.objectUrls)).toHaveLength(0);
+  expect(await page.evaluate(()=>window.__protectedDeliveryEvidence.downloads)).toHaveLength(0);
+});
+
+test('grant response must have exact keys, base64url length, and a future expiration before stream tokens',async({page})=>{
+  for(const invalid of [
+    {grant:'short',expiresAt:'2099-01-01T00:00:00.000Z'},
+    {grant:'A'.repeat(43),expiresAt:'2020-01-01T00:00:00.000Z'},
+    {grant:'A'.repeat(43),expiresAt:'2099-01-01T00:00:00.000Z',grantExtra:true},
+  ]){
+    const isolated=await page.context().newPage();
+    const evidence=await expectProtectedFailure(isolated,invalid);
+    expect(evidence.fetches.some(call=>call.name==='redeemDownloadGrant')).toBe(false);
+    expect(evidence.tokens.some(([kind])=>kind==='limited')).toBe(false);
+    await isolated.close();
+  }
 });
 
 test('polling stops at terminal state and respects its timeout cap', async ({page}) => {

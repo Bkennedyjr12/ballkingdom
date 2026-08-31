@@ -22,6 +22,24 @@ The catalog records these verified production identifiers, but remains `active: 
 The professional tax-verification gate and protected-download runtime wiring remain false,
 so no buyer can create an order.
 
+## 2026-08-31 protected-delivery pre-release verification
+
+The protected-delivery implementation was verified at source commit
+`20d0bad2ed36a9f77969c03c209d2f73c900d584`. The private provider object was read back
+independently with the explicit Ballers Kingdom project and account context. Its bucket,
+object key, immutable generation, 71,250,419-byte size, `application/pdf` content type, and
+provider MD5 matched the frozen catalog definition. A separate local digest of the reviewed
+source PDF matched both the recorded SHA-256 and provider MD5.
+
+The runtime is ready to be deployed, but the product remains deliberately unavailable:
+`active`, `tax.accountantVerified`, `release.fulfillmentRuntimeVerified`, and
+`release.deployApproved` are all `false`, and both commerce environment flags are exactly
+`false`. This verification made no customer, invoice, payment, refund, authentication-email,
+invoice-email, or accounting-provider mutation.
+
+The complete non-secret verification record and scoped release/rollback manifests are in
+[`protected-commerce-delivery-verification.md`](protected-commerce-delivery-verification.md).
+
 ## Approved pilot mapping
 
 - SKU: `home-inspection-study-guide`
