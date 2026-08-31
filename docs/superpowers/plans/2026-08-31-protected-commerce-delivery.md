@@ -148,7 +148,7 @@ git push
 - Create: `functions/src/commerce/download-http.js`
 - Create: `functions/test/commerce/download-http.test.js`
 - Modify: `functions/src/index.js`
-- Modify: `functions/test/commerce/credentials.test.js`
+- Create: `functions/test/commerce/download-function-contract.test.js`
 
 **Interfaces:**
 - Consumes: `createFulfillmentRuntime(...)`, Firebase Admin `getAuth().verifyIdToken(token, true)`, `getAuth().getUser(uid)`, and `getAppCheck().verifyToken(token,{consume:true})`.
@@ -210,7 +210,7 @@ Run download, fulfillment, credential, syntax, then the complete Functions test 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add functions/src/commerce/download-http.js functions/test/commerce/download-http.test.js functions/src/index.js functions/test/commerce/credentials.test.js
+git add functions/src/commerce/download-http.js functions/test/commerce/download-http.test.js functions/test/commerce/download-function-contract.test.js functions/src/index.js
 git commit -m "feat: add protected download endpoints"
 git push
 ```
