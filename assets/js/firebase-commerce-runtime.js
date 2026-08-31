@@ -27,18 +27,16 @@ function clearEmailActionParameters(location, history) {
 }
 
 function validSdk(sdk) {
-  return sdk && ['initializeApp', 'getAuth', 'setPersistence', 'ReCaptchaEnterpriseProvider', 'initializeAppCheck', 'getToken', 'getLimitedUseToken', 'isSignInWithEmailLink', 'signInWithEmailLink'].every(name => typeof sdk[name] === 'function') && sdk.inMemoryPersistence;
+  return sdk && ['initializeApp', 'initializeAuth', 'signOut', 'ReCaptchaEnterpriseProvider', 'initializeAppCheck', 'getToken', 'getLimitedUseToken', 'isSignInWithEmailLink', 'signInWithEmailLink'].every(name => typeof sdk[name] === 'function') && sdk.inMemoryPersistence;
 }
 
 function createFirebaseCommerceRuntime({ location, history, sdk, firebaseConfig, recaptchaEnterpriseSiteKey } = {}) {
   let auth;
   let appCheck;
-  let authPersistenceReady;
   try {
     if (!validSdk(sdk) || !firebaseConfig || typeof firebaseConfig !== 'object' || !isNonEmptyString(recaptchaEnterpriseSiteKey)) throw genericError();
     const app = sdk.initializeApp(firebaseConfig);
-    auth = sdk.getAuth(app);
-    authPersistenceReady = Promise.resolve(sdk.setPersistence(auth, sdk.inMemoryPersistence));
+    auth = sdk.initializeAuth(app, { persistence: sdk.inMemoryPersistence });
     appCheck = sdk.initializeAppCheck(app, {
       provider: new sdk.ReCaptchaEnterpriseProvider(recaptchaEnterpriseSiteKey),
       isTokenAutoRefreshEnabled: true,
@@ -56,7 +54,6 @@ function createFirebaseCommerceRuntime({ location, history, sdk, firebaseConfig,
     },
     async getIdToken() {
       try {
-        await authPersistenceReady;
         const user = auth?.currentUser;
         if (!user || typeof user.getIdToken !== 'function') throw genericError();
         const token = await user.getIdToken(true);
@@ -65,17 +62,23 @@ function createFirebaseCommerceRuntime({ location, history, sdk, firebaseConfig,
       } catch { throw genericError(); }
     },
     async completeEmailLink({ email } = {}) {
+      let signInAttempted = false;
       try {
-        await authPersistenceReady;
         const normalizedEmail = typeof email === 'string' ? email.trim() : '';
         const href = location?.href;
         if (!isNonEmptyString(normalizedEmail) || !isNonEmptyString(href) || sdk.isSignInWithEmailLink(auth, href) !== true) throw genericError();
+        signInAttempted = true;
         const result = await sdk.signInWithEmailLink(auth, normalizedEmail, href);
         const signedInEmail = result?.user?.email;
         if (!isNonEmptyString(signedInEmail) || signedInEmail.trim().toLowerCase() !== normalizedEmail.toLowerCase()) throw genericError();
         clearEmailActionParameters(location, history);
         return Object.freeze({ signedIn: true });
-      } catch { throw genericError(); }
+      } catch {
+        if (signInAttempted) {
+          try { await sdk.signOut(auth); } catch { /* Preserve the generic public failure. */ }
+        }
+        throw genericError();
+      }
     },
   });
 }
@@ -91,9 +94,9 @@ async function installBrowserRuntime(targetWindow) {
     history: targetWindow.history,
     sdk: {
       initializeApp: appModule.initializeApp,
-      getAuth: authModule.getAuth,
+      initializeAuth: authModule.initializeAuth,
       inMemoryPersistence: authModule.inMemoryPersistence,
-      setPersistence: authModule.setPersistence,
+      signOut: authModule.signOut,
       ReCaptchaEnterpriseProvider: appCheckModule.ReCaptchaEnterpriseProvider,
       initializeAppCheck: appCheckModule.initializeAppCheck,
       getToken: appCheckModule.getToken,
