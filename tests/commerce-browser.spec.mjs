@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import {buildPilotActionCodeSettings} from '../functions/src/commerce/commerce-service.js';
 
 const activeRelease = Object.freeze({
   products: [{sku:'home-inspection-study-guide',active:true}],
@@ -172,10 +173,19 @@ test('signed-out or wrong-owner status denial never reveals order state', async 
 
 test('returning buyer completes email-link auth and resumes the existing late-fulfilled order without creating another order',async({page})=>{
   await installCommerceMock(page,'resume-late');
-  await page.goto('/order-status.html?sku=home-inspection-study-guide&order=safe-order-1&mode=signIn&oobCode=return-link');
+  await page.goto('/order-status.html?sku=home-inspection-study-guide&order=safe-order-1');
   await expect(page.getByText(/verified owner/i)).toBeVisible();
   await expect(page.getByRole('button',{name:/Sign in and resume order/i})).toBeVisible();
   await expect(page.getByLabel(/name/i)).not.toHaveAttribute('required','');
+  await page.getByLabel(/email address/i).fill('approved@example.test');
+  await page.getByRole('button',{name:/Email me a sign-in link/i}).click();
+  const request=await page.evaluate(()=>window.__commerceTestCalls.find(([name])=>name==='auth')[1]);
+  expect(request).toEqual({email:'approved@example.test',orderHandle:'safe-order-1'});
+  const serverSettings=buildPilotActionCodeSettings(request.orderHandle);
+  const returnUrl=new URL(serverSettings.url);
+  returnUrl.searchParams.set('mode','signIn');
+  returnUrl.searchParams.set('oobCode','return-link');
+  await page.goto(`${returnUrl.pathname}${returnUrl.search}`);
   await page.getByLabel(/email address/i).fill('approved@example.test');
   await page.getByRole('button',{name:/Sign in and resume order/i}).click();
   await expect(page.getByRole('button',{name:/Download protected guide/i})).toBeVisible();

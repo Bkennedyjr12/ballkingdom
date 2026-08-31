@@ -67,3 +67,24 @@ TDD evidence:
 - GREEN: commerce browser suite — 28 passed.
 - GREEN: storefront unit/content suite — 21 passed.
 - GREEN: `git diff --check` — clean.
+
+## Returning-buyer round 2/5
+
+Closed the production email-link continuation seam:
+
+- The browser includes `orderHandle` only when requesting a sign-in link from a validated existing-order context; new-order requests retain the original email-only schema.
+- The server accepts only exact `email` / optional `orderHandle` keys, applies the existing bounded safe-ID format, re-reads the order, and requires the approved-recipient binding, digital-product type, expected SKU, and an assigned customer before building a resume URL.
+- The server-owned URL builder fixes the HTTPS origin/path and emits both `sku` and the authorized `order` handle. Missing, malformed, foreign, or extra-field requests return the same generic result and perform no persistence or sender call.
+- An authorized resume uses an order-scoped, one-way effect binding, so a previously completed new-order sign-in effect cannot suppress the returning buyer's resume link; parallel requests for the same order remain deduplicated.
+- Browser integration coverage obtains the order handle from the actual request, derives the return location with the production server URL builder, completes the in-memory Auth return, and proves `createDigitalOrder` remains uncalled.
+
+TDD and verification evidence:
+
+- RED: the service test first failed because the secure server URL builder did not exist, then proved a completed base sign-in effect incorrectly suppressed the resume continuation until the order-scoped effect binding was added.
+- Commerce service tests: 46 passed.
+- Complete Functions suite: 403 passed, 2 documented emulator-only skips, 0 failed.
+- Functions syntax/check gate: passed.
+- Commerce browser suite: 28 passed.
+- Storefront unit/content suite: 21 passed.
+- `git diff --check`: clean.
+- No real authentication email, invoice, payment, deployment, provider mutation, or activation occurred.

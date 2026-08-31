@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {createCommerceService} from '../../src/commerce/commerce-service.js';
+import {buildPilotActionCodeSettings,createCommerceService} from '../../src/commerce/commerce-service.js';
 
 const pilotEmail = 'approved-pilot@example.test';
 const pilotBinding = createHash('sha256').update(`binding\0${pilotEmail}`).digest('hex');
@@ -464,6 +464,42 @@ test('approved email link returns to the exact gated product route', async () =>
     url:'https://ballkingdom.com/order-status.html?sku=home-inspection-study-guide',
     handleCodeInApp:true,
   });
+});
+
+test('authorized existing order produces a server-built resume URL while mismatches stay generic and unsent',async()=>{
+  let captured;
+  const state=fixture({auth:{async generateSignInWithEmailLink(email,settings){captured={email,settings};return 'https://example.test/synthetic';}}});
+  await state.service.requestPilotSignInLink({email:pilotEmail},appCheck);
+  state.repository.orders.set('order-resume-1',{
+    id:'order-resume-1',sku:'home-inspection-study-guide',orderType:'digital_product',
+    customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,
+  });
+  assert.deepEqual(await state.service.requestPilotSignInLink({email:pilotEmail,orderHandle:'order-resume-1'},appCheck),{status:'request_received'});
+  assert.deepEqual(captured.settings,buildPilotActionCodeSettings('order-resume-1'));
+  assert.equal(captured.settings.url,'https://ballkingdom.com/order-status.html?sku=home-inspection-study-guide&order=order-resume-1');
+  assert.equal(state.calls.graph.length,2);
+
+  for(const input of [
+    {email:pilotEmail,orderHandle:'missing-order'},
+    {email:pilotEmail,orderHandle:'../unsafe'},
+    {email:pilotEmail,orderHandle:'x'.repeat(129)},
+    {email:pilotEmail,orderHandle:'order-resume-1',extra:true},
+  ]){
+    const isolated=fixture();
+    assert.deepEqual(await isolated.service.requestPilotSignInLink(input,appCheck),{status:'request_received'});
+    assert.equal(isolated.calls.links.length,0);
+    assert.equal(isolated.calls.graph.length,0);
+    assert.equal(isolated.repository.authEffects.size,0);
+  }
+  const foreign=fixture();
+  foreign.repository.orders.set('foreign-order',{
+    id:'foreign-order',sku:'home-inspection-study-guide',orderType:'digital_product',
+    customerUid:'other-uid',authorizedRecipientBinding:'0'.repeat(64),
+  });
+  assert.deepEqual(await foreign.service.requestPilotSignInLink({email:pilotEmail,orderHandle:'foreign-order'},appCheck),{status:'request_received'});
+  assert.equal(foreign.calls.links.length,0);
+  assert.equal(foreign.calls.graph.length,0);
+  assert.equal(foreign.repository.authEffects.size,0);
 });
 
 test('mismatched auth-link candidates make no persistence, limiter, Admin, or Graph call', async () => {

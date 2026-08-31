@@ -8,6 +8,11 @@ const GENERIC_AUTH_RESULT = Object.freeze({status:'request_received'});
 const SAFE_ORDER_RESULT_MESSAGE = 'QuickBooks sent payment instructions to your email.';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SAFE_IDEMPOTENCY_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const PILOT_SKU = 'home-inspection-study-guide';
+const DEFAULT_ACTION_CODE_SETTINGS = Object.freeze({
+  url:`https://ballkingdom.com/order-status.html?sku=${PILOT_SKU}`,
+  handleCodeInApp:true,
+});
 const RECONCILIATION_LIMIT = 50;
 const RECONCILIATION_HINT_TTL_MS = 24 * 60 * 60 * 1000;
 const REFUND_REASON_MAXIMUM = 500;
@@ -20,6 +25,23 @@ function commerceError(code, message) {
 
 function record(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function buildPilotActionCodeSettings(orderHandle = null, base = DEFAULT_ACTION_CODE_SETTINGS) {
+  if (!record(base) || Object.keys(base).length !== 2 || base.handleCodeInApp !== true
+    || typeof base.url !== 'string') throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable');
+  let url;
+  try { url = new URL(base.url); } catch { throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable'); }
+  if (url.origin !== 'https://ballkingdom.com' || url.pathname !== '/order-status.html') {
+    throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable');
+  }
+  if (orderHandle !== null && (typeof orderHandle !== 'string' || !SAFE_IDEMPOTENCY_KEY.test(orderHandle))) {
+    throw commerceError('ORDER_NOT_FOUND','Order was not found');
+  }
+  url.search='';
+  url.searchParams.set('sku',PILOT_SKU);
+  if (orderHandle !== null) url.searchParams.set('order',orderHandle);
+  return Object.freeze({url:url.toString(),handleCodeInApp:true});
 }
 
 function normalizedEmail(value) {
@@ -266,10 +288,7 @@ export function createCommerceService({
   workerIdFactory = purpose => `${purpose}-${randomUUID()}`,
   clock = () => new Date(),
   sleep = () => new Promise(resolve => setTimeout(resolve, 25)),
-  actionCodeSettings = Object.freeze({
-    url:'https://ballkingdom.com/order-status.html?sku=home-inspection-study-guide',
-    handleCodeInApp:true,
-  }),
+  actionCodeSettings = DEFAULT_ACTION_CODE_SETTINGS,
 } = {}) {
   if (!repository || typeof readFlags !== 'function' || typeof getApprovedPilotEmail !== 'function'
     || typeof getCommerceItem !== 'function' || typeof listCommerceCapabilities !== 'function'
@@ -288,7 +307,7 @@ export function createCommerceService({
     return repository.getEffect(orderId, effectName);
   }
 
-  async function dispatchPilotAuthEmail(approvedEmail, binding) {
+  async function dispatchPilotAuthEmail(approvedEmail, binding, settings = actionCodeSettings) {
     if (!auth?.generateSignInWithEmailLink || !graph?.sendPilotAuthLink) {
       throw commerceError('COMMERCE_CONFIGURATION_INVALID', 'Commerce is unavailable');
     }
@@ -298,7 +317,7 @@ export function createCommerceService({
 
     let link;
     try {
-      link = await auth.generateSignInWithEmailLink(approvedEmail, actionCodeSettings);
+      link = await auth.generateSignInWithEmailLink(approvedEmail, settings);
     } catch {
       await repository.recordPilotAuthEmailFailure(
         binding, workerId, claim.claimId, {code:'pilot_auth_link_generation_failed'}
@@ -660,7 +679,11 @@ export function createCommerceService({
     approveServiceInvoice: approveServiceInvoiceInternal,
     async requestPilotSignInLink(input, appCheckContext) {
       if (!appCheckContext?.app) throw commerceError('APP_CHECK_REQUIRED', 'App Check is required');
-      if (!record(input) || Object.keys(input).some(key => key !== 'email')) return GENERIC_AUTH_RESULT;
+      if (!record(input) || Object.keys(input).some(key => !['email','orderHandle'].includes(key))
+        || !Object.hasOwn(input,'email')) return GENERIC_AUTH_RESULT;
+      const hasOrderHandle=Object.hasOwn(input,'orderHandle');
+      if (hasOrderHandle && (typeof input.orderHandle !== 'string'
+        || !SAFE_IDEMPOTENCY_KEY.test(input.orderHandle))) return GENERIC_AUTH_RESULT;
       const candidate = normalizedEmail(input.email);
       if (!candidate) return GENERIC_AUTH_RESULT;
       const approved = requireApprovedEmail(getApprovedPilotEmail);
@@ -672,8 +695,18 @@ export function createCommerceService({
         return GENERIC_AUTH_RESULT;
       }
       const binding = recipientBinding(approved);
-      await repository.createPilotAuthEmailEffect(binding);
-      await dispatchPilotAuthEmail(approved, binding);
+      let effectBinding=binding;
+      let settings=buildPilotActionCodeSettings(null,actionCodeSettings);
+      if (hasOrderHandle) {
+        const order=await repository.getOrder(input.orderHandle);
+        if (!order || order.authorizedRecipientBinding !== binding || order.sku !== PILOT_SKU
+          || order.orderType !== 'digital_product' || typeof order.customerUid !== 'string'
+          || order.customerUid.length < 1) return GENERIC_AUTH_RESULT;
+        settings=buildPilotActionCodeSettings(input.orderHandle,actionCodeSettings);
+        effectBinding=recipientBinding(`${binding}\0resume\0${input.orderHandle}`);
+      }
+      await repository.createPilotAuthEmailEffect(effectBinding);
+      await dispatchPilotAuthEmail(approved, effectBinding, settings);
       return GENERIC_AUTH_RESULT;
     },
 
