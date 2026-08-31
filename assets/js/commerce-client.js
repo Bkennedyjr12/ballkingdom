@@ -7,6 +7,8 @@ const TERMINAL_STATUSES=new Set(['fulfilled','cancelled','manual_support']);
 const FUNCTION_ORIGIN='https://us-west1-the-ballers-kingdom.cloudfunctions.net';
 const MAX_PDF_BYTES=80*1024*1024;
 const DOWNLOAD_FILENAME='Home Inspection Study Guide.pdf';
+const DOWNLOAD_DEADLINE_MS=30000;
+const GRANT_PATTERN=/^[A-Za-z0-9_-]{43}$/;
 
 function isPlainRecord(value){return value!==null&&typeof value==='object'&&!Array.isArray(value)&&Object.getPrototypeOf(value)===Object.prototype;}
 function validateStatusResponse(value){
@@ -24,15 +26,25 @@ function validateCapabilityResponse(value){
   const products=value.products.map(item=>{if(!isPlainRecord(item)||Object.keys(item).length!==2||Object.keys(item)[0]!=='sku'||Object.keys(item)[1]!=='active'||typeof item.sku!=='string'||item.sku.length<1||item.sku.length>128||typeof item.active!=='boolean')throw new Error('Invalid capability response');return Object.freeze({...item});});
   return Object.freeze({products:Object.freeze(products)});
 }
-async function readBoundedPdf(response){
+function deliveryFailure(){return new Error('Protected delivery failed');}
+function validateDownloadGrant(value,nowMs=Date.now()){
+  if(!isPlainRecord(value)||Object.keys(value).length!==2||!Object.hasOwn(value,'grant')||!Object.hasOwn(value,'expiresAt')||typeof value.grant!=='string'||!GRANT_PATTERN.test(value.grant)||typeof value.expiresAt!=='string')throw deliveryFailure();
+  const expiresAtMs=Date.parse(value.expiresAt);
+  if(!Number.isFinite(expiresAtMs)||new Date(expiresAtMs).toISOString()!==value.expiresAt||expiresAtMs<=nowMs)throw deliveryFailure();
+  return Object.freeze({grant:value.grant,expiresAt:value.expiresAt});
+}
+function abortRejection(signal){return new Promise((_,reject)=>{if(signal.aborted)reject(deliveryFailure());else signal.addEventListener('abort',()=>reject(deliveryFailure()),{once:true});});}
+async function readBoundedPdf(response,{signal,onReader}={}){
   const rawLength=response.headers.get('Content-Length');
   let declaredLength=null;
   if(rawLength!==null){if(!/^[1-9]\d*$/.test(rawLength))throw new Error('Protected delivery failed');declaredLength=Number(rawLength);if(!Number.isSafeInteger(declaredLength)||declaredLength>MAX_PDF_BYTES)throw new Error('Protected delivery failed');}
   const reader=response.body?.getReader?.();
-  if(!reader)throw new Error('Protected delivery failed');
+  if(!reader)throw deliveryFailure();
+  if(typeof onReader==='function')onReader(reader);
+  const aborted=abortRejection(signal);
   const chunks=[];let total=0;
-  try{for(;;){const {done,value}=await reader.read();if(done)break;if(!(value instanceof Uint8Array)||value.byteLength<1)continue;total+=value.byteLength;if(total>MAX_PDF_BYTES){await reader.cancel();throw new Error('Protected delivery failed');}chunks.push(value);}}catch{try{await reader.cancel();}catch{}throw new Error('Protected delivery failed');}
-  if(total<1||(declaredLength!==null&&declaredLength!==total))throw new Error('Protected delivery failed');
+  try{for(;;){const {done,value}=await Promise.race([reader.read(),aborted]);if(done)break;if(!(value instanceof Uint8Array)||value.byteLength<1)continue;total+=value.byteLength;if(total>MAX_PDF_BYTES){await reader.cancel();throw deliveryFailure();}chunks.push(value);}}catch{try{await reader.cancel();}catch{}throw deliveryFailure();}
+  if(total<1||(declaredLength!==null&&declaredLength!==total))throw deliveryFailure();
   return new Blob(chunks,{type:'application/pdf'});
 }
 function validBoundary(boundary){const required=['getBuyerCommerceCapability','requestPilotSignInLink','completeEmailLink','createDigitalOrder','getOrderStatus','createDownloadGrant','redeemDownloadGrant'];return boundary&&required.every(name=>typeof boundary[name]==='function')?boundary:null;}
@@ -60,23 +72,28 @@ async function realBoundary(){
     getOrderStatus:data=>realCallable('getOrderStatus',data,{auth:true}),
     createDownloadGrant:data=>realCallable('createDownloadGrant',data,{auth:true}),
     async redeemDownloadGrant(data){
-      if(!isPlainRecord(data)||Object.keys(data).length!==2||typeof data.orderHandle!=='string'||data.orderHandle.length<1||data.orderHandle.length>128||typeof data.grant!=='string'||data.grant.length<32)throw new Error('Invalid delivery request');
+      if(!isPlainRecord(data)||Object.keys(data).length!==2||typeof data.orderHandle!=='string'||data.orderHandle.length<1||data.orderHandle.length>128||typeof data.grant!=='string'||!GRANT_PATTERN.test(data.grant))throw deliveryFailure();
       const activeRuntime=await firebaseRuntime();
       if(!activeRuntime||typeof activeRuntime.getIdToken!=='function'||typeof activeRuntime.getLimitedUseAppCheckToken!=='function')throw new Error('Protected delivery is unavailable');
       const idToken=await activeRuntime.getIdToken();
       const limitedUseToken=await activeRuntime.getLimitedUseAppCheckToken();
       if(typeof idToken!=='string'||!idToken||typeof limitedUseToken!=='string'||!limitedUseToken)throw new Error('Protected delivery is unavailable');
-      let objectUrl=null;
+      let objectUrl=null;let reader=null;
+      const controller=new AbortController();
+      const configuredDeadline=Number(window.__commerceTestDownloadTimeoutMs);
+      const deadlineMs=Number.isFinite(configuredDeadline)&&configuredDeadline>0?Math.min(configuredDeadline,DOWNLOAD_DEADLINE_MS):DOWNLOAD_DEADLINE_MS;
+      const deadline=window.setTimeout(()=>{controller.abort();try{Promise.resolve(reader?.cancel()).catch(()=>{});}catch{}},deadlineMs);
       try{
-        const response=await fetch(`${FUNCTION_ORIGIN}/redeemDownloadGrant`,{
+        const response=await Promise.race([fetch(`${FUNCTION_ORIGIN}/redeemDownloadGrant`,{
           method:'POST',
           headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`,'X-Firebase-AppCheck':limitedUseToken},
           body:JSON.stringify({orderHandle:data.orderHandle,grant:data.grant}),
           credentials:'omit',
           referrerPolicy:'no-referrer',
-        });
+          signal:controller.signal,
+        }),abortRejection(controller.signal)]);
         if(response.status!==200||response.headers.get('Content-Type')!=='application/pdf')throw new Error('Protected delivery failed');
-        const blob=await readBoundedPdf(response);
+        const blob=await readBoundedPdf(response,{signal:controller.signal,onReader:value=>{reader=value;}});
         if(blob.type!=='application/pdf'||blob.size<1||blob.size>MAX_PDF_BYTES)throw new Error('Protected delivery failed');
         objectUrl=URL.createObjectURL(blob);
         const link=document.createElement('a');
@@ -86,6 +103,9 @@ async function realBoundary(){
         await new Promise(resolve=>window.setTimeout(resolve,0));
         return Object.freeze({streamed:true});
       }finally{
+        window.clearTimeout(deadline);
+        if(!controller.signal.aborted)controller.abort();
+        try{await reader?.cancel();}catch{}
         if(objectUrl!==null)URL.revokeObjectURL(objectUrl);
       }
     },
@@ -112,7 +132,7 @@ async function initialize(){
   orderButton.disabled=false;authButton.disabled=false;
   authForm?.addEventListener('submit',async event=>{event.preventDefault();const email=new FormData(authForm).get('email');try{const result=await boundary.requestPilotSignInLink({email:String(email||'')});if(!isPlainRecord(result)||Object.keys(result).length!==1||result.status!=='request_received')throw new Error('Invalid response');}catch{/* Deliberately indistinguishable public outcome. */}setStatus('If this address is eligible, a sign-in link request has been received. Use only the newest approved link.');});
   orderForm?.addEventListener('submit',async event=>{event.preventDefault();orderButton.disabled=true;try{const email=String(new FormData(authForm).get('email')||'');const signIn=await boundary.completeEmailLink({email});if(!isPlainRecord(signIn)||Object.keys(signIn).length!==1||signIn.signedIn!==true)throw new Error('Invalid sign-in result');const customerName=String(new FormData(orderForm).get('customerName')||'').trim();const idempotencyKey=globalThis.crypto?.randomUUID?.()??`order-${Date.now().toString(36)}`;const created=validateOrderResponse(await boundary.createDigitalOrder({sku:SKU,customerName,idempotencyKey}));orderHandle=created.orderHandle;const safeUrl=new URL(window.location.href);safeUrl.search='';safeUrl.searchParams.set('sku',SKU);safeUrl.searchParams.set('order',orderHandle);history.replaceState(null,'',safeUrl);document.querySelector('[data-price]').textContent=new Intl.NumberFormat('en-US',{style:'currency',currency:created.currency}).format(created.amountCents/100);setStatus('QuickBooks sent payment instructions to your email. Payment verification is pending.');setStep('payment_verification_pending');polling=true;await pollStatus(boundary,orderHandle,{delay:window.__commerceTestCalls?0:POLL_DELAY_MS,maxPolls:window.__commerceTestCalls?1:MAX_POLLS});polling=false;}catch{setStatus('We could not safely create or read this order. The sign-in link may be expired, modified, already used, or may not own this order. Request a newly approved link to continue.');document.querySelector('[data-support]').hidden=false;}});
-  document.querySelector('[data-download-button]')?.addEventListener('click',async event=>{const button=event.currentTarget;if(!orderHandle||polling)return;button.disabled=true;let oneAttemptGrant=null;try{const grant=await boundary.createDownloadGrant({orderHandle});if(!isPlainRecord(grant)||typeof grant.grant!=='string'||grant.grant.length<32||Object.keys(grant).some(key=>!['grant','expiresAt'].includes(key)))throw new Error('Invalid grant');oneAttemptGrant=grant.grant;await boundary.redeemDownloadGrant({orderHandle,grant:oneAttemptGrant});setStatus('Your protected delivery started. This one-time grant has been cleared.');}catch{setStatus('That one-time delivery attempt could not be completed. Your verified order is still safe; request a new download when ready.');}finally{oneAttemptGrant=null;button.disabled=false;}});
+  document.querySelector('[data-download-button]')?.addEventListener('click',async event=>{const button=event.currentTarget;if(!orderHandle||polling)return;button.disabled=true;let oneAttemptGrant=null;try{const grant=validateDownloadGrant(await boundary.createDownloadGrant({orderHandle}));oneAttemptGrant=grant.grant;await boundary.redeemDownloadGrant({orderHandle,grant:oneAttemptGrant});setStatus('Your protected delivery started. This one-time grant has been cleared.');}catch{setStatus('That one-time delivery attempt could not be completed. Your verified order is still safe; request a new download when ready.');}finally{oneAttemptGrant=null;button.disabled=false;}});
 }
 if(typeof document!=='undefined')initialize();
-export{MAX_POLLS,MAX_PDF_BYTES,SAFE_STATUSES,validateStatusResponse,validateOrderResponse,validateCapabilityResponse,readBoundedPdf,pollStatus,getCommerceBoundary};
+export{DOWNLOAD_DEADLINE_MS,MAX_POLLS,MAX_PDF_BYTES,SAFE_STATUSES,validateStatusResponse,validateOrderResponse,validateCapabilityResponse,validateDownloadGrant,readBoundedPdf,pollStatus,getCommerceBoundary};

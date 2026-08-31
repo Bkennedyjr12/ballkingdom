@@ -112,6 +112,9 @@ test('protected delivery client uses an in-memory blob and never requests creden
   assert.match(client, /URL\.createObjectURL/);
   assert.match(client, /URL\.revokeObjectURL/);
   assert.match(client, /getLimitedUseAppCheckToken/);
+  assert.match(client, /AbortController/);
+  assert.match(client, /\^\[A-Za-z0-9_-/);
+  assert.match(client, /Object\.keys\(value\)\.length!==2/);
   assert.doesNotMatch(client, /credentials\s*:\s*["']include["']/);
   assert.doesNotMatch(client, /localStorage|sessionStorage/);
 });

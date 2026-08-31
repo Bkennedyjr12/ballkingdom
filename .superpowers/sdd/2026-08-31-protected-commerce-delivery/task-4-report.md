@@ -31,3 +31,15 @@ Implemented the production browser boundary for one-time protected PDF delivery.
 ## Deviations
 
 None. The implementation remains within Task 4 scope.
+
+## Review round 1/5
+
+Addressed all three review findings:
+
+- Added one 30-second `AbortController` deadline spanning the stream fetch and all body reads. A stalled reader is cancelled, the UI returns to the generic safe failure state, and no automatic retry occurs.
+- Added browser regressions for a never-resolving fetch, partial-reader stall, empty body, zero and malformed `Content-Length`, declared/streamed mismatch, an unbounded stream exceeding 80 MiB, and a reader error after partial bytes. Every case proves the button re-enables with no object URL, download, or false success.
+- Tightened grant validation to exactly `grant` and `expiresAt`, a 43-character base64url grant, and a canonical future ISO expiration before limited-use App Check or stream-token work begins.
+
+Review-fix verification:
+
+- `PATH="/opt/homebrew/opt/node@22/bin:$PATH" npx playwright test tests/commerce-browser.spec.mjs` — 26 passed.
