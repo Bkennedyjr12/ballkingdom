@@ -25,7 +25,7 @@ An approved read-only health check obtained an Intuit access credential and a ro
 
 The focused suite covers persistence-before-request ordering, same-runtime concurrency, active/stale claims, redacted `invalid_grant`, exact paired binding reads, generation fencing, old-worker orphan rejection, token-only and realm-only reconnect failures, absence of credential material in receipts/errors, exact-version readback, and no Accounting request after credential failure.
 
-- Node 22 full Functions suite: 364 tests total; 362 passed and 2 emulator-only tests intentionally skipped.
+- Node 22 full Functions suite: 384 tests total; 382 passed and 2 emulator-only tests intentionally skipped.
 - Functions syntax checks plus the new coordinator module syntax check: passed.
 - `git diff --check`: passed.
 - Repository security scan: no production credential identified; reported locations are synthetic test fixtures.
