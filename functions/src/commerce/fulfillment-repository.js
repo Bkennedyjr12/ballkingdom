@@ -2,6 +2,7 @@ const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const DIGEST = /^[a-f0-9]{64}$/;
 const SKU = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const TEN_MINUTES_MS = 10 * 60 * 1000;
+const MAX_GRANTS_PER_WINDOW = 5;
 
 function repositoryError(code, message) {
   const error = new Error(message);
@@ -56,7 +57,7 @@ export function createFulfillmentRepository({db,fieldValue,Timestamp} = {}) {
     const entitlement = entitlements.doc(orderId);
     return {
       order,entitlement,
-      grant:digest ? entitlement.collection('downloadGrants').doc(digest) : null,
+      grant:digest ? entitlement.collection('downloadGrants').doc('active') : null,
     };
   };
 
@@ -80,12 +81,44 @@ export function createFulfillmentRepository({db,fieldValue,Timestamp} = {}) {
         const [orderSnapshot,entitlementSnapshot,existing] = await Promise.all([
           transaction.get(order),transaction.get(entitlement),transaction.get(grantRef),
         ]);
-        if (existing.exists) throw repositoryError('FULFILLMENT_GRANT_CONFLICT', 'Download grant already exists');
+        if (existing.exists) {
+          const stored=existing.data();
+          const storedExpiry=dateValue(stored?.expiresAt);
+          if (Number.isNaN(storedExpiry.getTime())
+            || (stored?.consumedAt == null && issuedAt.getTime() < storedExpiry.getTime())) {
+            throw repositoryError('FULFILLMENT_GRANT_CONFLICT', 'An active download grant exists');
+          }
+        }
+        const entitlementData=entitlementSnapshot.data() ?? {};
         if (!orderSnapshot.exists || !entitlementSnapshot.exists
-          || !exactEntitlement({id:grant.orderId,...orderSnapshot.data()}, entitlementSnapshot.data(), grant)) {
+          || !exactEntitlement({id:grant.orderId,...orderSnapshot.data()}, entitlementData, grant)) {
           throw repositoryError('FULFILLMENT_NOT_ALLOWED', 'Download grant is not allowed');
         }
-        transaction.create(grantRef, {
+        const storedWindowStart=dateValue(entitlementData.downloadIssuanceWindowStartedAt);
+        const storedCount=entitlementData.downloadIssuanceCount;
+        let windowStartedAt=issuedAt;
+        let issuanceCount=1;
+        const hasWindow=entitlementData.downloadIssuanceWindowStartedAt !== undefined
+          || storedCount !== undefined;
+        if (hasWindow) {
+          if (Number.isNaN(storedWindowStart.getTime()) || !Number.isSafeInteger(storedCount)
+            || storedCount < 1 || storedCount > MAX_GRANTS_PER_WINDOW
+            || issuedAt.getTime() < storedWindowStart.getTime()) {
+            throw repositoryError('FULFILLMENT_GRANT_CONFLICT', 'Download grant limit is unavailable');
+          }
+          if (issuedAt.getTime() - storedWindowStart.getTime() < TEN_MINUTES_MS) {
+            if (storedCount >= MAX_GRANTS_PER_WINDOW) {
+              throw repositoryError('FULFILLMENT_GRANT_CONFLICT', 'Download grant rate limit reached');
+            }
+            windowStartedAt=storedWindowStart;
+            issuanceCount=storedCount + 1;
+          }
+        }
+        transaction.update(entitlement, {
+          downloadIssuanceWindowStartedAt:Timestamp.fromDate(windowStartedAt),
+          downloadIssuanceCount:issuanceCount,
+        });
+        transaction.set(grantRef, {
           orderId:grant.orderId,digest:grant.digest,customerUid:grant.customerUid,sku:grant.sku,
           issuedAt:Timestamp.fromDate(issuedAt),expiresAt:Timestamp.fromDate(expiresAt),consumedAt:null,
         });
@@ -113,7 +146,7 @@ export function createFulfillmentRepository({db,fieldValue,Timestamp} = {}) {
           || stored.customerUid !== customerUid || stored.sku !== sku
           || stored.consumedAt != null || Number.isNaN(expiresAt.getTime())
           || at.getTime() >= expiresAt.getTime()) return null;
-        transaction.update(grant, {consumedAt:Timestamp.fromDate(at)});
+        transaction.delete(grant);
         return Object.freeze({orderId,digest,customerUid,sku,consumedAt:at});
       });
     },

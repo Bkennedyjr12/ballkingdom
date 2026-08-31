@@ -61,6 +61,13 @@ value nor raw CLI output.
   expected public Firebase Web configuration. No secret was accepted by classification.
 - Direct Storage Rules deny `private-commerce/**`; the emulator matrix exercised signed-out,
   authenticated, owner, and administrator denial while preserving unrelated retained rules.
+- Grant creation independently re-verifies the callable's raw Firebase ID token with
+  revocation checking, re-reads the authoritative enabled/email-verified user, and requires
+  that UID to match the callable Auth context before any Firestore issuance write. Firestore
+  permits one active grant document per owner/order and at most five issuances in a ten-minute
+  server-time window. Parallel active issuance conflicts transactionally; consumption deletes
+  the fixed active document atomically, and expiry replaces it in place. This provides bounded
+  storage and deliberate fresh-grant recovery without a Firestore TTL control-plane policy.
 
 ## Private artifact comparison
 

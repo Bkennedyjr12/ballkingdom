@@ -23,7 +23,9 @@ import {createBoundQuickBooksCredentialCoordinator,createFirestoreQuickBooksCred
 import {buildMicrosoftAuthUrl,buildQuickBooksAuthUrl,exchangeMicrosoftCode,exchangeQuickBooksCode} from './providers/oauth.js';
 import {createFulfillmentRuntime} from './commerce/fulfillment-runtime.js';
 import {VERIFIED_COMMERCE_BUCKET} from './commerce/private-artifact-stream.js';
-import {createDownloadHttpHandler} from './commerce/download-http.js';
+import {
+  createDownloadHttpHandler,readFirebaseBearerToken,verifyAuthoritativeFirebaseUser,
+} from './commerce/download-http.js';
 
 initializeApp();
 const REGION = 'us-west1';
@@ -498,9 +500,16 @@ export const createDownloadGrant = onCall({
   enforceAppCheck:true,
 }, async request => {
   try {
+    if (typeof request.auth?.uid !== 'string' || request.auth.uid.length < 1) {
+      throw Object.assign(new Error('Authentication is required'),{code:'AUTH_REQUIRED'});
+    }
+    const authoritativeUser=await verifyAuthoritativeFirebaseUser({
+      auth:getAuth(),idToken:readFirebaseBearerToken(request.rawRequest),
+      expectedUid:request.auth?.uid,
+    });
     return await fulfillmentRuntime().createDownloadGrant(
       {orderId:String(request.data?.orderHandle ?? '')},
-      {auth:request.auth,app:request.app},
+      {auth:authoritativeUser,app:request.app},
     );
   } catch (error) {
     if (error?.code === 'FULFILLMENT_INPUT_INVALID') {

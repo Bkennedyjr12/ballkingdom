@@ -31,11 +31,13 @@ function fakeFirestore(seed = {}) {
           create:(reference,value) => writes.push(['create',reference.path,structuredClone(value)]),
           set:(reference,value) => writes.push(['set',reference.path,structuredClone(value)]),
           update:(reference,value) => writes.push(['update',reference.path,structuredClone(value)]),
+          delete:reference => writes.push(['delete',reference.path]),
         };
         const result = await callback(transaction);
         for (const [operation,path,value] of writes) {
           if (operation === 'create' && docs.has(path)) throw new Error('already exists');
-          docs.set(path, operation === 'update' ? {...docs.get(path),...value} : value);
+          if (operation === 'delete') docs.delete(path);
+          else docs.set(path, operation === 'update' ? {...docs.get(path),...value} : value);
         }
         return result;
       });
@@ -80,7 +82,7 @@ test('transactionally creates a digest-only ten-minute grant bound to exact fulf
   const {db,repository} = fixture();
   await repository.createDownloadGrant({orderId:'order-1',digest,customerUid:'owner-1',sku:'guide',
     issuedAt:now,expiresAt:new Date(now.getTime()+600000),consumedAt:null});
-  const stored = db.docs.get(`fulfillmentGrants/order-1/downloadGrants/${digest}`);
+  const stored = db.docs.get('fulfillmentGrants/order-1/downloadGrants/active');
   assert.deepEqual(Object.keys(stored).sort(), [
     'consumedAt','customerUid','digest','expiresAt','issuedAt','orderId','sku',
   ]);
@@ -131,4 +133,57 @@ test('a new digest can be created after a consumed stream failure without changi
   const second = {...first,digest:'c'.repeat(64)};
   await repository.createDownloadGrant(second);
   assert.ok(await repository.consumeDownloadGrant({...second,now}));
+});
+
+test('permits only one active grant per order across parallel issuance', async () => {
+  const {db,repository}=fixture();
+  const base={orderId:'order-1',customerUid:'owner-1',sku:'guide',issuedAt:now,
+    expiresAt:new Date(now.getTime()+600000),consumedAt:null};
+  const results=await Promise.allSettled([
+    repository.createDownloadGrant({...base,digest:'d'.repeat(64)}),
+    repository.createDownloadGrant({...base,digest:'e'.repeat(64)}),
+  ]);
+  assert.equal(results.filter(result=>result.status==='fulfilled').length,1);
+  assert.equal(results.filter(result=>result.status==='rejected').length,1);
+  const stored=db.docs.get('fulfillmentGrants/order-1/downloadGrants/active');
+  assert.ok(['d'.repeat(64),'e'.repeat(64)].includes(stored.digest));
+  assert.equal([...db.docs.keys()].filter(path=>path.includes('/downloadGrants/')).length,1);
+});
+
+test('reclaims one expired grant in place and deletes a consumed grant immediately', async () => {
+  const {db,repository}=fixture();
+  const first={orderId:'order-1',digest:'f'.repeat(64),customerUid:'owner-1',sku:'guide',
+    issuedAt:now,expiresAt:new Date(now.getTime()+600000),consumedAt:null};
+  await repository.createDownloadGrant(first);
+  await assert.rejects(repository.createDownloadGrant({...first,digest:'1'.repeat(64)}),
+    /active|conflict/i);
+  const later=new Date(now.getTime()+600000);
+  const replacement={...first,digest:'2'.repeat(64),issuedAt:later,
+    expiresAt:new Date(later.getTime()+600000)};
+  await repository.createDownloadGrant(replacement);
+  assert.equal(db.docs.get('fulfillmentGrants/order-1/downloadGrants/active').digest,
+    replacement.digest);
+  assert.ok(await repository.consumeDownloadGrant({...replacement,now:later}));
+  assert.equal(db.docs.has('fulfillmentGrants/order-1/downloadGrants/active'),false);
+  assert.equal(await repository.consumeDownloadGrant({...replacement,now:later}),null);
+});
+
+test('bounds sequential per-owner order issuance while allowing limited fresh recovery', async () => {
+  const {db,repository}=fixture();
+  const base={orderId:'order-1',customerUid:'owner-1',sku:'guide',issuedAt:now,
+    expiresAt:new Date(now.getTime()+600000),consumedAt:null};
+  for (let index=0; index<5; index+=1) {
+    const grant={...base,digest:String(index).repeat(64)};
+    await repository.createDownloadGrant(grant);
+    assert.ok(await repository.consumeDownloadGrant({...grant,now}));
+  }
+  await assert.rejects(repository.createDownloadGrant({...base,digest:'a'.repeat(64)}),
+    /rate|limit|active|conflict/i);
+  assert.equal(db.docs.has('fulfillmentGrants/order-1/downloadGrants/active'),false);
+
+  const nextWindow=new Date(now.getTime()+600000);
+  const recovered={...base,digest:'b'.repeat(64),issuedAt:nextWindow,
+    expiresAt:new Date(nextWindow.getTime()+600000)};
+  await repository.createDownloadGrant(recovered);
+  assert.ok(await repository.consumeDownloadGrant({...recovered,now:nextWindow}));
 });

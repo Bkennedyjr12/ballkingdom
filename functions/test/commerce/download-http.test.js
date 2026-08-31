@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
-import {createDownloadHttpHandler} from '../../src/commerce/download-http.js';
+import {
+  createDownloadHttpHandler,verifyAuthoritativeFirebaseUser,
+} from '../../src/commerce/download-http.js';
 
 const ORIGIN = 'https://ballkingdom.com';
 const HOSTING_ORIGIN = 'https://ballkingdom-com.web.app';
@@ -156,6 +158,27 @@ test('rejects revoked, disabled, deleted, stale, and unverified users genericall
     assert.equal(response.body,'Unauthorized');
     assert.doesNotMatch(response.body,/revoked|deleted|token|buyer/i);
   }
+});
+
+test('authoritative verification rejects a callable UID mismatch, disabled user, and revoked token', async () => {
+  const validAuth={
+    async verifyIdToken(_token,checkRevoked) { assert.equal(checkRevoked,true); return {uid:'buyer-1'}; },
+    async getUser(uid) { return {uid,disabled:false,emailVerified:true}; },
+  };
+  assert.deepEqual(await verifyAuthoritativeFirebaseUser({
+    auth:validAuth,idToken:ID_TOKEN,expectedUid:'buyer-1',
+  }),{uid:'buyer-1'});
+  await assert.rejects(verifyAuthoritativeFirebaseUser({
+    auth:validAuth,idToken:ID_TOKEN,expectedUid:'other-buyer',
+  }),{code:'AUTH_REQUIRED'});
+  await assert.rejects(verifyAuthoritativeFirebaseUser({
+    auth:{...validAuth,async getUser(uid){return {uid,disabled:true,emailVerified:true};}},
+    idToken:ID_TOKEN,expectedUid:'buyer-1',
+  }),{code:'AUTH_REQUIRED'});
+  await assert.rejects(verifyAuthoritativeFirebaseUser({
+    auth:{...validAuth,async verifyIdToken(){throw new Error('revoked');}},
+    idToken:ID_TOKEN,expectedUid:'buyer-1',
+  }),{code:'AUTH_REQUIRED'});
 });
 
 test('consumes the limited-use App Check token and rejects invalid or replayed tokens', async () => {

@@ -58,9 +58,27 @@ function parseRequest(request) {
   return Object.freeze({orderId:parsed.orderHandle,grant:parsed.grant});
 }
 
-function bearerToken(request) {
+export function readFirebaseBearerToken(request) {
   const match=/^Bearer ([A-Za-z0-9._~-]+)$/.exec(header(request,'authorization'));
   return match?.[1] ?? null;
+}
+
+export async function verifyAuthoritativeFirebaseUser({auth,idToken,expectedUid} = {}) {
+  if (!auth?.verifyIdToken || !auth?.getUser || typeof idToken !== 'string') {
+    throw Object.assign(new Error('Authentication is required'),{code:'AUTH_REQUIRED'});
+  }
+  try {
+    const decoded=await auth.verifyIdToken(idToken,true);
+    if (typeof decoded?.uid !== 'string' || decoded.uid.length < 1 || decoded.uid.length > 128
+      || (expectedUid !== undefined && decoded.uid !== expectedUid)) throw new Error('Invalid identity');
+    const user=await auth.getUser(decoded.uid);
+    if (user?.uid !== decoded.uid || user.disabled === true || user.emailVerified !== true) {
+      throw new Error('Invalid user');
+    }
+    return Object.freeze({uid:decoded.uid});
+  } catch {
+    throw Object.assign(new Error('Authentication is no longer valid'),{code:'AUTH_REQUIRED'});
+  }
 }
 
 function appCheckToken(request) {
@@ -107,20 +125,12 @@ export function createDownloadHttpHandler({auth,appCheck,fulfillment} = {}) {
     setCors(response,origin);
     const input=parseRequest(request);
     if (!input) { reply(response,400,'Invalid request'); return; }
-    const idToken=bearerToken(request);
+    const idToken=readFirebaseBearerToken(request);
     if (!idToken) { reply(response,401,'Unauthorized'); return; }
 
-    let decoded;
-    let user;
+    let authoritativeUser;
     try {
-      decoded=await auth.verifyIdToken(idToken,true);
-      if (typeof decoded?.uid !== 'string' || decoded.uid.length < 1 || decoded.uid.length > 128) {
-        throw new Error('Invalid identity');
-      }
-      user=await auth.getUser(decoded.uid);
-      if (user?.uid !== decoded.uid || user.disabled === true || user.emailVerified !== true) {
-        throw new Error('Invalid user');
-      }
+      authoritativeUser=await verifyAuthoritativeFirebaseUser({auth,idToken});
     } catch {
       reply(response,401,'Unauthorized');
       return;
@@ -143,7 +153,7 @@ export function createDownloadHttpHandler({auth,appCheck,fulfillment} = {}) {
     const safeResponse=createSafeDownloadResponse(response,()=>{streamingStarted=true;});
     try {
       await fulfillment.redeemDownloadGrant(input,Object.freeze({
-        auth:Object.freeze({uid:decoded.uid}),
+        auth:authoritativeUser,
         app:Object.freeze({appId:app.appId}),
         response:safeResponse,
       }));

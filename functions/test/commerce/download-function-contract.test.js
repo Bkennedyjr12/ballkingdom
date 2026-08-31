@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 const sourceUrl=new URL('../../src/index.js',import.meta.url);
+const transportUrl=new URL('../../src/commerce/download-http.js',import.meta.url);
 const protectedExports=['createDownloadGrant','redeemDownloadGrant'];
 const existingScopedExports=[
   'requestPilotSignInLink','createDigitalOrder','getOrderStatus',
@@ -16,12 +17,19 @@ const scopedDeploymentInventory=[...existingScopedExports,...protectedExports];
 
 test('exports both protected endpoints with their required Firebase protections', async () => {
   const source=await readFile(sourceUrl,'utf8');
+  const transport=await readFile(transportUrl,'utf8');
   assert.match(source,/export const createDownloadGrant = onCall\(\{[^}]*region:REGION[^}]*enforceAppCheck:true[^}]*\}/s);
   assert.match(source,/createDownloadGrant\(\s*\{orderId:String\(request\.data\?\.orderHandle \?\? ''\)\}/s);
   assert.match(source,/export const redeemDownloadGrant = onRequest\(\{region:REGION\}/);
   assert.match(source,/getAuth\(\)\.verifyIdToken|auth:getAuth\(\)/);
   assert.match(source,/getAppCheck\(\)/);
   assert.match(source,/getStorage\(\)\.bucket\(/);
+  assert.match(source,/readFirebaseBearerToken\(request\.rawRequest\)/);
+  assert.match(source,/typeof request\.auth\?\.uid !== 'string'/);
+  assert.match(transport,/verifyIdToken\([^,]+,true\)/);
+  assert.match(transport,/getUser\(/);
+  assert.match(source,/expectedUid:request\.auth\?\.uid/);
+  assert.match(source,/auth:authoritativeUser/);
 });
 
 test('binds neither protected endpoint to QuickBooks, Microsoft, nor recipient secrets', async () => {
