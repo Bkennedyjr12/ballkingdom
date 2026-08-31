@@ -3,7 +3,7 @@
 Status: **pre-release verification completed; purchase activation remains blocked**
 
 Reviewed: 2026-08-31  
-Verified implementation commit: `20d0bad2ed36a9f77969c03c209d2f73c900d584`  
+Verified implementation commit: `3abd56cae05aa52d92529b0b0554cbb7501bf734`
 Production project/account: `the-ballers-kingdom` / `lilpelejr12@gmail.com`
 
 This record covers the inactive protected-download runtime only. It does not authorize or
@@ -17,9 +17,10 @@ invoice email, or other provider-side commerce action.
 | Node runtime | `/opt/homebrew/opt/node@22/bin/node --version` | `v22.23.2` |
 | Storefront unit/content | `npm run test:storefront:unit` | 21 passed; 0 failed/skipped |
 | Storefront browser | `npm run test:storefront:browser` | 4 passed; 0 failed/skipped |
-| Functions without emulators | `npm test` in `functions/` | 400 tests; 398 passed; 2 documented emulator-only skips; 0 failed |
+| Protected-commerce browser | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" npx playwright test tests/commerce-browser.spec.mjs` | 27 passed; 0 failed/skipped |
+| Functions without emulators | `npm test` in `functions/` | 404 tests; 402 passed; 2 documented emulator-only skips; 0 failed |
 | Functions syntax | `npm run check` in `functions/` | passed |
-| Rules/emulator matrix | Firestore and Storage emulators with the complete Functions suite | 400 tests; 400 passed; 0 failed/skipped |
+| Rules/emulator matrix | Firestore and Storage emulators with the complete Functions suite | 404 tests; 404 passed; 0 failed/skipped |
 | Root production dependencies | `npm audit --omit=dev` | 0 vulnerabilities |
 | Functions production dependencies | `npm audit --omit=dev` | 7 moderate transitive findings; 0 high/critical |
 | Patch integrity | `git diff --check` | clean |
@@ -29,10 +30,10 @@ invoice email, or other provider-side commerce action.
 The first emulator attempt could not find the macOS Java runtime. Re-running with the
 already-installed Homebrew OpenJDK 21 binary on `PATH` completed the matrix. Firebase Auth
 is not initialized in the local emulator configuration and was therefore not started. The
-Functions emulator also timed out while discovering the full function bundle under the host's
-global Node 25; the test process itself used Node 22 and the Firestore/Storage Rules tests
-executed against their emulators. No test contacted a mail, QuickBooks, payment, or refund
-provider.
+first Functions-emulator discovery attempt timed out under the host's global Node 25. The
+final evidence rerun loaded the complete function bundle, including both protected-download
+endpoints; the Node 22 test process and Firestore/Storage Rules suites then completed against
+their emulators. No test contacted a mail, QuickBooks, payment, or refund provider.
 
 The public browser configuration provenance was the Firebase Web App registered inside
 `the-ballers-kingdom`, retrieved with the explicit Ballers Kingdom account. The reCAPTCHA
