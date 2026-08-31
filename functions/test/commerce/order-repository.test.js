@@ -161,6 +161,10 @@ const fieldValue = Object.freeze({serverTimestamp: () => SERVER_TIMESTAMP});
 const Timestamp = Object.freeze({fromDate: date => timestamp(date)});
 
 function digitalOrder(overrides = {}) {
+  const accountingSnapshot={
+    provider:'quickbooks',itemId:'item-4',itemName:'Study Guide',taxCode:'NON',
+    fingerprint:createHash('sha256').update('quickbooks\0item-4\0Study Guide\0NON').digest('hex'),
+  };
   return {
     sku: 'study-guide',
     name: 'Study Guide',
@@ -168,6 +172,7 @@ function digitalOrder(overrides = {}) {
     currency: 'USD',
     orderType: 'digital_product',
     fulfillmentType: 'protected_download',
+    accountingSnapshot,
     customerUid: 'customer-uid',
     customer: {name: 'Ada', email: 'ada@example.test'},
     status: 'pending_payment',
@@ -220,11 +225,24 @@ test('creates a normalized order once with a stable provider idempotency key and
   assert.equal(stored.providerPayload, undefined);
   assert.deepEqual(stored.customer, {name: 'Ada', email: 'ada@example.test'});
   assert.equal(stored.fulfillment.status, 'locked');
+  assert.deepEqual(stored.accountingSnapshot, digitalOrder().accountingSnapshot);
   assert.equal(firestore.collection('commerceAudit').length, 1);
   assert.deepEqual(
     Object.keys(firestore.collection('commerceAudit')[0]).sort(),
     ['createdAt', 'event', 'orderId', 'toStatus']
   );
+});
+
+test('rejects a mutated or browser-shaped QuickBooks accounting snapshot', async () => {
+  const {repository} = repositoryFixture();
+  const valid=digitalOrder().accountingSnapshot;
+  for (const accountingSnapshot of [
+    {...valid,itemId:'item-old'},
+    {...valid,itemName:'Other'},
+    {...valid,taxCode:'TAX'},
+    {...valid,raw:{Item:{Id:'item-4'}}},
+  ]) await assert.rejects(repository.createOrder('order-1',digitalOrder({accountingSnapshot})),
+    {code:'ORDER_INVALID'});
 });
 
 test('rejects an idempotent order id reused with different normalized order data', async () => {

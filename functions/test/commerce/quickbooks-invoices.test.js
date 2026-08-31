@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {createHash} from 'node:crypto';
 import {buildQuickBooksAuthUrl} from '../../src/providers/oauth.js';
 import {createQuickBooksClient} from '../../src/providers/quickbooks.js';
 
@@ -88,9 +89,20 @@ function commerceInvoiceReadback(overrides = {}) {
     Line:[{
       DetailType:'SalesItemLineDetail',
       Amount:49,
-      SalesItemLineDetail:{ItemRef:{value:'item-4'},Qty:1,UnitPrice:49},
+      SalesItemLineDetail:{ItemRef:{value:'item-4'},TaxCodeRef:{value:'NON'},Qty:1,UnitPrice:49},
     }],
     ...overrides,
+  };
+}
+
+function commerceOrder(overrides = {}) {
+  const accountingSnapshot={provider:'quickbooks',itemId:'item-4',itemName:'Championship Week',taxCode:'NON'};
+  accountingSnapshot.fingerprint=createHash('sha256')
+    .update('quickbooks\0item-4\0Championship Week\0NON').digest('hex');
+  return {
+    id:'order-1',name:'Championship Week',orderType:'digital_product',
+    customer:{name:'Ada Lovelace',email:'ada@example.com'},amountCents:4900,currency:'USD',
+    accountingSnapshot,...overrides,
   };
 }
 
@@ -98,7 +110,7 @@ function minimalCommerceCreateFetch({docNumber = '1001', readback = commerceInvo
   return scriptedFetch([
     tokenStep(),
     () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
-    () => json({QueryResponse:{Item:[{Id:'item-4',Name:'Championship Week',UnitPrice:49}]}}),
+    () => json({Item:{Id:'item-4',Name:'Championship Week',Active:true}}),
     () => json({Invoice:{Id:'invoice-30',DocNumber:docNumber},time:'2026-08-30T10:00:00-07:00'}),
     call => {
       const url = new URL(call.url);
@@ -147,11 +159,10 @@ test('creates a commerce Invoice on the production Accounting host with a stable
     },
     call => {
       const url = new URL(call.url);
-      assert.equal(`${url.origin}${url.pathname}`, `${PROD_ROOT}/query`);
+      assert.equal(`${url.origin}${url.pathname}`, `${PROD_ROOT}/item/item-4`);
       assert.equal(url.searchParams.get('minorversion'), '75');
-      assert.equal(url.searchParams.get('query'), "select * from Item where Name = 'Championship Week' maxresults 1");
       assertAccountingHeaders(call);
-      return json({QueryResponse:{Item:[{Id:'item-4',Name:'Championship Week',UnitPrice:49}]}});
+      return json({Item:{Id:'item-4',Name:'Championship Week',Active:true}});
     },
     call => {
       const url = new URL(call.url);
@@ -168,6 +179,7 @@ test('creates a commerce Invoice on the production Accounting host with a stable
       assert.equal(body.Line[0].Amount, 49);
       assert.equal(body.Line[0].SalesItemLineDetail.UnitPrice, 49);
       assert.equal(body.Line[0].SalesItemLineDetail.ItemRef.value, 'item-4');
+      assert.equal(body.Line[0].SalesItemLineDetail.TaxCodeRef.value, 'NON');
       return json({Invoice:{Id:'invoice-30',DocNumber:'1001'},time:'2026-08-30T10:00:00-07:00'});
     },
     call => {
@@ -183,13 +195,7 @@ test('creates a commerce Invoice on the production Accounting host with a stable
     onRefreshToken: async token => { persistedRefreshToken = token; },
   }), fetchImpl);
 
-  const result = await client.createCommerceInvoice({
-    id:'order-1',
-    name:'Championship Week',
-    customer:{name:'Ada Lovelace',email:'ada@example.com'},
-    amountCents:4900,
-    currency:'USD',
-  });
+  const result = await client.createCommerceInvoice(commerceOrder());
 
   assert.deepEqual(result, {
     customerId:'customer-9',
@@ -207,13 +213,7 @@ test('accepts the documented null DocNumber when CustomTxnNumber is enabled', as
   });
   const client = createQuickBooksClient(clientConfig(), fetchImpl);
 
-  const result = await client.createCommerceInvoice({
-    id:'order-1',
-    name:'Championship Week',
-    customer:{name:'Ada Lovelace',email:'ada@example.com'},
-    amountCents:4900,
-    currency:'USD',
-  });
+  const result = await client.createCommerceInvoice(commerceOrder());
 
   assert.deepEqual(result, {customerId:'customer-9',invoiceId:'invoice-30',documentNumber:null});
   fetchImpl.assertDone();
@@ -226,6 +226,7 @@ test('fails closed when authoritative Invoice readback does not exactly match th
     ['provider-calculated tax total', {TotalAmt:53.05,Balance:53.05}],
     ['unexpected non-full balance', {Balance:0,LinkedTxn:[{TxnId:'payment-old',TxnType:'Payment'}]}],
     ['currency', {CurrencyRef:{value:'CAD'}}],
+    ['tax code', {Line:[{DetailType:'SalesItemLineDetail',Amount:49,SalesItemLineDetail:{ItemRef:{value:'item-4'},TaxCodeRef:{value:'TAX'},Qty:1,UnitPrice:49}}]}],
     ['item reference', {Line:[{DetailType:'SalesItemLineDetail',Amount:49,SalesItemLineDetail:{ItemRef:{value:'item-old'},Qty:1,UnitPrice:49}}]}],
     ['line amount', {Line:[{DetailType:'SalesItemLineDetail',Amount:48,SalesItemLineDetail:{ItemRef:{value:'item-4'},Qty:1,UnitPrice:48}}]}],
     ['stale idempotent response', {
@@ -240,13 +241,7 @@ test('fails closed when authoritative Invoice readback does not exactly match th
     await t.test(name, async () => {
       const fetchImpl = minimalCommerceCreateFetch({readback:commerceInvoiceReadback(overrides)});
       const client = createQuickBooksClient(clientConfig(), fetchImpl);
-      await assert.rejects(client.createCommerceInvoice({
-        id:'order-1',
-        name:'Championship Week',
-        customer:{name:'Ada Lovelace',email:'ada@example.com'},
-        amountCents:4900,
-        currency:'USD',
-      }), error => {
+      await assert.rejects(client.createCommerceInvoice(commerceOrder()), error => {
         assert.equal(error.message, 'QuickBooks Invoice create readback was invalid');
         assert.doesNotMatch(error.message, /customer-old|order-old|item-old|53\.05/);
         return true;
@@ -262,13 +257,7 @@ test('rejects non-integer-cent commerce totals before contacting QuickBooks', as
     calls += 1;
     throw new Error('should not be called');
   });
-  await assert.rejects(client.createCommerceInvoice({
-    id:'order-1',
-    name:'Championship Week',
-    customer:{name:'Ada Lovelace',email:'ada@example.com'},
-    amountCents:4900.5,
-    currency:'USD',
-  }), /invalid/i);
+  await assert.rejects(client.createCommerceInvoice(commerceOrder({amountCents:4900.5})), /invalid/i);
   assert.equal(calls, 0);
 });
 
@@ -330,38 +319,61 @@ test('fails closed when the documented Invoice send result is missing or contrad
   }
 });
 
-test('malformed Customer and Item query responses fail with redacted operation errors', async t => {
+test('malformed Customer query and Item read responses fail with redacted operation errors', async t => {
   const cases = [
     ['invalid Customer query JSON', [tokenStep(), () => new Response('customer-body-secret', {status:200})], 'Customer query'],
     ['invalid Customer query envelope', [tokenStep(), () => json({Wrong:{Customer:[]}})], 'Customer query'],
-    ['invalid Item query JSON', [
+    ['invalid Item read JSON', [
       tokenStep(),
       () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
       () => new Response('item-body-secret', {status:200}),
-    ], 'Item query'],
-    ['invalid Item query envelope', [
+    ], 'Item read'],
+    ['invalid Item read envelope', [
       tokenStep(),
       () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
       () => json({Wrong:{Item:[]}}),
-    ], 'Item query'],
+    ], 'Item read'],
   ];
   for (const [name, steps, operation] of cases) {
     await t.test(name, async () => {
       const fetchImpl = scriptedFetch(steps);
       const client = createQuickBooksClient(clientConfig(), fetchImpl);
-      await assert.rejects(client.createCommerceInvoice({
-        id:'order-1',
-        name:'Championship Week',
-        customer:{name:'Ada Lovelace',email:'ada@example.com'},
-        amountCents:4900,
-        currency:'USD',
-      }), error => {
+      await assert.rejects(client.createCommerceInvoice(commerceOrder()), error => {
         assert.equal(error.message, `QuickBooks ${operation} response was invalid`);
         assert.doesNotMatch(error.message, /body-secret|Unexpected|Wrong/);
         return true;
       });
       fetchImpl.assertDone();
     });
+  }
+});
+
+test('rejects a stale accounting fingerprint before any provider request', async () => {
+  let calls=0;
+  const client=createQuickBooksClient(clientConfig(),async () => { calls+=1; throw new Error('must not call'); });
+  const tampered=commerceOrder({accountingSnapshot:{...commerceOrder().accountingSnapshot,itemId:'item-old'}});
+  await assert.rejects(client.createCommerceInvoice(tampered), /invalid/i);
+  assert.equal(calls,0);
+});
+
+test('reads the configured Item by immutable ID and rejects wrong name or inactive state before Invoice create', async () => {
+  for (const Item of [
+    {Id:'item-4',Name:'Other Product',Active:true},
+    {Id:'item-4',Name:'Championship Week',Active:false},
+    {Id:'item-old',Name:'Championship Week',Active:true},
+  ]) {
+    const fetchImpl=scriptedFetch([
+      tokenStep(),
+      () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
+      () => json({Item}),
+    ]);
+    const client=createQuickBooksClient(clientConfig(),fetchImpl);
+    await assert.rejects(client.createCommerceInvoice(commerceOrder()), error => {
+      assert.match(error.message,/item.*invalid|unusable/i);
+      assertNoProviderPayloadKeys(error);
+      return true;
+    });
+    fetchImpl.assertDone();
   }
 });
 
@@ -378,13 +390,7 @@ test('malformed Customer creation responses fail with a redacted operation error
         customerResponse,
       ]);
       const client = createQuickBooksClient(clientConfig(), fetchImpl);
-      await assert.rejects(client.createCommerceInvoice({
-        id:'order-1',
-        name:'Championship Week',
-        customer:{name:'Ada Lovelace',email:'ada@example.com'},
-        amountCents:4900,
-        currency:'USD',
-      }), error => {
+      await assert.rejects(client.createCommerceInvoice(commerceOrder()), error => {
         assert.equal(error.message, 'QuickBooks Customer create response was invalid');
         assert.doesNotMatch(error.message, /customer-create-secret|Unexpected|Wrong/);
         return true;

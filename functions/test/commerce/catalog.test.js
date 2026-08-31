@@ -25,8 +25,10 @@ test('records the reviewed owner-pilot price, QuickBooks mapping, tax gate, and 
   assert.equal(item.tax.accountantVerified, false);
   assert.equal(item.artifact.objectKey, 'private-commerce/home-inspection-study-guide/guide-v1.pdf');
   assert.equal(item.artifact.contentType, 'application/pdf');
-  assert.equal(item.artifact.maxBytes, 71250419);
+  assert.equal(item.artifact.exactBytes, 71250419);
   assert.equal(item.artifact.sha256, '2bdf6b760b426cc088ade620334fd8ff735f3276bb0b68589ceaccbc1d93cc9d');
+  assert.equal(item.artifact.md5Hash, 'XXzfi6ddgB6rru9fLIrv7Q==');
+  assert.equal(item.artifact.generation, null);
   assert.equal(item.artifact.objectVerified, false);
   assert.equal(item.release.deployApproved, false);
   assert.equal(Object.isFrozen(item), true);
@@ -48,7 +50,7 @@ test('activation predicate requires every authoritative verification gate', () =
     active:true,
     quickBooks:{...configured.quickBooks,itemId:'verified-item-id',itemVerified:true},
     tax:{...configured.tax,accountantVerified:true},
-    artifact:{...configured.artifact,objectVerified:true},
+    artifact:{...configured.artifact,generation:'1785951381246665',objectVerified:true},
     release:{...configured.release,fulfillmentRuntimeVerified:true,deployApproved:true},
   };
   assert.equal(isCommerceItemPurchasable(ready), true);
@@ -56,9 +58,13 @@ test('activation predicate requires every authoritative verification gate', () =
     {...ready,active:false},
     {...ready,quickBooks:{...ready.quickBooks,itemId:null}},
     {...ready,quickBooks:{...ready.quickBooks,itemVerified:false}},
+    {...ready,quickBooks:{...ready.quickBooks,itemName:'Other Product'}},
     {...ready,tax:{...ready.tax,classificationApproved:false}},
     {...ready,tax:{...ready.tax,accountantVerified:false}},
+    {...ready,tax:{...ready.tax,quickBooksTaxCode:''}},
     {...ready,artifact:{...ready.artifact,objectVerified:false}},
+    {...ready,artifact:{...ready.artifact,generation:null}},
+    {...ready,artifact:{...ready.artifact,md5Hash:''}},
     {...ready,release:{...ready.release,ownerPilotApproved:false}},
     {...ready,release:{...ready.release,priceApproved:false}},
     {...ready,release:{...ready.release,fulfillmentRuntimeVerified:false}},
@@ -68,7 +74,7 @@ test('activation predicate requires every authoritative verification gate', () =
 
 test('does not disclose private configuration through buyer capabilities', () => {
   const serialized = JSON.stringify(listCommerceCapabilities());
-  assert.doesNotMatch(serialized, /private-commerce|guide-v1|sha256|71250419|quickbooks/i);
+  assert.doesNotMatch(serialized, /private-commerce|guide-v1|sha256|md5|generation|71250419|quickbooks/i);
 });
 
 test('rejects unknown or inactive products', () => {

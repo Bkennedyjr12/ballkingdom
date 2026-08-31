@@ -6,8 +6,10 @@ const PLANNED_ARTIFACTS = Object.freeze({
   'home-inspection-study-guide':Object.freeze({
     key:configuredGuide.artifact.objectKey,
     contentType:configuredGuide.artifact.contentType,
-    maxBytes:configuredGuide.artifact.maxBytes,
+    exactBytes:configuredGuide.artifact.exactBytes,
     sha256:configuredGuide.artifact.sha256,
+    md5Hash:configuredGuide.artifact.md5Hash,
+    generation:configuredGuide.artifact.generation,
     verified:configuredGuide.artifact.objectVerified,
   }),
 });

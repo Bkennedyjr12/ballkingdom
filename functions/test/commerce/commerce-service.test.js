@@ -13,6 +13,8 @@ const catalogItem = Object.freeze({
   orderType:'digital_product',
   fulfillmentType:'protected_download',
   active:true,
+  quickBooks:{itemId:'item-4',itemName:'Home Inspection Study Guide',itemVerified:true},
+  tax:{quickBooksTaxCode:'NON',accountantVerified:true},
 });
 
 function createMemoryRepository() {
@@ -576,10 +578,15 @@ test('requires a verified allowlisted token and ignores client UID, email, and a
   const result = await state.service.createDigitalOrder({
     sku:catalogItem.sku,customerName:'Ada',idempotencyKey:'order-1',
     amountCents:1,uid:'attacker',email:'attacker@example.test',
+    accountingSnapshot:{provider:'quickbooks',itemId:'attacker-item',taxCode:'TAX'},
   }, ownerAuth);
 
   assert.equal(result.amountCents, catalogItem.amountCents);
   assert.equal(state.calls.create[0].amountCents, catalogItem.amountCents);
+  assert.equal(state.calls.create[0].accountingSnapshot.itemId, 'item-4');
+  assert.equal(state.calls.create[0].accountingSnapshot.itemName, 'Home Inspection Study Guide');
+  assert.equal(state.calls.create[0].accountingSnapshot.taxCode, 'NON');
+  assert.match(state.calls.create[0].accountingSnapshot.fingerprint, /^[a-f0-9]{64}$/);
   const order = state.repository.orders.get(result.orderHandle);
   assert.equal(order.customerUid, ownerAuth.uid);
   assert.deepEqual(order.customer, {name:'Ada'});

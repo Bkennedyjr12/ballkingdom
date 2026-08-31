@@ -3,6 +3,7 @@ export const VERIFIED_COMMERCE_BUCKET = 'the-ballers-kingdom.firebasestorage.app
 const PRIVATE_KEY = /^private-commerce\/[A-Za-z0-9][A-Za-z0-9._/-]{0,480}$/;
 const MIME = /^[a-z0-9][a-z0-9!#$&^_.+-]{0,63}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,63}$/;
 const GENERATION = /^[1-9][0-9]{0,30}$/;
+const MD5_BASE64 = /^[A-Za-z0-9+/]{22}==$/;
 
 function streamError(message) {
   const error = new Error(message);
@@ -20,25 +21,27 @@ export function createPrivateArtifactStreamer({bucket} = {}) {
   return async function streamArtifact(key, context = {}) {
     if (bucket.name !== VERIFIED_COMMERCE_BUCKET) throw streamError('Private bucket is unavailable');
     if (!validPrivateKey(key)) throw streamError('Private artifact key is invalid');
-    const {response,expectedContentType,maxBytes} = context;
+    const {response,expectedContentType,exactBytes,expectedGeneration,expectedMd5Hash} = context;
     if (!response?.once || typeof expectedContentType !== 'string' || !MIME.test(expectedContentType)
-      || !Number.isSafeInteger(maxBytes) || maxBytes < 1) {
+      || !Number.isSafeInteger(exactBytes) || exactBytes < 1
+      || typeof expectedGeneration !== 'string' || !GENERATION.test(expectedGeneration)
+      || typeof expectedMd5Hash !== 'string' || !MD5_BASE64.test(expectedMd5Hash)) {
       throw streamError('Artifact stream context is invalid');
     }
-    const metadataFile = bucket.file(key);
+    const metadataFile = bucket.file(key, {generation:expectedGeneration});
     const [metadata] = await metadataFile.getMetadata();
-    const expectedBytes = Number(metadata?.size);
-    const generation = metadata?.generation;
-    if (metadata?.contentType !== expectedContentType || !Number.isSafeInteger(expectedBytes)
-      || expectedBytes < 0 || expectedBytes > maxBytes
-      || typeof generation !== 'string' || !GENERATION.test(generation)) {
+    const metadataBytes = Number(metadata?.size);
+    if (metadata?.contentType !== expectedContentType || !Number.isSafeInteger(metadataBytes)
+      || metadataBytes !== exactBytes
+      || metadata?.generation !== expectedGeneration
+      || metadata?.md5Hash !== expectedMd5Hash) {
       throw streamError('Private artifact metadata is unavailable');
     }
     if (typeof response.setHeader === 'function') response.setHeader('Content-Type', expectedContentType);
-    const pinnedFile = bucket.file(key, {generation});
+    const pinnedFile = metadataFile;
     let bytesWritten = 0;
     await new Promise((resolve,reject) => {
-      const source = pinnedFile.createReadStream({validation:'crc32c'});
+      const source = pinnedFile.createReadStream({validation:'md5'});
       let settled = false;
       const cleanup = () => {
         source.removeListener('data', onData);
@@ -60,8 +63,7 @@ export function createPrivateArtifactStreamer({bucket} = {}) {
       const onData = chunk => {
         const length = Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk);
         bytesWritten += length;
-        if (!Number.isSafeInteger(bytesWritten) || bytesWritten > maxBytes
-          || bytesWritten > expectedBytes) fail();
+        if (!Number.isSafeInteger(bytesWritten) || bytesWritten > exactBytes) fail();
       };
       const onSourceError = () => fail();
       const onResponseError = () => fail();
@@ -69,7 +71,7 @@ export function createPrivateArtifactStreamer({bucket} = {}) {
       const onAborted = () => fail();
       const onFinish = () => {
         if (settled) return;
-        if (bytesWritten !== expectedBytes) { fail(); return; }
+        if (bytesWritten !== exactBytes) { fail(); return; }
         settled = true;
         cleanup();
         resolve();

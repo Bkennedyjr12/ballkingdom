@@ -15,8 +15,10 @@ test('records the reviewed artifact definition but does not make fulfillment rea
   assert.deepEqual(planned['home-inspection-study-guide'], {
     key:'private-commerce/home-inspection-study-guide/guide-v1.pdf',
     contentType:'application/pdf',
-    maxBytes:71250419,
+    exactBytes:71250419,
     sha256:'2bdf6b760b426cc088ade620334fd8ff735f3276bb0b68589ceaccbc1d93cc9d',
+    md5Hash:'XXzfi6ddgB6rru9fLIrv7Q==',
+    generation:null,
     verified:false,
   });
   assert.equal(readFulfillmentRuntimeReadiness().ready, false);

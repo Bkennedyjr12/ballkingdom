@@ -88,6 +88,26 @@ function normalizeCustomer(value) {
   return Object.freeze(customer);
 }
 
+function normalizeAccountingSnapshot(value) {
+  const keys=['fingerprint','itemId','itemName','provider','taxCode'];
+  if (!plainObject(value) || Object.keys(value).sort().join(',') !== keys.join(',')
+    || value.provider !== 'quickbooks'
+    || typeof value.itemId !== 'string' || !PROVIDER_VALUE.test(value.itemId)
+    || typeof value.itemName !== 'string' || value.itemName.length < 1 || value.itemName.length > 200
+    || value.itemName !== value.itemName.trim()
+    || typeof value.taxCode !== 'string' || !/^[A-Za-z0-9._:-]{1,32}$/.test(value.taxCode)
+    || typeof value.fingerprint !== 'string' || !SHA256_DIGEST.test(value.fingerprint)) {
+    throw repositoryError('ORDER_INVALID', 'accountingSnapshot is invalid');
+  }
+  const fingerprint=createHash('sha256')
+    .update(`quickbooks\0${value.itemId}\0${value.itemName}\0${value.taxCode}`).digest('hex');
+  if (value.fingerprint !== fingerprint) {
+    throw repositoryError('ORDER_INVALID', 'accountingSnapshot is invalid');
+  }
+  return Object.freeze({provider:'quickbooks',itemId:value.itemId,itemName:value.itemName,
+    taxCode:value.taxCode,fingerprint});
+}
+
 function normalizeOrder(order) {
   if (!plainObject(order)) throw repositoryError('ORDER_INVALID', 'order is invalid');
   const status = requiredText(order.status, 'status', 64);
@@ -118,6 +138,9 @@ function normalizeOrder(order) {
     provider,
     providerRefs: normalizeProviderRefs(order.providerRefs),
   };
+  if (orderType === 'digital_product') {
+    normalized.accountingSnapshot=normalizeAccountingSnapshot(order.accountingSnapshot);
+  }
   if (order.customerUid != null) {
     normalized.customerUid = requiredId(order.customerUid, 'customerUid', WORKER_ID);
   }

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {
   isAllowedOrderStatusTransition,
   isFinalOrderStatus,
@@ -17,6 +18,8 @@ const digitalItem = {
   currency: 'USD',
   orderType: 'digital_product',
   fulfillmentType: 'protected_download',
+  quickBooks:{itemId:'item-4',itemName:'Study Guide',itemVerified:true},
+  tax:{quickBooksTaxCode:'NON',accountantVerified:true},
 };
 
 const serviceItem = {
@@ -47,9 +50,22 @@ test('creates digital orders pending payment from the server item', () => {
     currency: 'USD',
     orderType: 'digital_product',
     fulfillmentType: 'protected_download',
+    accountingSnapshot: {
+      provider:'quickbooks',itemId:'item-4',itemName:'Study Guide',taxCode:'NON',
+      fingerprint:createHash('sha256').update('quickbooks\0item-4\0Study Guide\0NON').digest('hex'),
+    },
     customer: {name: 'Ada', email: 'ada@example.test'},
     status: 'pending_payment',
   });
+});
+
+test('rejects a digital order without an exact verified QuickBooks item and tax snapshot', () => {
+  for (const item of [
+    {...digitalItem,quickBooks:undefined},
+    {...digitalItem,quickBooks:{...digitalItem.quickBooks,itemId:null}},
+    {...digitalItem,quickBooks:{...digitalItem.quickBooks,itemVerified:false}},
+    {...digitalItem,tax:{...digitalItem.tax,accountantVerified:false}},
+  ]) assert.throws(() => newOrder({item,customer:{name:'Ada'}}), {code:'ORDER_INVALID'});
 });
 
 test('projects only permitted customer fields and freezes the normalized customer', () => {

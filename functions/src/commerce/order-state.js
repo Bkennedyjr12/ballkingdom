@@ -1,3 +1,5 @@
+import {createHash} from 'node:crypto';
+
 const ORDER_STATUSES = new Set([
   'created',
   'pending_payment',
@@ -124,6 +126,20 @@ function normalizeCustomer(customer) {
   return Object.freeze(normalized);
 }
 
+function normalizeAccountingSnapshot(item) {
+  const itemId=item?.quickBooks?.itemId;
+  const itemName=item?.quickBooks?.itemName;
+  const taxCode=item?.tax?.quickBooksTaxCode;
+  if (item?.quickBooks?.itemVerified !== true || item?.tax?.accountantVerified !== true
+    || !isRequiredString(itemId) || itemId.length > 200
+    || !isRequiredString(itemName) || itemName.length > 200
+    || !isRequiredString(taxCode) || taxCode.length > 32) invalidOrder();
+  const snapshot={provider:'quickbooks',itemId,itemName,taxCode};
+  snapshot.fingerprint=createHash('sha256')
+    .update(`quickbooks\0${itemId}\0${itemName}\0${taxCode}`).digest('hex');
+  return Object.freeze(snapshot);
+}
+
 export function newOrder({item, customer} = {}) {
   if (
     !item ||
@@ -138,7 +154,7 @@ export function newOrder({item, customer} = {}) {
     invalidOrder();
   }
 
-  return Object.freeze({
+  const normalized = {
     sku: item.sku,
     name: item.name,
     amountCents: item.amountCents,
@@ -147,7 +163,11 @@ export function newOrder({item, customer} = {}) {
     fulfillmentType: item.fulfillmentType,
     customer: normalizeCustomer(customer),
     status: initialStatus(item.orderType),
-  });
+  };
+  if (item.orderType === 'digital_product') {
+    normalized.accountingSnapshot=normalizeAccountingSnapshot(item);
+  }
+  return Object.freeze(normalized);
 }
 
 export function transitionOrder(order, event) {

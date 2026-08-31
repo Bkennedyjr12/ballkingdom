@@ -69,6 +69,8 @@ function normalizeCommerceOrder(order) {
   const customerName = order?.customer?.name ?? order?.customerName;
   const customerEmail = order?.customer?.email ?? order?.customerEmail;
   const {amountCents, currency} = order ?? {};
+  const accounting=order?.accountingSnapshot;
+  const accountingKeys=['fingerprint','itemId','itemName','provider','taxCode'];
   if (
     !isNonEmptyString(orderId) ||
     !isNonEmptyString(itemName) ||
@@ -77,10 +79,24 @@ function normalizeCommerceOrder(order) {
     !Number.isSafeInteger(amountCents) ||
     amountCents <= 0 ||
     !isCurrency(currency)
+    || !accounting || typeof accounting !== 'object' || Array.isArray(accounting)
+    || Object.keys(accounting).sort().join(',') !== accountingKeys.join(',')
+    || accounting.provider !== 'quickbooks'
+    || !isNonEmptyString(accounting.itemId)
+    || !isNonEmptyString(accounting.itemName)
+    || !isNonEmptyString(accounting.taxCode)
+    || accounting.itemName !== itemName
+    || !/^[A-Za-z0-9._:-]{1,32}$/.test(accounting.taxCode)
+    || !/^[a-f0-9]{64}$/.test(accounting.fingerprint)
   ) {
     throw new Error('Commerce invoice order is invalid');
   }
-  return {orderId,itemName,customerName,customerEmail,amountCents,currency};
+  const fingerprint=createHash('sha256')
+    .update(`quickbooks\0${accounting.itemId}\0${accounting.itemName}\0${accounting.taxCode}`)
+    .digest('hex');
+  if (accounting.fingerprint !== fingerprint) throw new Error('Commerce invoice order is invalid');
+  return {orderId,itemName,customerName,customerEmail,amountCents,currency,
+    accounting:Object.freeze({...accounting})};
 }
 
 function normalizePaymentEntity(payment, expectedId) {
@@ -184,6 +200,7 @@ function assertCommerceInvoiceReadback(providerInvoice, normalizedInvoice, expec
     normalizedInvoice.entityState !== 'present' ||
     normalizedInvoice.paymentState !== 'unpaid' ||
     detail?.ItemRef?.value !== expected.itemId ||
+    detail?.TaxCodeRef?.value !== expected.taxCode ||
     detail.Qty !== 1 ||
     providerMoneyToCents(line.Amount, 'Invoice') !== expected.amountCents ||
     providerMoneyToCents(detail.UnitPrice, 'Invoice') !== expected.amountCents
@@ -368,6 +385,20 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
     return normalizePaymentEntity(data?.Payment, paymentId);
   }
 
+  async function readItem(itemId) {
+    if (!isNonEmptyString(itemId)) throw unusable('Item');
+    const data=await requestJson(
+      `/item/${encodeURIComponent(itemId)}?minorversion=${MINOR_VERSION}`,
+      undefined,
+      'Item read',
+    );
+    const item=data?.Item;
+    if (!item || typeof item !== 'object' || Array.isArray(item)) throw invalidResponse('Item read');
+    const normalizedId=assertPresentProviderEntity(item,'Item',itemId);
+    if (!isNonEmptyString(item.Name) || item.Active !== true) throw unusable('Item');
+    return Object.freeze({itemId:normalizedId,itemName:item.Name,active:true});
+  }
+
   async function readInvoiceEntity(invoiceId) {
     const data = await requestJson(
       `/invoice/${encodeURIComponent(invoiceId)}?minorversion=${MINOR_VERSION}`,
@@ -412,9 +443,9 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
       const providerOrderRef = `bk-order-${normalizedOrder.orderId}`;
       const customer = await ensureCustomer(normalizedOrder);
       if (!customer || !isNonEmptyString(customer.Id)) throw invalidResponse('Customer read/create');
-      const item = await query('Item', 'Name', normalizedOrder.itemName);
-      if (!item || !isNonEmptyString(item.Id)) {
-        throw new Error(`QuickBooks commerce item is not configured: ${normalizedOrder.itemName}`);
+      const item = await readItem(normalizedOrder.accounting.itemId);
+      if (item.itemName !== normalizedOrder.accounting.itemName || item.active !== true) {
+        throw unusable('Item');
       }
       const amount = normalizedOrder.amountCents / 100;
       const payload = {
@@ -426,7 +457,10 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
           DetailType:'SalesItemLineDetail',
           Amount:amount,
           Description:normalizedOrder.itemName,
-          SalesItemLineDetail:{ItemRef:{value:item.Id,name:item.Name},Qty:1,UnitPrice:amount},
+          SalesItemLineDetail:{
+            ItemRef:{value:item.itemId,name:item.itemName},
+            TaxCodeRef:{value:normalizedOrder.accounting.taxCode},Qty:1,UnitPrice:amount,
+          },
         }],
       };
       const requestId = encodeURIComponent(deterministicRequestId(providerOrderRef));
@@ -443,7 +477,8 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
         const readback = await readInvoiceEntity(data.Invoice.Id);
         assertCommerceInvoiceReadback(readback.providerInvoice, readback.invoice, {
           customerId:customer.Id,
-          itemId:item.Id,
+          itemId:item.itemId,
+          taxCode:normalizedOrder.accounting.taxCode,
           providerOrderRef,
           amountCents:normalizedOrder.amountCents,
           currency:normalizedOrder.currency,
@@ -457,6 +492,8 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
         documentNumber,
       };
     },
+
+    getItem: readItem,
 
     async sendInvoice({invoiceId, customerEmail} = {}) {
       if (!isNonEmptyString(invoiceId) || !isNonEmptyString(customerEmail)) {

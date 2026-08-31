@@ -7,7 +7,9 @@ const NOW = new Date('2026-08-30T12:00:00.000Z');
 const SKU = 'home-inspection-study-guide';
 const ARTIFACT = 'private-commerce/home-inspection-study-guide.pdf';
 const ARTIFACT_CONFIG = Object.freeze({
-  key:ARTIFACT,contentType:'application/pdf',maxBytes:10_000_000,
+  key:ARTIFACT,contentType:'application/pdf',exactBytes:100,
+  generation:'1785951381246665',md5Hash:'XXzfi6ddgB6rru9fLIrv7Q==',
+  sha256:'2bdf6b760b426cc088ade620334fd8ff735f3276bb0b68589ceaccbc1d93cc9d',
 });
 
 function fixture({status = 'fulfilled', uid = 'customer-1'} = {}) {
@@ -234,9 +236,9 @@ test('bounds stream MIME and byte metadata to the server SKU definition', async 
     [{streamed:true,contentType:'application/pdf; charset=utf-8',bytesWritten:100}, false],
     [{streamed:true,contentType:`application/${'x'.repeat(200)}`,bytesWritten:100}, false],
     [{streamed:true,contentType:'application/pdf\nX-Evil: yes',bytesWritten:100}, false],
-    [{streamed:true,contentType:'application/pdf',bytesWritten:10_000_001}, false],
-    [{streamed:true,contentType:'application/pdf',bytesWritten:10_000_000,unknown:true}, false],
-    [{streamed:true,contentType:'application/pdf',bytesWritten:10_000_000}, true],
+    [{streamed:true,contentType:'application/pdf',bytesWritten:101}, false],
+    [{streamed:true,contentType:'application/pdf',bytesWritten:100,unknown:true}, false],
+    [{streamed:true,contentType:'application/pdf',bytesWritten:100}, true],
   ];
   for (const [receipt, valid] of cases) {
     const state = fixture();
@@ -259,6 +261,31 @@ test('bounds stream MIME and byte metadata to the server SKU definition', async 
     if (valid) assert.deepEqual(await redemption, receipt);
     else await assert.rejects(redemption, /streaming contract/i);
   }
+});
+
+test('passes only the immutable server artifact fingerprint to the stream adapter', async () => {
+  const state = fixture();
+  let observed;
+  const service = createFulfillmentService({
+    repository:{
+      getOrder:async id => state.orders.get(id) ?? null,
+      getEntitlement:async id => state.entitlements.get(id) ?? null,
+      createDownloadGrant:async grant => state.grants.set(`${grant.orderId}:${grant.digest}`, structuredClone(grant)),
+      consumeDownloadGrant:async ({orderId,digest}) => state.grants.get(`${orderId}:${digest}`),
+    },
+    artifactKeys:{[SKU]:ARTIFACT_CONFIG},randomBytes:() => Buffer.alloc(32, 9),clock:() => new Date(NOW),
+    streamArtifact:async (key, context) => {
+      observed={key,...context};
+      return {streamed:true,contentType:'application/pdf',bytesWritten:100};
+    },
+  });
+  const {grant}=await service.createDownloadGrant({orderId:'order-1'},auth());
+  await service.redeemDownloadGrant({orderId:'order-1',grant},auth());
+  assert.equal(observed.key, ARTIFACT);
+  assert.equal(observed.exactBytes, 100);
+  assert.equal(observed.expectedGeneration, '1785951381246665');
+  assert.equal(observed.expectedMd5Hash, 'XXzfi6ddgB6rru9fLIrv7Q==');
+  assert.equal(Object.hasOwn(observed,'maxBytes'), false);
 });
 
 test('fulfillPaidOrder permits only a paid protected digital order with an allowlisted SKU', async () => {

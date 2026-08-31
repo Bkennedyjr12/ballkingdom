@@ -4,6 +4,9 @@ const ORDER_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const GRANT_NONCE = /^[A-Za-z0-9_-]{43}$/;
 const DIGEST = /^[a-f0-9]{64}$/;
 const MIME_TYPE = /^[a-z0-9][a-z0-9!#$&^_.+-]{0,63}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,63}$/;
+const GENERATION = /^[1-9][0-9]{0,30}$/;
+const SHA256 = /^[a-f0-9]{64}$/;
+const MD5_BASE64 = /^[A-Za-z0-9+/]{22}==$/;
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
 function fulfillmentError(code, message) {
@@ -41,11 +44,15 @@ function artifactDefinitionFor(artifactKeys, sku) {
     || key.split('/').some(segment => !segment || segment === '.' || segment === '..')
     || typeof definition.contentType !== 'string' || definition.contentType.length > 127
     || !MIME_TYPE.test(definition.contentType)
-    || !Number.isSafeInteger(definition.maxBytes) || definition.maxBytes < 1) {
+    || !Number.isSafeInteger(definition.exactBytes) || definition.exactBytes < 1
+    || typeof definition.generation !== 'string' || !GENERATION.test(definition.generation)
+    || typeof definition.sha256 !== 'string' || !SHA256.test(definition.sha256)
+    || typeof definition.md5Hash !== 'string' || !MD5_BASE64.test(definition.md5Hash)) {
     throw fulfillmentError('FULFILLMENT_NOT_AVAILABLE', 'Digital fulfillment is not available');
   }
   return Object.freeze({
-    key,contentType:definition.contentType,maxBytes:definition.maxBytes,
+    key,contentType:definition.contentType,exactBytes:definition.exactBytes,
+    generation:definition.generation,sha256:definition.sha256,md5Hash:definition.md5Hash,
   });
 }
 
@@ -149,14 +156,14 @@ export function createFulfillmentService({
       const result = await streamArtifact(
         artifact.key,Object.freeze({
           orderId,sku:order.sku,customerUid:uid,response:authContext.response,
-          expectedContentType:artifact.contentType,maxBytes:artifact.maxBytes,
+          expectedContentType:artifact.contentType,exactBytes:artifact.exactBytes,
+          expectedGeneration:artifact.generation,expectedMd5Hash:artifact.md5Hash,
         })
       );
       if (!isRecord(result) || result.streamed !== true
         || Object.keys(result).some(key => !['streamed','contentType','bytesWritten'].includes(key))
         || result.contentType !== artifact.contentType
-        || !Number.isSafeInteger(result.bytesWritten) || result.bytesWritten < 0
-        || result.bytesWritten > artifact.maxBytes) {
+        || result.bytesWritten !== artifact.exactBytes) {
         throw fulfillmentError(
           'FULFILLMENT_STREAM_INVALID','Artifact streaming contract was not satisfied'
         );

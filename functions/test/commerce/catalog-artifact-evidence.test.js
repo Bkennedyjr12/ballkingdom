@@ -9,8 +9,9 @@ const ARTIFACT_URL = new URL('../../../home-inspection-guide/public/assets/guide
 test('configured artifact identity matches the independently read source file', async () => {
   const item = getConfiguredCommerceItem('home-inspection-study-guide');
   const [bytes, details] = await Promise.all([readFile(ARTIFACT_URL), stat(ARTIFACT_URL)]);
-  assert.equal(details.size, item.artifact.maxBytes);
+  assert.equal(details.size, item.artifact.exactBytes);
   assert.equal(createHash('sha256').update(bytes).digest('hex'), item.artifact.sha256);
+  assert.equal(createHash('md5').update(bytes).digest('base64'), item.artifact.md5Hash);
   assert.equal(item.sourceEvidence.reviewedAt, '2026-08-30');
 });
 

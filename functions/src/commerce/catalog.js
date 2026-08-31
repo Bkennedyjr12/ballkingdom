@@ -32,8 +32,10 @@ const ITEMS = deepFreeze({
     artifact: {
       objectKey: 'private-commerce/home-inspection-study-guide/guide-v1.pdf',
       contentType: 'application/pdf',
-      maxBytes: 71250419,
+      exactBytes: 71250419,
       sha256: '2bdf6b760b426cc088ade620334fd8ff735f3276bb0b68589ceaccbc1d93cc9d',
+      md5Hash: 'XXzfi6ddgB6rru9fLIrv7Q==',
+      generation: null,
       objectVerified: false,
     },
     release: {
@@ -61,8 +63,20 @@ export function isCommerceItemPurchasable(item) {
     && item.quickBooks?.itemVerified === true
     && typeof item.quickBooks?.itemId === 'string'
     && item.quickBooks.itemId.length > 0
+    && item.quickBooks?.itemName === item.name
     && item.tax?.classificationApproved === true
     && item.tax?.accountantVerified === true
+    && typeof item.tax?.quickBooksTaxCode === 'string'
+    && /^[A-Za-z0-9._:-]{1,32}$/.test(item.tax.quickBooksTaxCode)
+    && item.artifact?.contentType === 'application/pdf'
+    && Number.isSafeInteger(item.artifact?.exactBytes)
+    && item.artifact.exactBytes > 0
+    && typeof item.artifact?.sha256 === 'string'
+    && /^[a-f0-9]{64}$/.test(item.artifact.sha256)
+    && typeof item.artifact?.md5Hash === 'string'
+    && /^[A-Za-z0-9+/]{22}==$/.test(item.artifact.md5Hash)
+    && typeof item.artifact?.generation === 'string'
+    && /^[1-9][0-9]{0,30}$/.test(item.artifact.generation)
     && item.artifact?.objectVerified === true
     && item.release?.ownerPilotApproved === true
     && item.release?.priceApproved === true
