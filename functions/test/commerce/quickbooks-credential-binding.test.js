@@ -82,6 +82,16 @@ test('an ambiguous rotated-token add is persistence-unknown and never publishes'
   assert.deepEqual(calls,['qbo_refresh_persistence_unknown']);
 });
 
+test('a bounded refresh timeout is preserved for durable manual review without an Accounting call',async()=>{
+  const calls=[];const credentialStore={async readPublished(){return {generation:2,refreshTokenVersion:'4',realmVersion:'3'};},async claimRefresh(){return {status:'claimed'};},async markDispatchStarted(){return true;},async verifyPublishFence(){calls.push('publish-fence');return true;},async publishRotation(){calls.push('publish');return true;},async requireManualReview(input){calls.push(input.reason);return true;},async failBeforeDispatch(){},async recordAlert(){}};
+  const tokenStore={async readVersion(version){return {value:'bound-token',version};},async addVersion(){calls.push('token-add');return {version:'5'};}};
+  const realmStore={async readVersion(version){return {value:'bound-realm',version};}};
+  const timeout=Object.assign(new Error('provider detail'),{code:'QBO_REFRESH_TIMEOUT'});
+  const coordinator=createBoundQuickBooksCredentialCoordinator({credentialStore,tokenStore,realmStore,refresh:async()=>{calls.push('refresh');throw timeout;},clock:()=>new Date(10),ownerIdFactory:()=>'owner'});
+  await assert.rejects(coordinator.getCredentials(),error=>error.code==='QBO_REFRESH_TIMEOUT'&&error.message==='QuickBooks authentication timed out');
+  assert.deepEqual(calls,['refresh','qbo_refresh_timeout']);
+});
+
 test('partial reconnect writes never publish a mixed pair',async()=>{
   const calls=[];const credentialStore={async beginReconnect(){return {generation:8};},async publishReconnect(){calls.push('publish');return true;},async failReconnect(input){calls.push(input.reason);}};
   const tokenStore={async addVersion(){return {version:'20'};},async readVersion(){return {value:'new-token',version:'20'};}};
