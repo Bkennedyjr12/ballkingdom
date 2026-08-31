@@ -26,12 +26,14 @@ test('rejects non-Boolean parameter values instead of treating strings as truthy
   }), /Boolean/);
 });
 
-test('committed project parameter file has only the two allowlisted Boolean keys', async () => {
+test('committed project parameter file pins only reviewed flags and OAuth callback URLs', async () => {
   const source = await readFile(new URL('.env.the-ballers-kingdom', functionsUrl), 'utf8');
   const entries = source.trimEnd().split('\n');
-  assert.equal(entries.length, 2);
+  assert.equal(entries.length, 4);
   assert.match(entries[0], /^COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED=(?:true|false)$/);
   assert.equal(entries[1], 'COMMERCE_SERVICE_QBO_SEND_ENABLED=false');
+  assert.equal(entries[2], 'QBO_REDIRECT_URI=https://us-west1-the-ballers-kingdom.cloudfunctions.net/quickBooksOAuthCallback');
+  assert.equal(entries[3], 'MS_REDIRECT_URI=https://us-west1-the-ballers-kingdom.cloudfunctions.net/microsoftOAuthCallback');
   assert.doesNotMatch(source, /EMAIL|RECIPIENT|SECRET|TOKEN|CUSTOMER/i);
 
   const ignored = spawnSync('git', ['check-ignore', '-q', 'functions/.env.the-ballers-kingdom'], {
