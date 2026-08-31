@@ -1,8 +1,26 @@
 # Home Inspection Study Guide commerce pilot evidence
 
-Status: **configured locally, inactive, and not deployed**
+Status: **production dependencies verified; product remains inactive and fail-closed**
 
-Reviewed: 2026-08-30
+Reviewed: 2026-08-31
+
+## 2026-08-31 production dependency verification
+
+- QuickBooks company readback: `The Ballers Kingdom`.
+- QuickBooks item ID: `8`.
+- QuickBooks item readback: `Home Inspection Study Guide`, active, `NonInventory`,
+  USD $49.00, non-taxable, income account `Services` (ID `26`).
+- Private bucket: `the-ballers-kingdom.firebasestorage.app`.
+- Immutable object generation: `1788191152627469`.
+- Provider metadata readback matched the exact key, 71,250,419 bytes,
+  `application/pdf`, and MD5 `XXzfi6ddgB6rru9fLIrv7Q==`.
+- The source file still independently matches the recorded SHA-256 and MD5.
+- No customer, invoice, payment, refund, authentication email, or invoice email was created
+  or sent by these dependency-verification actions.
+
+The catalog records these verified production identifiers, but remains `active: false`.
+The professional tax-verification gate and protected-download runtime wiring remain false,
+so no buyer can create an order.
 
 ## Approved pilot mapping
 
@@ -15,10 +33,10 @@ Reviewed: 2026-08-30
 - Exact bytes: 71,250,419
 - SHA-256: `2bdf6b760b426cc088ade620334fd8ff735f3276bb0b68589ceaccbc1d93cc9d`
 - Source/provider MD5 (base64): `XXzfi6ddgB6rru9fLIrv7Q==`
-- Immutable Cloud Storage generation: pending upload and metadata readback (`null` in code)
+- Immutable Cloud Storage generation: `1788191152627469`
 
-The size and digest above were independently computed from the reviewed source artifact on
-2026-08-30. The artifact has not been uploaded by this configuration change.
+The size and digest above were independently computed from the reviewed source artifact and
+matched against the private provider object metadata on 2026-08-31.
 
 ## Proposed California tax mapping
 
@@ -47,9 +65,9 @@ Purchasability also requires all of the following server-side gates:
 4. The protected-fulfillment runtime is verified ready.
 5. A separate production deployment is approved.
 
-Browser input cannot set the amount, replace these mappings, or bypass any gate. This change
-does not create a QuickBooks item, upload an artifact, activate checkout, modify Firebase, or
-deploy code.
+Browser input cannot set the amount, replace these mappings, or bypass any gate. The approved
+production preparation created only the exact QuickBooks item and private artifact described
+above. It did not activate checkout, create an order, or send a message.
 
 When those gates are eventually satisfied, the normalized order will carry a server-created
 QuickBooks item ID/name/tax-code snapshot with a SHA-256 fingerprint. The Accounting adapter

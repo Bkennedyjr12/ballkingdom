@@ -18,7 +18,7 @@ const READINESS = Object.freeze({
   ready:false,
   verifiedBucket:VERIFIED_COMMERCE_BUCKET,
   activeArtifactCount:0,
-  blocker:'paid_artifact_absent',
+  blocker:'fulfillment_runtime_unwired',
 });
 
 export function readFulfillmentRuntimeReadiness() {

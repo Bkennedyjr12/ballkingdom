@@ -18,8 +18,8 @@ test('records the reviewed owner-pilot price, QuickBooks mapping, tax gate, and 
   assert.equal(item.amountCents, 4900);
   assert.equal(item.currency, 'USD');
   assert.equal(item.quickBooks.itemName, 'Home Inspection Study Guide');
-  assert.equal(item.quickBooks.itemId, null);
-  assert.equal(item.quickBooks.itemVerified, false);
+  assert.equal(item.quickBooks.itemId, '8');
+  assert.equal(item.quickBooks.itemVerified, true);
   assert.equal(item.tax.classification, 'ca_electronic_only_non_taxable_proposed');
   assert.equal(item.tax.quickBooksTaxCode, 'NON');
   assert.equal(item.tax.accountantVerified, false);
@@ -28,8 +28,8 @@ test('records the reviewed owner-pilot price, QuickBooks mapping, tax gate, and 
   assert.equal(item.artifact.exactBytes, 71250419);
   assert.equal(item.artifact.sha256, '2bdf6b760b426cc088ade620334fd8ff735f3276bb0b68589ceaccbc1d93cc9d');
   assert.equal(item.artifact.md5Hash, 'XXzfi6ddgB6rru9fLIrv7Q==');
-  assert.equal(item.artifact.generation, null);
-  assert.equal(item.artifact.objectVerified, false);
+  assert.equal(item.artifact.generation, '1788191152627469');
+  assert.equal(item.artifact.objectVerified, true);
   assert.equal(item.release.deployApproved, false);
   assert.equal(Object.isFrozen(item), true);
   assert.equal(Object.isFrozen(item.artifact), true);
