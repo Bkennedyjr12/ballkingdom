@@ -19,8 +19,8 @@ const ITEMS = deepFreeze({
     active: false,
     quickBooks: {
       itemName: 'Home Inspection Study Guide',
-      itemId: null,
-      itemVerified: false,
+      itemId: '8',
+      itemVerified: true,
     },
     tax: {
       classification: 'ca_electronic_only_non_taxable_proposed',
@@ -35,8 +35,8 @@ const ITEMS = deepFreeze({
       exactBytes: 71250419,
       sha256: '2bdf6b760b426cc088ade620334fd8ff735f3276bb0b68589ceaccbc1d93cc9d',
       md5Hash: 'XXzfi6ddgB6rru9fLIrv7Q==',
-      generation: null,
-      objectVerified: false,
+      generation: '1788191152627469',
+      objectVerified: true,
     },
     release: {
       ownerPilotApproved: true,
