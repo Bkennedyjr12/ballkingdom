@@ -92,6 +92,15 @@ test('a bounded refresh timeout is preserved for durable manual review without a
   assert.deepEqual(calls,['refresh','qbo_refresh_timeout']);
 });
 
+test('an accepted unchanged Intuit refresh token republishes the exact bound version without creating an orphan',async()=>{
+  const calls=[];const credentialStore={async readPublished(){return {generation:2,refreshTokenVersion:'4',realmVersion:'3'};},async claimRefresh(){return {status:'claimed'};},async markDispatchStarted(){return true;},async verifyPublishFence(){return true;},async publishRotation(input){calls.push(['publish',input.refreshTokenVersion,input.realmVersion]);return true;},async requireManualReview(input){calls.push(['review',input.reason]);},async failBeforeDispatch(){},async recordAlert(){}};
+  const tokenStore={async readVersion(version){return {value:'bound-token',version};},async addVersion(){calls.push('token-add');throw new Error('must not add');}};
+  const realmStore={async readVersion(version){return {value:'bound-realm',version};}};
+  const coordinator=createBoundQuickBooksCredentialCoordinator({credentialStore,tokenStore,realmStore,refresh:async()=>({accessToken:'access',refreshToken:'bound-token',expiresIn:3600}),clock:()=>new Date(10),ownerIdFactory:()=>'owner'});
+  assert.deepEqual(await coordinator.getCredentials(),{accessToken:'access',realmId:'bound-realm'});
+  assert.deepEqual(calls,[['publish','4','3']]);
+});
+
 test('partial reconnect writes never publish a mixed pair',async()=>{
   const calls=[];const credentialStore={async beginReconnect(){return {generation:8};},async publishReconnect(){calls.push('publish');return true;},async failReconnect(input){calls.push(input.reason);}};
   const tokenStore={async addVersion(){return {version:'20'};},async readVersion(){return {value:'new-token',version:'20'};}};
