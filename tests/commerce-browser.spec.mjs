@@ -9,7 +9,7 @@ async function installCommerceMock(page, scenario = 'pending') {
     const calls = [];
     window.__commerceTestCalls = calls;
     window.__BALLERS_COMMERCE__ = {
-      async getBuyerCommerceCapability() { calls.push(['release']); return release; },
+      async getBuyerCommerceCapability() { calls.push(['release']); return scenario === 'resume-late' ? {products:[{sku:'home-inspection-study-guide',active:false}]} : release; },
       async requestPilotSignInLink(input) { calls.push(['auth', input]); return {status:'request_received'}; },
       async completeEmailLink() { calls.push(['complete']); return scenario === 'invalid-link' ? {signedIn:false} : {signedIn:true}; },
       async createDigitalOrder(input) {
@@ -18,6 +18,10 @@ async function installCommerceMock(page, scenario = 'pending') {
       },
       async getOrderStatus() {
         calls.push(['status']);
+        if (scenario === 'resume-late') {
+          if (!calls.some(([name]) => name === 'complete')) throw new Error('sign-in required');
+          return {orderHandle:'safe-order-1',status:'fulfilled',message:'Your protected delivery is ready.',downloadReady:true};
+        }
         if (scenario === 'unexpected') return {orderHandle:'safe-order-1',status:'fulfilled',message:'Ready',downloadReady:true,providerUrl:'https://example.invalid'};
         if (scenario === 'fulfilled' || scenario === 'replay') return {orderHandle:'safe-order-1',status:'fulfilled',message:'Your protected delivery is ready.',downloadReady:true};
         if (scenario === 'status-denied') throw new Error('owner denied');
@@ -164,6 +168,22 @@ test('signed-out or wrong-owner status denial never reveals order state', async 
   await page.goto('/order-status.html?sku=home-inspection-study-guide&order=safe-order-1');
   await expect(page.getByText(/verified owner/i)).toBeVisible();
   await expect(page.getByRole('button',{name:/download/i})).toHaveCount(0);
+});
+
+test('returning buyer completes email-link auth and resumes the existing late-fulfilled order without creating another order',async({page})=>{
+  await installCommerceMock(page,'resume-late');
+  await page.goto('/order-status.html?sku=home-inspection-study-guide&order=safe-order-1&mode=signIn&oobCode=return-link');
+  await expect(page.getByText(/verified owner/i)).toBeVisible();
+  await expect(page.getByRole('button',{name:/Sign in and resume order/i})).toBeVisible();
+  await expect(page.getByLabel(/name/i)).not.toHaveAttribute('required','');
+  await page.getByLabel(/email address/i).fill('approved@example.test');
+  await page.getByRole('button',{name:/Sign in and resume order/i}).click();
+  await expect(page.getByRole('button',{name:/Download protected guide/i})).toBeVisible();
+  await expect(page.getByText(/protected delivery is ready/i)).toBeVisible();
+  const calls=await page.evaluate(()=>window.__commerceTestCalls);
+  expect(calls.filter(([name])=>name==='complete')).toHaveLength(1);
+  expect(calls.filter(([name])=>name==='status')).toHaveLength(2);
+  expect(calls.some(([name])=>name==='create')).toBe(false);
 });
 
 test('390px order status stays usable and keyboard focus is visible', async ({page}) => {

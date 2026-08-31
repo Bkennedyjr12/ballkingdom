@@ -51,3 +51,19 @@ Removed every awaited `ReadableStreamDefaultReader.cancel()` path. Cancellation 
 - Browser verification: 27 passed.
 - Storefront unit/content verification: 21 passed.
 - `git diff --check`: clean.
+
+## Whole-branch review round 2
+
+Separated existing-order session establishment from new-order creation while retaining in-memory Firebase Auth:
+
+- A valid `?order=` context now exposes a clear **Sign in and resume order** action, hides the irrelevant customer-name input, and explains that resuming cannot create or send another invoice.
+- Returning buyers can request/use an email link, complete authentication, and re-poll the same opaque order handle after reload or late fulfillment.
+- Existing-order recovery remains available while new sales are inactive; the server still independently enforces ownership and fulfillment.
+- The resume branch never calls `createDigitalOrder`, avoiding duplicate order/invoice risk. The original new-order behavior and fail-closed controls remain unchanged.
+
+TDD evidence:
+
+- RED: the returning-buyer test could not find a resume action before implementation.
+- GREEN: commerce browser suite — 28 passed.
+- GREEN: storefront unit/content suite — 21 passed.
+- GREEN: `git diff --check` — clean.
