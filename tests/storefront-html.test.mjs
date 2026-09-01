@@ -93,7 +93,9 @@ test('Firebase Hosting excludes backend, tests, and local source material', asyn
 test('inactive commerce release deploys Firestore indexes before Functions and Hosting', async () => {
   const release=await read('docs/operations/public-quickbooks-checkout-release.md');
   const indexDeploy=release.indexOf('firebase deploy --only firestore:indexes');
-  const inactiveDeploy=release.indexOf('firebase deploy --only functions:requestPilotSignInLink');
+  const inactiveDeploy=release.indexOf(
+    'firebase deploy --only functions:ballkingdom-integrations:requestPilotSignInLink',
+  );
   assert.ok(indexDeploy >= 0,'missing separately scoped Firestore index deploy');
   assert.ok(inactiveDeploy > indexDeploy,'indexes must deploy before scheduled Functions');
 });
@@ -109,7 +111,8 @@ test('Task 7 and the operative release packet share one exact inactive manifest 
     'beginQuickBooksConnection','quickBooksOAuthCallback','beginMicrosoftConnection',
     'microsoftOAuthCallback',
   ];
-  const exactManifest=`firebase deploy --only ${allowed.map(name=>`functions:${name}`).join(',')},hosting:public`;
+  const exactManifest=`firebase deploy --only ${allowed.map(name=>
+    `functions:ballkingdom-integrations:${name}`).join(',')},hosting:public`;
   const paths=[
     'docs/operations/public-quickbooks-checkout-release.md',
     'docs/superpowers/plans/2026-08-31-public-quickbooks-checkout.md',
@@ -119,6 +122,10 @@ test('Task 7 and the operative release packet share one exact inactive manifest 
     assert.ok(text.indexOf('firebase deploy --only firestore:indexes')>=0,`${path}: indexes`);
     assert.ok(text.indexOf(exactManifest)>text.indexOf('firebase deploy --only firestore:indexes'),
       `${path}: manifest after indexes`);
+    const releaseCommands=text.split('\n').filter(line=>
+      line.startsWith('firebase deploy --only functions:') && line.includes(',hosting:public'));
+    assert.deepEqual(releaseCommands,[`${exactManifest} \\`,`${exactManifest} \\`],
+      `${path}: exact codebase-qualified dry-run and deploy manifests`);
     for (const state of [
       'COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=false',
       'COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false',
@@ -197,9 +204,11 @@ test('public checkout release inventories the exact reviewed Function surface', 
 
   const release = await read('docs/operations/public-quickbooks-checkout-release.md');
   for (const name of exportedFunctions.filter((name) => name !== 'confirmAcceptedBooking')) {
-    assert.match(release, new RegExp(`functions:${name}(?:,|\\s)`), name);
+    assert.match(release,
+      new RegExp(`functions:ballkingdom-integrations:${name}(?:,|\\s)`),name);
   }
-  assert.doesNotMatch(release, /functions:confirmAcceptedBooking(?:,|\s)/);
+  assert.doesNotMatch(release,
+    /functions:ballkingdom-integrations:confirmAcceptedBooking(?:,|\s)/);
 });
 
 test('public auth and ordering flags support inactive launch and customer-preserving disable', async () => {
