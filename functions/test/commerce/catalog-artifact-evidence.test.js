@@ -15,11 +15,19 @@ test('configured artifact identity matches the independently read source file', 
   assert.equal(item.sourceEvidence.reviewedAt, '2026-08-30');
 });
 
-test('records the dated official tax source and keeps professional verification pending', () => {
+test('records the dated tax source, California confirmation, and nationwide owner-approved risk', () => {
   const item = getConfiguredCommerceItem('home-inspection-study-guide');
   assert.equal(item.sourceEvidence.taxSource.publisher, 'California Department of Tax and Fee Administration');
   assert.equal(item.sourceEvidence.taxSource.publication, 'Publication 109 — Nontaxable Sales');
   assert.equal(item.sourceEvidence.taxSource.accessedAt, '2026-08-30');
   assert.equal(item.sourceEvidence.taxSource.url, 'https://cdtfa.ca.gov/formspubs/pub109/nontaxable-sales.htm');
-  assert.equal(item.tax.accountantVerified, false);
+  assert.equal(item.delivery, 'electronic_only');
+  assert.equal(item.physicalCopyIncluded, false);
+  assert.equal(item.tax.quickBooksTaxCode, 'NON');
+  assert.equal(item.tax.accountantVerified, true);
+  assert.equal(item.tax.geographicRestriction, 'none_owner_approved');
+  assert.equal(item.tax.scope, 'Nationwide electronic-only delivery with no tangible copy or storage media');
+  assert.equal(item.release.fulfillmentRuntimeVerified, true);
+  assert.equal(item.active, false);
+  assert.equal(item.release.deployApproved, false);
 });

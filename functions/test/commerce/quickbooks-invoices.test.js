@@ -82,6 +82,10 @@ function commerceInvoiceReadback(overrides = {}) {
     Id:'invoice-30',
     DocNumber:'1001',
     CustomerRef:{value:'customer-9'},
+    BillEmail:{Address:'ada@example.com'},
+    AllowOnlinePayment:true,
+    AllowOnlineCreditCardPayment:true,
+    AllowOnlineACHPayment:true,
     PrivateNote:'bk-order-order-1',
     TotalAmt:49,
     Balance:49,
@@ -109,7 +113,9 @@ function commerceOrder(overrides = {}) {
 function minimalCommerceCreateFetch({docNumber = '1001', readback = commerceInvoiceReadback()} = {}) {
   return scriptedFetch([
     tokenStep(),
-    () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
+    () => json({QueryResponse:{Customer:[{
+      Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+    }]}}),
     () => json({Item:{Id:'item-4',Name:'Championship Week',Active:true}}),
     () => json({Invoice:{Id:'invoice-30',DocNumber:docNumber},time:'2026-08-30T10:00:00-07:00'}),
     call => {
@@ -153,9 +159,11 @@ test('creates a commerce Invoice on the production Accounting host with a stable
       const url = new URL(call.url);
       assert.equal(`${url.origin}${url.pathname}`, `${PROD_ROOT}/query`);
       assert.equal(url.searchParams.get('minorversion'), '75');
-      assert.equal(url.searchParams.get('query'), "select * from Customer where PrimaryEmailAddr = 'ada@example.com' maxresults 1");
+      assert.equal(url.searchParams.get('query'), "select * from Customer where PrimaryEmailAddr = 'ada@example.com' maxresults 2");
       assertAccountingHeaders(call);
-      return json({QueryResponse:{Customer:[{Id:'customer-9'}]}});
+      return json({QueryResponse:{Customer:[{
+        Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }]}});
     },
     call => {
       const url = new URL(call.url);
@@ -175,6 +183,9 @@ test('creates a commerce Invoice on the production Accounting host with a stable
       assert.equal(body.CustomerRef.value, 'customer-9');
       assert.equal(body.CurrencyRef.value, 'USD');
       assert.equal(body.PrivateNote, 'bk-order-order-1');
+      assert.equal(body.AllowOnlinePayment, true);
+      assert.equal(body.AllowOnlineCreditCardPayment, true);
+      assert.equal(body.AllowOnlineACHPayment, true);
       assert.equal(body.Line.length, 1);
       assert.equal(body.Line[0].Amount, 49);
       assert.equal(body.Line[0].SalesItemLineDetail.UnitPrice, 49);
@@ -206,6 +217,144 @@ test('creates a commerce Invoice on the production Accounting host with a stable
   fetchImpl.assertDone();
 });
 
+test('creates the exact public $49 Invoice for online delivery without browser payment options', async () => {
+  const itemName = 'Home Inspection Study Guide';
+  const accountingSnapshot={provider:'quickbooks',itemId:'8',itemName,taxCode:'NON'};
+  accountingSnapshot.fingerprint=createHash('sha256')
+    .update(['quickbooks','8',itemName,'NON'].join('\0')).digest('hex');
+  const order=commerceOrder({
+    name:itemName,
+    customer:{name:'Public Buyer',email:'verified-buyer@example.test'},
+    amountCents:4900,
+    currency:'USD',
+    accountingSnapshot,
+    provider:'browser-provider',
+    paymentOptions:{supportsCards:false,supportsApplePay:false,surchargingEnabled:true},
+  });
+  let invoiceBody;
+  const fetchImpl=scriptedFetch([
+    tokenStep(),
+    call => {
+      const url=new URL(call.url);
+      assert.equal(
+        url.searchParams.get('query'),
+        "select * from Customer where PrimaryEmailAddr = 'verified-buyer@example.test' maxresults 2"
+      );
+      return json({QueryResponse:{Customer:[{
+        Id:'customer-public',PrimaryEmailAddr:{Address:'verified-buyer@example.test'},
+      }]}});
+    },
+    call => {
+      assert.equal(new URL(call.url).pathname, '/v3/company/realm-7/item/8');
+      return json({Item:{Id:'8',Name:itemName,Active:true}});
+    },
+    call => {
+      const url=new URL(call.url);
+      assert.equal(url.pathname, '/v3/company/realm-7/invoice');
+      assert.equal(url.searchParams.get('requestid'), 'bk-order-order-1');
+      invoiceBody=JSON.parse(call.init.body);
+      return json({Invoice:{Id:'invoice-30',DocNumber:'1001'}});
+    },
+    () => json({Invoice:commerceInvoiceReadback({
+      CustomerRef:{value:'customer-public'},
+      BillEmail:{Address:'verified-buyer@example.test'},
+      Line:[{
+        DetailType:'SalesItemLineDetail',Amount:49,
+        SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'NON'},Qty:1,UnitPrice:49},
+      }],
+    })}),
+  ]);
+  const client=createQuickBooksClient(clientConfig(),fetchImpl);
+
+  assert.deepEqual(await client.createCommerceInvoice(order), {
+    customerId:'customer-public',invoiceId:'invoice-30',documentNumber:'1001',
+  });
+  assert.deepEqual(invoiceBody.BillEmail, {Address:'verified-buyer@example.test'});
+  assert.equal(invoiceBody.AllowOnlinePayment, true);
+  assert.equal(invoiceBody.AllowOnlineCreditCardPayment, true);
+  assert.equal(invoiceBody.AllowOnlineACHPayment, true);
+  assert.equal(invoiceBody.CurrencyRef.value, 'USD');
+  assert.equal(invoiceBody.Line.length, 1);
+  assert.equal(invoiceBody.Line[0].Amount, 49);
+  assert.equal(invoiceBody.Line[0].SalesItemLineDetail.UnitPrice, 49);
+  assert.equal(invoiceBody.Line[0].SalesItemLineDetail.Qty, 1);
+  assert.equal(invoiceBody.Line[0].SalesItemLineDetail.ItemRef.value, '8');
+  assert.equal(invoiceBody.Line[0].SalesItemLineDetail.TaxCodeRef.value, 'NON');
+  for (const key of [
+    'provider','paymentOptions','supportsCards','supportsApplePay','surchargingEnabled',
+  ]) assert.equal(Object.hasOwn(invoiceBody,key), false, `browser/provider key escaped: ${key}`);
+  fetchImpl.assertDone();
+});
+
+test('creates a Customer only when the bounded email lookup returns zero matches', async () => {
+  let customerCreateBody;
+  const fetchImpl=scriptedFetch([
+    tokenStep(),
+    call => {
+      const url=new URL(call.url);
+      assert.equal(
+        url.searchParams.get('query'),
+        "select * from Customer where PrimaryEmailAddr = 'ada@example.com' maxresults 2"
+      );
+      return json({QueryResponse:{}});
+    },
+    call => {
+      assert.equal(new URL(call.url).pathname, '/v3/company/realm-7/customer');
+      assert.equal(call.init.method, 'POST');
+      customerCreateBody=JSON.parse(call.init.body);
+      return json({Customer:{
+        Id:'customer-created',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }});
+    },
+    () => json({Item:{Id:'item-4',Name:'Championship Week',Active:true}}),
+    () => json({Invoice:{Id:'invoice-30',DocNumber:'1001'}}),
+    () => json({Invoice:commerceInvoiceReadback({CustomerRef:{value:'customer-created'}})}),
+  ]);
+  const client=createQuickBooksClient(clientConfig(),fetchImpl);
+
+  assert.deepEqual(await client.createCommerceInvoice(commerceOrder()), {
+    customerId:'customer-created',invoiceId:'invoice-30',documentNumber:'1001',
+  });
+  assert.deepEqual(customerCreateBody, {
+    DisplayName:'Ada Lovelace',PrimaryEmailAddr:{Address:'ada@example.com'},
+  });
+  fetchImpl.assertDone();
+});
+
+test('quarantines mismatched or multiple Customer email results before Invoice create', async t => {
+  const cases = [
+    ['one mismatched result', [{
+      Id:'customer-wrong',PrimaryEmailAddr:{Address:'other@example.test'},
+    }]],
+    ['multiple exact results', [
+      {Id:'customer-a',PrimaryEmailAddr:{Address:'ada@example.com'}},
+      {Id:'customer-b',PrimaryEmailAddr:{Address:'ada@example.com'}},
+    ]],
+  ];
+  for (const [name, customers] of cases) {
+    await t.test(name, async () => {
+      const fetchImpl=scriptedFetch([
+        tokenStep(),
+        call => {
+          const query=new URL(call.url).searchParams.get('query');
+          assert.equal(query, "select * from Customer where PrimaryEmailAddr = 'ada@example.com' maxresults 2");
+          return json({QueryResponse:{Customer:customers}});
+        },
+      ]);
+      const client=createQuickBooksClient(clientConfig(),fetchImpl);
+
+      await assert.rejects(client.createCommerceInvoice(commerceOrder()), error => {
+        assert.equal(error.code, 'QBO_CUSTOMER_AMBIGUOUS');
+        assert.equal(error.message, 'QuickBooks Customer lookup requires manual review');
+        assert.doesNotMatch(error.message, /ada@|other@|customer-a|customer-wrong/);
+        return true;
+      });
+      assert.equal(fetchImpl.calls.length, 2, 'no Customer or Invoice POST follows ambiguity');
+      fetchImpl.assertDone();
+    });
+  }
+});
+
 test('accepts the documented null DocNumber when CustomTxnNumber is enabled', async () => {
   const fetchImpl = minimalCommerceCreateFetch({
     docNumber:null,
@@ -222,6 +371,10 @@ test('accepts the documented null DocNumber when CustomTxnNumber is enabled', as
 test('fails closed when authoritative Invoice readback does not exactly match the commerce create contract', async t => {
   const cases = [
     ['customer reference', {CustomerRef:{value:'customer-old'}}],
+    ['billing email', {BillEmail:{Address:'other@example.test'}}],
+    ['online payment disabled', {AllowOnlinePayment:false}],
+    ['online card payment disabled', {AllowOnlineCreditCardPayment:false}],
+    ['online ACH payment disabled', {AllowOnlineACHPayment:false}],
     ['order reference', {PrivateNote:'bk-order-order-old'}],
     ['provider-calculated tax total', {TotalAmt:53.05,Balance:53.05}],
     ['unexpected non-full balance', {Balance:0,LinkedTxn:[{TxnId:'payment-old',TxnType:'Payment'}]}],
@@ -325,12 +478,16 @@ test('malformed Customer query and Item read responses fail with redacted operat
     ['invalid Customer query envelope', [tokenStep(), () => json({Wrong:{Customer:[]}})], 'Customer query'],
     ['invalid Item read JSON', [
       tokenStep(),
-      () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
+      () => json({QueryResponse:{Customer:[{
+        Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }]}}),
       () => new Response('item-body-secret', {status:200}),
     ], 'Item read'],
     ['invalid Item read envelope', [
       tokenStep(),
-      () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
+      () => json({QueryResponse:{Customer:[{
+        Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }]}}),
       () => json({Wrong:{Item:[]}}),
     ], 'Item read'],
   ];
@@ -364,7 +521,9 @@ test('reads the configured Item by immutable ID and rejects wrong name or inacti
   ]) {
     const fetchImpl=scriptedFetch([
       tokenStep(),
-      () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
+      () => json({QueryResponse:{Customer:[{
+        Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }]}}),
       () => json({Item}),
     ]);
     const client=createQuickBooksClient(clientConfig(),fetchImpl);

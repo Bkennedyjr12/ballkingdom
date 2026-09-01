@@ -1,3 +1,5 @@
+import {assertPaymentsCapability} from '../providers/quickbooks-payments-capability.js';
+
 function deepFreeze(value) {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
     for (const nested of Object.values(value)) deepFreeze(nested);
@@ -5,6 +7,20 @@ function deepFreeze(value) {
   }
   return value;
 }
+
+const PAYMENTS_CAPABILITY = deepFreeze({
+  accounting:false,
+  payments:false,
+  mode:'documented-intuit-flow',
+  supportsImmediatePayment:false,
+  supportsCards:false,
+  supportsApplePay:false,
+  supportsPayPal:false,
+  supportsAch:false,
+  supportsWebhooks:false,
+  surchargingEnabled:false,
+  onlineInvoiceDelivery:false,
+});
 
 const ITEMS = deepFreeze({
   'home-inspection-study-guide': {
@@ -23,11 +39,12 @@ const ITEMS = deepFreeze({
       itemVerified: true,
     },
     tax: {
-      classification: 'ca_electronic_only_non_taxable_proposed',
+      classification: 'electronic_only_non_taxable_owner_approved',
       quickBooksTaxCode: 'NON',
       classificationApproved: true,
-      accountantVerified: false,
-      scope: 'California electronic-only delivery with no tangible copy or storage media',
+      accountantVerified: true,
+      geographicRestriction: 'none_owner_approved',
+      scope: 'Nationwide electronic-only delivery with no tangible copy or storage media',
     },
     artifact: {
       objectKey: 'private-commerce/home-inspection-study-guide/guide-v1.pdf',
@@ -41,7 +58,7 @@ const ITEMS = deepFreeze({
     release: {
       ownerPilotApproved: true,
       priceApproved: true,
-      fulfillmentRuntimeVerified: false,
+      fulfillmentRuntimeVerified: true,
       deployApproved: false,
     },
     sourceEvidence: {
@@ -56,8 +73,18 @@ const ITEMS = deepFreeze({
   }
 });
 
-export function isCommerceItemPurchasable(item) {
-  return item?.active === true
+function paymentsCapabilityVerified(capability) {
+  try {
+    assertPaymentsCapability(capability);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function isCommerceItemPurchasable(item, capability = PAYMENTS_CAPABILITY) {
+  return paymentsCapabilityVerified(capability)
+    && item?.active === true
     && Number.isInteger(item.amountCents)
     && item.amountCents > 0
     && item.quickBooks?.itemVerified === true
@@ -84,6 +111,10 @@ export function isCommerceItemPurchasable(item) {
     && item.release?.deployApproved === true;
 }
 
+export function getConfiguredPaymentsCapability() {
+  return PAYMENTS_CAPABILITY;
+}
+
 export function getConfiguredCommerceItem(sku) {
   return ITEMS[String(sku || '')] ?? null;
 }
@@ -99,7 +130,7 @@ export function getCommerceItem(sku) {
 }
 
 export function listPublicCommerceItems() {
-  return Object.freeze(Object.values(ITEMS).filter(isCommerceItemPurchasable));
+  return Object.freeze(Object.values(ITEMS).filter(item => isCommerceItemPurchasable(item)));
 }
 
 export function listCommerceCapabilities() {

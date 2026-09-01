@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {
-  COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED,
+  COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED,
   COMMERCE_SERVICE_QBO_SEND_ENABLED,
   readCommerceFeatureFlags,
 } from '../../src/commerce/feature-flags.js';
@@ -12,25 +12,39 @@ const functionsUrl = new URL('../../', import.meta.url);
 
 test('both commerce feature parameters default to Boolean false in code', () => {
   assert.deepEqual(readCommerceFeatureFlags(), {
-    digitalInvoicePilotEnabled: false,
+    publicDigitalCheckoutEnabled: false,
     serviceQboSendEnabled: false,
   });
-  assert.equal(COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED.value(), false);
+  assert.equal(COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED.value(), false);
   assert.equal(COMMERCE_SERVICE_QBO_SEND_ENABLED.value(), false);
 });
 
-test('rejects non-Boolean parameter values instead of treating strings as truthy', () => {
-  assert.throws(() => readCommerceFeatureFlags({
-    digitalInvoicePilotParam: {value: () => 'false'},
+test('public digital checkout flag defaults false independently', () => {
+  const flags = readCommerceFeatureFlags({
+    publicDigitalCheckoutParam: {value: () => false},
     serviceQboSendParam: {value: () => false},
-  }), /Boolean/);
+  });
+  assert.deepEqual(flags, {
+    publicDigitalCheckoutEnabled: false,
+    serviceQboSendEnabled: false,
+  });
+});
+
+test('does not treat non-Boolean parameter values as enabled', () => {
+  assert.deepEqual(readCommerceFeatureFlags({
+    publicDigitalCheckoutParam: {value: () => 'false'},
+    serviceQboSendParam: {value: () => 'true'},
+  }), {
+    publicDigitalCheckoutEnabled: false,
+    serviceQboSendEnabled: false,
+  });
 });
 
 test('committed project parameter file pins only reviewed flags and OAuth callback URLs', async () => {
   const source = await readFile(new URL('.env.the-ballers-kingdom', functionsUrl), 'utf8');
   const entries = source.trimEnd().split('\n');
   assert.equal(entries.length, 4);
-  assert.match(entries[0], /^COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED=(?:true|false)$/);
+  assert.equal(entries[0], 'COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false');
   assert.equal(entries[1], 'COMMERCE_SERVICE_QBO_SEND_ENABLED=false');
   assert.equal(entries[2], 'QBO_REDIRECT_URI=https://us-west1-the-ballers-kingdom.cloudfunctions.net/quickBooksOAuthCallback');
   assert.equal(entries[3], 'MS_REDIRECT_URI=https://us-west1-the-ballers-kingdom.cloudfunctions.net/microsoftOAuthCallback');
@@ -61,7 +75,7 @@ test('Firebase wiring keeps the integration codebase path and secret boundaries 
   assert.match(indexSource, /export const getBuyerCommerceCapability = onCall\(\{[^}]*enforceAppCheck:true/s);
   assert.match(indexSource, /export const getCommerceReleaseState = onCall\(\{[^}]*enforceAppCheck:true/s);
   assert.match(indexSource, /export const reconcileCommerceOrders = onSchedule\(\{schedule:'every 5 minutes',[\s\S]*?secrets:QBO_RUNTIME_SECRETS,[\s\S]*?runtimeCommerceService\(\{withQuickBooks:true\}\)/);
-  assert.match(indexSource, /export const dispatchCommerceEffects = onSchedule\(\{schedule:'every 5 minutes',[\s\S]*?secrets:\[COMMERCE_PILOT_RECIPIENT_EMAIL,\.\.\.QBO_RUNTIME_SECRETS,\.\.\.MS_SECRETS\],[\s\S]*?dispatchPendingEffects/);
+  assert.match(indexSource, /export const dispatchCommerceEffects = onSchedule\(\{schedule:'every 4 minutes',[\s\S]*?secrets:\[COMMERCE_PILOT_RECIPIENT_EMAIL,\.\.\.QBO_RUNTIME_SECRETS,\.\.\.MS_SECRETS\],[\s\S]*?dispatchPendingEffects/);
   assert.doesNotMatch(indexSource, /defineSecret\(['"]QBO_(?:REFRESH_TOKEN|REALM_ID)/);
   const serviceSource = await readFile(new URL('src/commerce/commerce-service.js', functionsUrl), 'utf8');
   assert.match(serviceSource, /timingSafeEqual\(/);

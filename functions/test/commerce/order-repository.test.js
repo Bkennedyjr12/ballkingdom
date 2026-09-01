@@ -28,6 +28,7 @@ function createFakeFirestore() {
   const counters = new Map();
   let transactionQueue = Promise.resolve();
   let retryNextTransaction = false;
+  let beforeNextTransaction = null;
   let transactionCount = 0;
   let batchCommitCount = 0;
 
@@ -96,6 +97,11 @@ function createFakeFirestore() {
     runTransaction(operation) {
       const run = transactionQueue.then(async () => {
         transactionCount += 1;
+        if (beforeNextTransaction) {
+          const callback = beforeNextTransaction;
+          beforeNextTransaction = null;
+          callback();
+        }
         if (retryNextTransaction) {
           retryNextTransaction = false;
           await operation({
@@ -147,8 +153,11 @@ function createFakeFirestore() {
   return {
     db,
     document: path => documents.get(path),
+    seed: (path, data) => documents.set(path, data),
+    mutate: (path, update) => documents.set(path, {...documents.get(path), ...update}),
     allDocuments: () => [...documents.entries()].map(([path, data]) => ({path, data})),
     retryNextTransaction: () => { retryNextTransaction = true; },
+    beforeNextTransaction: callback => { beforeNextTransaction = callback; },
     transactionCount: () => transactionCount,
     batchCommitCount: () => batchCommitCount,
     collection: name => [...documents.entries()]
@@ -181,6 +190,15 @@ function digitalOrder(overrides = {}) {
 }
 
 const RECIPIENT_BINDING = 'a'.repeat(64);
+
+function publicReservationInput(orderId, orderOverrides = {}) {
+  return {
+    customerBinding:RECIPIENT_BINDING,
+    sku:'study-guide',
+    orderId,
+    order:digitalOrder(orderOverrides),
+  };
+}
 
 function repositoryFixture(clock = () => new Date('2026-08-29T18:00:00.000Z')) {
   const firestore = createFakeFirestore();
@@ -647,6 +665,99 @@ test('atomically reserves one recipient and SKU order with both durable invoice 
   assert.equal(JSON.stringify(effects).includes(RECIPIENT_BINDING), false);
 });
 
+test('parallel public orders reserve one active order per customer and SKU', async () => {
+  const {firestore, repository} = repositoryFixture();
+
+  const results = await Promise.all(['order-public-a','order-public-b','order-public-c'].map(
+    orderId => repository.reservePublicDigitalOrder(publicReservationInput(orderId))
+  ));
+
+  assert.equal(new Set(results.map(result => result.orderId)).size, 1);
+  assert.equal(results[0].orderId, 'order-public-a');
+  assert.equal(firestore.collection('orders').length, 1);
+  assert.equal(firestore.collection('commerceReservations').length, 1);
+  assert.equal(firestore.collection('commerceEffects').length, 2);
+});
+
+test('public reservation reuses a directly seeded pre-feature pilot reservation digest', async () => {
+  const {firestore, repository} = repositoryFixture();
+  const historicalOrderId='historical-pilot-order';
+  const reservationId=createHash('sha256')
+    .update(`pilot-order-reservation\0${RECIPIENT_BINDING}\0study-guide\0`)
+    .digest('hex');
+  firestore.seed(`orders/${historicalOrderId}`, {
+    ...digitalOrder(),
+    authorizedRecipientBinding:RECIPIENT_BINDING,
+  });
+  firestore.seed(`commerceReservations/${reservationId}`, {
+    orderId:historicalOrderId,
+    customerUid:'customer-uid',
+    sku:'study-guide',
+    authorizedRecipientBinding:RECIPIENT_BINDING,
+    createdAt:SERVER_TIMESTAMP,
+  });
+
+  const result=await repository.reservePublicDigitalOrder(
+    publicReservationInput('new-public-order')
+  );
+
+  assert.deepEqual(result, {
+    orderId:historicalOrderId,
+    idempotencyKey:`bk-order-${historicalOrderId}`,
+    duplicate:true,
+  });
+  assert.equal(firestore.document('orders/new-public-order'), undefined);
+  assert.equal(firestore.collection('commerceEffects').length, 0);
+});
+
+test('public reservation ignores a changed customer name and keeps the first active order', async () => {
+  const {firestore, repository} = repositoryFixture();
+  const first = await repository.reservePublicDigitalOrder(
+    publicReservationInput('order-public-a', {customer:{name:'Ada'}})
+  );
+  const second = await repository.reservePublicDigitalOrder(
+    publicReservationInput('order-public-b', {customer:{name:'Grace'}})
+  );
+
+  assert.equal(first.orderId, 'order-public-a');
+  assert.deepEqual(second, {
+    orderId:'order-public-a',idempotencyKey:'bk-order-order-public-a',duplicate:true,
+  });
+  assert.deepEqual(firestore.document('orders/order-public-a').customer, {name:'Ada'});
+  assert.equal(firestore.document('orders/order-public-b'), undefined);
+});
+
+test('paid and fulfilled public orders remain resumable without a replacement order', async () => {
+  for (const status of ['paid','fulfilled']) {
+    const {firestore, repository} = repositoryFixture();
+    await repository.reservePublicDigitalOrder(publicReservationInput(`order-${status}`));
+    firestore.mutate(`orders/order-${status}`, {status,terminal:status === 'fulfilled'});
+
+    const resumed = await repository.reservePublicDigitalOrder(
+      publicReservationInput(`replacement-${status}`, {customer:{name:'Changed Name'}})
+    );
+
+    assert.deepEqual(resumed, {
+      orderId:`order-${status}`,idempotencyKey:`bk-order-order-${status}`,duplicate:true,
+    });
+    assert.equal(firestore.document(`orders/replacement-${status}`), undefined);
+  }
+});
+
+test('cancelled and refunded public orders require an explicit new-purchase rule', async () => {
+  for (const status of ['cancelled','refunded']) {
+    const {firestore, repository} = repositoryFixture();
+    await repository.reservePublicDigitalOrder(publicReservationInput(`order-${status}`));
+    firestore.mutate(`orders/order-${status}`, {status,terminal:true});
+
+    await assert.rejects(
+      repository.reservePublicDigitalOrder(publicReservationInput(`replacement-${status}`)),
+      {code:'ORDER_NEW_PURCHASE_REQUIRED'}
+    );
+    assert.equal(firestore.document(`orders/replacement-${status}`), undefined);
+  }
+});
+
 test('creates one service order with durable invoice effects and an opaque completion receipt', async () => {
   const {firestore,repository}=repositoryFixture();
   const order={
@@ -838,6 +949,41 @@ test('stores bounded effect failures without provider payloads or raw recipients
   assert.equal(serialized.includes('operation_failed'), true);
 });
 
+test('terminal invoice-create ambiguity is redacted and quarantined for manual review', async () => {
+  const {firestore, repository} = repositoryFixture();
+  await repository.createReservedDigitalOrder({
+    recipientBinding:RECIPIENT_BINDING,orderId:'order-a',order:digitalOrder(),
+  });
+  const claim=await repository.claimEffect(
+    'order-a','invoice_create','worker-a',new Date('2026-08-29T18:00:00.000Z')
+  );
+
+  await repository.recordEffectFailure(
+    'order-a','invoice_create','worker-a',claim.claimId,
+    {
+      code:'customer_accounting_ambiguous',
+      terminal:true,
+      providerPayload:{email:'ada@example.test',accessToken:'secret'},
+    },
+    new Date('2026-08-29T18:01:00.000Z')
+  );
+
+  const effect=firestore.document('commerceEffects/order-a-invoice_create');
+  const order=firestore.document('orders/order-a');
+  assert.equal(effect.status, 'manual_review');
+  assert.equal(effect.nextAttemptAt, null);
+  assert.equal(effect.lastErrorCode, 'customer_accounting_ambiguous');
+  assert.equal(order.status, 'manual_review');
+  assert.equal(order.terminal, true);
+  assert.equal(order.lastErrorCode, 'customer_accounting_ambiguous');
+  assert.equal(await repository.claimEffect(
+    'order-a','invoice_create','worker-b',new Date('2026-08-29T18:02:00.000Z')
+  ), false);
+  const serialized=JSON.stringify({effect,order,audits:firestore.collection('commerceAudit')});
+  assert.equal(serialized.includes('ada@example.test'), false);
+  assert.equal(serialized.includes('secret'), false);
+});
+
 test('backs off known create failures and will not reclaim before the bounded retry time', async () => {
   const {firestore, repository} = repositoryFixture();
   await repository.createReservedDigitalOrder({
@@ -919,8 +1065,9 @@ test('quarantines an expired invoice-send lease and permanently prevents another
   assert.deepEqual(await repository.recoverExpiredEffects(
     new Date('2026-08-29T18:05:59.999Z')
   ), {
-    recoveredCreateOrderIds: [], recoveredPilotAuthBindings: [], recoveredSendOrderIds: [],
-    manualReviewOrderIds: [], manualReviewPilotAuthBindings: [],
+    recoveredCreateOrderIds: [], recoveredPilotAuthBindings: [], recoveredPublicAuthBindings: [],
+    recoveredSendOrderIds: [], manualReviewOrderIds: [], manualReviewPilotAuthBindings: [],
+    manualReviewPublicAuthBindings: [],
   });
   const recovered = await repository.recoverExpiredEffects(
     new Date('2026-08-29T18:06:00.000Z')
@@ -1044,6 +1191,165 @@ test('recovers only pre-dispatch pilot auth leases and quarantines ambiguous dis
     .filter(item => item.effect === 'pilot_auth_email');
   assert.deepEqual(authEffects.map(item => item.status).sort(), ['manual_review', 'pending']);
   assert.equal(authEffects.find(item => item.status === 'manual_review').lastErrorCode, 'pilot_auth_email_unknown');
+});
+
+test('recovers expired public auth leases with opaque bindings and preserves the effect id in manual-review alerts', async () => {
+  const {firestore, repository} = repositoryFixture();
+  const first = await repository.createPublicDigitalAuthEmailEffect({
+    email:'first@example.test',sku:'home-inspection-study-guide',purpose:'sign_in',issuanceBucket:1,
+  });
+  const second = await repository.createPublicDigitalAuthEmailEffect({
+    email:'second@example.test',sku:'home-inspection-study-guide',purpose:'sign_in',issuanceBucket:1,
+  });
+  await repository.claimPublicDigitalAuthEmailEffect(first.binding,'auth-worker',new Date('2026-08-29T18:00:00.000Z'));
+  const ambiguous = await repository.claimPublicDigitalAuthEmailEffect(
+    second.binding,'auth-worker',new Date('2026-08-29T18:00:00.000Z')
+  );
+  await repository.markPublicDigitalAuthDispatchStarted(
+    second.binding,'auth-worker',ambiguous.claimId,new Date('2026-08-29T18:00:01.000Z')
+  );
+
+  const recovered = await repository.recoverExpiredEffects(new Date('2026-08-29T18:05:00.000Z'));
+
+  assert.deepEqual(recovered.recoveredPublicAuthBindings, [first.binding]);
+  assert.deepEqual(recovered.manualReviewPublicAuthBindings, [second.binding]);
+  const alert = firestore.collection('commerceAudit').find(receipt => (
+    receipt.event === 'operator_alert' && receipt.errorCode === 'public_digital_auth_email_unknown'
+  ));
+  assert.equal(alert.effectId, `public-auth-${second.binding}`);
+  assert.doesNotMatch(JSON.stringify(alert), /first@example|second@example/);
+});
+
+test('caps cleanup of expired public auth limits, effects, and audits without retaining raw email or IP', async () => {
+  const clock = () => new Date('2026-08-29T18:00:00.000Z');
+  const {firestore, repository} = repositoryFixture(clock);
+  await repository.consumePublicAuthLimits({
+    emailDigest:'a'.repeat(64),ipDigest:'b'.repeat(64),appId:'web-app',now:clock(),windowMs:600000,
+    emailLimit:5,ipLimit:20,appLimit:100,globalLimit:250,
+  });
+  const effect = await repository.createPublicDigitalAuthEmailEffect({
+    email:'retained@example.test',sku:'home-inspection-study-guide',purpose:'sign_in',issuanceBucket:1,
+  });
+  const claim = await repository.claimPublicDigitalAuthEmailEffect(effect.binding,'auth-worker',clock());
+  await repository.markPublicDigitalAuthDispatchStarted(effect.binding,'auth-worker',claim.claimId,clock());
+  await repository.completePublicDigitalAuthEmailEffect(effect.binding,'auth-worker',claim.claimId);
+
+  assert.deepEqual(await repository.cleanupExpiredPublicAuthArtifacts(clock(), {limit:4}), {
+    deletedCount:0,
+  });
+  const cutoff = new Date('2026-08-31T18:00:00.000Z');
+  const first = await repository.cleanupExpiredPublicAuthArtifacts(cutoff, {limit:4});
+  assert.equal(first.deletedCount, 4);
+  const second = await repository.cleanupExpiredPublicAuthArtifacts(cutoff, {limit:4});
+  assert.equal(second.deletedCount, 2);
+  while ((await repository.cleanupExpiredPublicAuthArtifacts(cutoff, {limit:4})).deletedCount > 0) {}
+  assert.equal(firestore.collection('commercePublicAuthLimits').length, 0);
+  assert.equal(firestore.collection('commerceEffects').some(entry => entry.effect === 'public_digital_auth_email'), false);
+  assert.equal(firestore.allDocuments().some(({path}) => path.startsWith('commerceAudit/public-auth-')), false);
+  assert.equal(JSON.stringify(firestore.allDocuments()).includes('retained@example.test'), false);
+  assert.equal(JSON.stringify(firestore.allDocuments()).includes('198.51.100.'), false);
+});
+
+test('uses independent capped cleanup budgets without unrelated-document starvation', async () => {
+  const {firestore, repository} = repositoryFixture();
+  const expired = timestamp(new Date('2026-08-28T18:00:00.000Z'));
+  const effectId = index => `public-auth-${index.toString(16).padStart(64, '0')}`;
+  firestore.seed('commercePublicAuthLimits/legacy-unrelated', {expiresAt:expired,publicAuth:false});
+  for (let index = 0; index < 251; index += 1) {
+    firestore.seed(`commercePublicAuthLimits/public-auth-rate-${index}`, {expiresAt:expired,publicAuth:true});
+  }
+  for (let index = 0; index < 126; index += 1) {
+    firestore.seed(`commerceEffects/${effectId(index)}`, {
+      publicAuth:true,cleanupEligible:true,effect:'public_digital_auth_email',status:'completed',dispatchAttemptCount:1,
+      retentionExpiresAt:expired,
+    });
+    firestore.seed(`commerceAudit/public-auth-${index}`, {
+      publicAuth:true,cleanupEligible:true,event:'effect_completed',effectId:effectId(index),retentionExpiresAt:expired,
+    });
+  }
+
+  assert.deepEqual(await repository.cleanupExpiredPublicAuthArtifacts(
+    new Date('2026-08-31T18:00:00.000Z'), {limit:500}
+  ), {deletedCount:500});
+  assert.equal(firestore.collection('commercePublicAuthLimits').length, 2);
+  assert.equal(firestore.collection('commerceEffects').length, 1);
+  assert.equal(firestore.collection('commerceAudit').length, 1);
+});
+
+test('keeps manual-review evidence and re-reads a raced effect before cleanup deletion', async () => {
+  const {firestore, repository} = repositoryFixture();
+  const expired = timestamp(new Date('2026-08-28T18:00:00.000Z'));
+  const manualBinding = 'c'.repeat(64);
+  const racedBinding = 'd'.repeat(64);
+  firestore.seed(`commerceEffects/public-auth-${manualBinding}`, {
+    publicAuth:true,cleanupEligible:false,effect:'public_digital_auth_email',status:'manual_review',dispatchAttemptCount:1,
+    retentionExpiresAt:expired,
+  });
+  firestore.seed(`commerceAudit/public-auth-${manualBinding}`, {
+    publicAuth:true,cleanupEligible:false,event:'operator_alert',effectId:`public-auth-${manualBinding}`,retentionExpiresAt:expired,
+  });
+  firestore.seed(`commerceEffects/public-auth-${racedBinding}`, {
+    publicAuth:true,cleanupEligible:true,effect:'public_digital_auth_email',status:'completed',dispatchAttemptCount:1,
+    retentionExpiresAt:expired,
+  });
+  firestore.beforeNextTransaction(() => firestore.mutate(`commerceEffects/public-auth-${racedBinding}`, {
+    cleanupEligible:false,status:'manual_review',dispatchAttemptCount:1,
+  }));
+
+  assert.deepEqual(await repository.cleanupExpiredPublicAuthArtifacts(
+    new Date('2026-08-31T18:00:00.000Z'), {limit:10}
+  ), {deletedCount:0});
+  assert.equal(firestore.document(`commerceEffects/public-auth-${manualBinding}`).status, 'manual_review');
+  assert.equal(firestore.document(`commerceAudit/public-auth-${manualBinding}`).event, 'operator_alert');
+  assert.equal(firestore.document(`commerceEffects/public-auth-${racedBinding}`).status, 'manual_review');
+});
+
+test('retained manual-review pages cannot starve later eligible public effects or audits', async () => {
+  const {firestore, repository} = repositoryFixture();
+  const expired = timestamp(new Date('2026-08-28T18:00:00.000Z'));
+  for (let index = 0; index < 125; index += 1) {
+    const binding = index.toString(16).padStart(64, 'a');
+    firestore.seed(`commerceEffects/public-auth-${binding}`, {
+      publicAuth:true,cleanupEligible:false,effect:'public_digital_auth_email',status:'manual_review',
+      dispatchAttemptCount:1,retentionExpiresAt:expired,
+    });
+    firestore.seed(`commerceAudit/public-auth-manual-${index}`, {
+      publicAuth:true,cleanupEligible:false,event:'operator_alert',effectId:`public-auth-${binding}`,
+      retentionExpiresAt:expired,
+    });
+  }
+  const completed = 'e'.repeat(64);
+  const orphan = 'f'.repeat(64);
+  for (const [binding, status] of [[completed, 'completed'], [orphan, 'pending']]) {
+    firestore.seed(`commerceEffects/public-auth-${binding}`, {
+      publicAuth:true,cleanupEligible:true,effect:'public_digital_auth_email',status,
+      claim:null,dispatchAttemptCount:status === 'completed' ? 1 : 0,retentionExpiresAt:expired,
+    });
+    firestore.seed(`commerceAudit/public-auth-${binding}`, {
+      publicAuth:true,cleanupEligible:true,event:'effect_completed',effectId:`public-auth-${binding}`,
+      retentionExpiresAt:expired,
+    });
+  }
+
+  assert.deepEqual(await repository.cleanupExpiredPublicAuthArtifacts(
+    new Date('2026-08-31T18:00:00.000Z'), {limit:10}
+  ), {deletedCount:4});
+  assert.equal(firestore.document(`commerceEffects/public-auth-${completed}`), undefined);
+  assert.equal(firestore.document(`commerceEffects/public-auth-${orphan}`), undefined);
+  assert.equal(firestore.document(`commerceAudit/public-auth-${completed}`), undefined);
+  assert.equal(firestore.document(`commerceAudit/public-auth-${orphan}`), undefined);
+  assert.equal(firestore.document(`commerceEffects/public-auth-${'a'.repeat(63)}0`).status, 'manual_review');
+});
+
+test('cleans an expired pre-dispatch public-auth orphan after its retention window', async () => {
+  const clock = () => new Date('2026-08-29T18:00:00.000Z');
+  const {firestore, repository} = repositoryFixture(clock);
+  const effect = await repository.createPublicDigitalAuthEmailEffect({
+    email:'orphan@example.test',sku:'home-inspection-study-guide',purpose:'sign_in',issuanceBucket:1,
+  });
+
+  await repository.cleanupExpiredPublicAuthArtifacts(new Date('2026-08-31T18:00:00.000Z'), {limit:10});
+  assert.equal(firestore.document(`commerceEffects/public-auth-${effect.binding}`), undefined);
 });
 
 test('lists newly pending auth, create, and send effects through one bounded due queue', async () => {
@@ -1374,6 +1680,32 @@ test('enforces bounded digest-keyed abuse windows without storing raw identifier
   assert.equal(await repository.consumeRateLimit('pilot_auth', key, nextWindow, {limit:2,windowMs:600000}), true);
   const serialized = JSON.stringify(firestore.collection('commerceRateLimits'));
   assert.equal(serialized.includes('approved-pilot@example.test'), false);
+});
+
+test('consumes email, IP, App Check, and global public-auth windows in one redacted transaction', async () => {
+  const {firestore, repository}=repositoryFixture();
+  const input={
+    emailDigest:'a'.repeat(64),ipDigest:'b'.repeat(64),appId:'web',
+    now:new Date('2026-08-29T18:00:00.000Z'),windowMs:600000,
+    emailLimit:2,ipLimit:3,appLimit:4,globalLimit:5,
+  };
+
+  assert.equal(await repository.consumePublicAuthLimits(input),true);
+  assert.equal(await repository.consumePublicAuthLimits(input),true);
+  assert.equal(await repository.consumePublicAuthLimits(input),false);
+  const serialized=JSON.stringify(firestore.allDocuments());
+  assert.equal(serialized.includes('a'.repeat(64)),true);
+  assert.equal(serialized.includes('b'.repeat(64)),true);
+  assert.equal(serialized.includes('192.0.2.1'),false);
+  assert.equal(firestore.transactionCount(),3);
+});
+
+test('leaves pending public-auth effects out of background dispatch because no raw recipient is persisted', async () => {
+  const {repository}=repositoryFixture(() => new Date('2026-08-29T18:00:00.000Z'));
+  await repository.createPublicDigitalAuthEmailEffect({
+    email:'public@example.test',sku:'study-guide',purpose:'sign_in',issuanceBucket:2937000,
+  });
+  assert.deepEqual(await repository.listDueEffects(new Date('2026-08-29T18:00:00.000Z'),{limit:10}),[]);
 });
 
 test('records only bounded redacted operator alerts', async () => {

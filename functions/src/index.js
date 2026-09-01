@@ -16,6 +16,8 @@ import {createCommerceService} from './commerce/commerce-service.js';
 import {createOrderRepository} from './commerce/order-repository.js';
 import {readCommerceFeatureFlags} from './commerce/feature-flags.js';
 import {createLazyProvider} from './commerce/lazy-provider.js';
+import {createPublicAuthLimiter} from './commerce/public-auth-limits.js';
+import {publicAuthRequestContext} from './commerce/public-auth-request-context.js';
 import {
   createQuickBooksRefreshSecretStore,
 } from './commerce/quickbooks-token-coordinator.js';
@@ -45,6 +47,8 @@ const MS_REDIRECT_URI = defineString('MS_REDIRECT_URI',{default:'https://us-west
 const QBO_RUNTIME_SECRETS = [QBO_CLIENT_ID,QBO_CLIENT_SECRET];
 const MS_SECRETS = [MS_TENANT_ID,MS_CLIENT_ID,MS_CLIENT_SECRET,MS_REFRESH_TOKEN];
 const ALL_SECRETS = [...QBO_RUNTIME_SECRETS,...MS_SECRETS];
+// Account webhook support may be verified while ingestion stays disabled;
+// scheduled Accounting reconciliation remains the authoritative payment path.
 const COMMERCE_QBO_WEBHOOK_ENABLED = false;
 const REFUND_PENDING_REVIEW_LIMIT = 100;
 
@@ -415,13 +419,13 @@ function commerceHttpsError(error) {
   return new HttpsError('failed-precondition','Commerce operation could not be completed');
 }
 
-function runtimeCommerceService({withPilotEmail = false, withQuickBooks = false, withGraph = false} = {}) {
+function runtimeCommerceService({withPilotEmail = false, withQuickBooks = false, withGraph = false, withAuth = false} = {}) {
   const repository = commerceRepository();
   return createCommerceService({
     repository,
     quickbooks:withQuickBooks ? lazyQuickBooksClient() : null,
     graph:withGraph ? lazyGraphClient() : null,
-    auth:withPilotEmail ? {
+    auth:(withPilotEmail || withAuth) ? {
       generateSignInWithEmailLink:(email, settings) => getAuth().generateSignInWithEmailLink(email, settings),
     } : null,
     getApprovedPilotEmail:withPilotEmail
@@ -431,6 +435,7 @@ function runtimeCommerceService({withPilotEmail = false, withQuickBooks = false,
     authRequestLimiter:key => repository.consumeRateLimit(
       'pilot_auth',key,new Date(),{limit:5,windowMs:10 * 60 * 1000}
     ),
+    publicAuthLimiter:createPublicAuthLimiter({repository}),
     statusRequestLimiter:key => repository.consumeRateLimit(
       'order_status',key,new Date(),{limit:60,windowMs:10 * 60 * 1000}
     ),
@@ -462,12 +467,14 @@ function downloadHttpHandler() {
 
 export const requestPilotSignInLink = onCall({
   region:REGION,
-  secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...MS_SECRETS],
+  secrets:MS_SECRETS,
+  // APP_CHECK_TRANSPORT_CONTRACT: Firebase rejects absent or invalid App Check as
+  // UNAUTHENTICATED before this handler; valid requests always receive the generic result.
   enforceAppCheck:true,
 }, async request => {
   try {
-    const service = runtimeCommerceService({withPilotEmail:true,withGraph:true});
-    return await service.requestPilotSignInLink(request.data, {app:request.app});
+    const service = runtimeCommerceService({withAuth:true,withGraph:true});
+    return await service.requestPublicSignInLink(request.data, publicAuthRequestContext(request));
   } catch {
     return {status:'request_received'};
   }
@@ -475,11 +482,11 @@ export const requestPilotSignInLink = onCall({
 
 export const createDigitalOrder = onCall({
   region:REGION,
-  secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_RUNTIME_SECRETS],
+  secrets:QBO_RUNTIME_SECRETS,
   enforceAppCheck:true,
 }, async request => {
   try {
-    const service = runtimeCommerceService({withPilotEmail:true,withQuickBooks:true});
+    const service = runtimeCommerceService({withQuickBooks:true});
     return await service.createDigitalOrder(request.data, request.auth);
   } catch (error) {
     throw commerceHttpsError(error);
@@ -614,7 +621,7 @@ export const reconcileCommerceOrders = onSchedule({schedule:'every 5 minutes',
   await service.reconcilePendingOrders(new Date());
 });
 
-export const dispatchCommerceEffects = onSchedule({schedule:'every 5 minutes',
+export const dispatchCommerceEffects = onSchedule({schedule:'every 4 minutes',
   timeZone:'America/Los_Angeles',region:REGION,
   secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_RUNTIME_SECRETS,...MS_SECRETS],
 }, async () => {

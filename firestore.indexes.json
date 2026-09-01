@@ -23,6 +23,32 @@
         {"fieldPath": "status", "order": "ASCENDING"},
         {"fieldPath": "nextAttemptAt", "order": "ASCENDING"}
       ]
+    },
+    {
+      "collectionGroup": "commerceEffects",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "publicAuth", "order": "ASCENDING"},
+        {"fieldPath": "cleanupEligible", "order": "ASCENDING"},
+        {"fieldPath": "retentionExpiresAt", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "commerceAudit",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "publicAuth", "order": "ASCENDING"},
+        {"fieldPath": "cleanupEligible", "order": "ASCENDING"},
+        {"fieldPath": "retentionExpiresAt", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "commercePublicAuthLimits",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "publicAuth", "order": "ASCENDING"},
+        {"fieldPath": "expiresAt", "order": "ASCENDING"}
+      ]
     }
   ],
   "fieldOverrides": []

@@ -24,6 +24,12 @@ function invalidResponse(operation) {
   return new Error(`QuickBooks ${operation} response was invalid`);
 }
 
+function ambiguousCustomer() {
+  const error = new Error('QuickBooks Customer lookup requires manual review');
+  error.code = 'QBO_CUSTOMER_AMBIGUOUS';
+  return error;
+}
+
 async function expectJson(response, operation) {
   if (!response.ok) throw new Error(`${operation} failed with provider status ${response.status}`);
   try {
@@ -193,6 +199,10 @@ function assertCommerceInvoiceReadback(providerInvoice, normalizedInvoice, expec
   if (
     salesLines.length !== 1 ||
     providerInvoice.CustomerRef?.value !== expected.customerId ||
+    providerInvoice.BillEmail?.Address !== expected.customerEmail ||
+    providerInvoice.AllowOnlinePayment !== true ||
+    providerInvoice.AllowOnlineCreditCardPayment !== true ||
+    providerInvoice.AllowOnlineACHPayment !== true ||
     normalizedInvoice.providerOrderRef !== expected.providerOrderRef ||
     normalizedInvoice.totalAmountCents !== expected.amountCents ||
     normalizedInvoice.balanceCents !== expected.amountCents ||
@@ -346,7 +356,12 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
   }
 
   async function query(entity, field, value) {
-    const statement = `select * from ${entity} where ${field} = '${qboString(value)}' maxresults 1`;
+    const matches = await queryMatches(entity, field, value, 1);
+    return matches[0] ?? null;
+  }
+
+  async function queryMatches(entity, field, value, maximum) {
+    const statement = `select * from ${entity} where ${field} = '${qboString(value)}' maxresults ${maximum}`;
     const data = await requestJson(
       `/query?query=${encodeURIComponent(statement)}&minorversion=${MINOR_VERSION}`,
       undefined,
@@ -356,9 +371,9 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
       throw invalidResponse(`${entity} query`);
     }
     const matches = data.QueryResponse[entity];
-    if (matches === undefined) return null;
+    if (matches === undefined) return [];
     if (!Array.isArray(matches)) throw invalidResponse(`${entity} query`);
-    return matches[0] ?? null;
+    return matches;
   }
 
   async function ensureCustomer({customerName, customerEmail}) {
@@ -371,6 +386,31 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
     );
     if (!data?.Customer || typeof data.Customer !== 'object' || Array.isArray(data.Customer)) {
       throw invalidResponse('Customer create');
+    }
+    return data.Customer;
+  }
+
+  async function ensureCommerceCustomer({customerName, customerEmail}) {
+    const matches = await queryMatches('Customer', 'PrimaryEmailAddr', customerEmail, 2);
+    if (matches.length > 0) {
+      if (matches.length !== 1
+        || matches[0]?.PrimaryEmailAddr?.Address !== customerEmail
+        || !isNonEmptyString(matches[0]?.Id)) {
+        throw ambiguousCustomer();
+      }
+      return matches[0];
+    }
+    const data = await requestJson(
+      `/customer?minorversion=${MINOR_VERSION}`,
+      {method:'POST',body:{DisplayName:customerName,PrimaryEmailAddr:{Address:customerEmail}}},
+      'Customer create',
+    );
+    if (!data?.Customer || typeof data.Customer !== 'object' || Array.isArray(data.Customer)) {
+      throw invalidResponse('Customer create');
+    }
+    if (!isNonEmptyString(data.Customer.Id)
+      || data.Customer.PrimaryEmailAddr?.Address !== customerEmail) {
+      throw ambiguousCustomer();
     }
     return data.Customer;
   }
@@ -441,7 +481,7 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
     async createCommerceInvoice(order) {
       const normalizedOrder = normalizeCommerceOrder(order);
       const providerOrderRef = `bk-order-${normalizedOrder.orderId}`;
-      const customer = await ensureCustomer(normalizedOrder);
+      const customer = await ensureCommerceCustomer(normalizedOrder);
       if (!customer || !isNonEmptyString(customer.Id)) throw invalidResponse('Customer read/create');
       const item = await readItem(normalizedOrder.accounting.itemId);
       if (item.itemName !== normalizedOrder.accounting.itemName || item.active !== true) {
@@ -450,6 +490,10 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
       const amount = normalizedOrder.amountCents / 100;
       const payload = {
         CustomerRef:{value:customer.Id},
+        BillEmail:{Address:normalizedOrder.customerEmail},
+        AllowOnlinePayment:true,
+        AllowOnlineCreditCardPayment:true,
+        AllowOnlineACHPayment:true,
         CurrencyRef:{value:normalizedOrder.currency},
         CustomerMemo:{value:`Order ${normalizedOrder.orderId}`},
         PrivateNote:providerOrderRef,
@@ -477,6 +521,7 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
         const readback = await readInvoiceEntity(data.Invoice.Id);
         assertCommerceInvoiceReadback(readback.providerInvoice, readback.invoice, {
           customerId:customer.Id,
+          customerEmail:normalizedOrder.customerEmail,
           itemId:item.itemId,
           taxCode:normalizedOrder.accounting.taxCode,
           providerOrderRef,

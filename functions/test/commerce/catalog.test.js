@@ -1,6 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {getCommerceItem, getConfiguredCommerceItem, isCommerceItemPurchasable, listPublicCommerceItems, listCommerceCapabilities} from '../../src/commerce/catalog.js';
+import {
+  getCommerceItem,
+  getConfiguredCommerceItem,
+  getConfiguredPaymentsCapability,
+  isCommerceItemPurchasable,
+  listPublicCommerceItems,
+  listCommerceCapabilities,
+} from '../../src/commerce/catalog.js';
+
+const verifiedPaymentsCapability=Object.freeze({
+  accounting:true,
+  payments:true,
+  mode:'documented-intuit-flow',
+  supportsImmediatePayment:true,
+  supportsCards:true,
+  supportsApplePay:true,
+  supportsPayPal:true,
+  supportsAch:true,
+  supportsWebhooks:true,
+  surchargingEnabled:false,
+  onlineInvoiceDelivery:true,
+});
 
 test('keeps a known digital product unavailable before owner approval', () => {
   assert.throws(() => getCommerceItem('home-inspection-study-guide'), /unavailable/);
@@ -20,9 +41,9 @@ test('records the reviewed owner-pilot price, QuickBooks mapping, tax gate, and 
   assert.equal(item.quickBooks.itemName, 'Home Inspection Study Guide');
   assert.equal(item.quickBooks.itemId, '8');
   assert.equal(item.quickBooks.itemVerified, true);
-  assert.equal(item.tax.classification, 'ca_electronic_only_non_taxable_proposed');
+  assert.equal(item.tax.classification, 'electronic_only_non_taxable_owner_approved');
   assert.equal(item.tax.quickBooksTaxCode, 'NON');
-  assert.equal(item.tax.accountantVerified, false);
+  assert.equal(item.tax.accountantVerified, true);
   assert.equal(item.artifact.objectKey, 'private-commerce/home-inspection-study-guide/guide-v1.pdf');
   assert.equal(item.artifact.contentType, 'application/pdf');
   assert.equal(item.artifact.exactBytes, 71250419);
@@ -33,6 +54,36 @@ test('records the reviewed owner-pilot price, QuickBooks mapping, tax gate, and 
   assert.equal(item.release.deployApproved, false);
   assert.equal(Object.isFrozen(item), true);
   assert.equal(Object.isFrozen(item.artifact), true);
+});
+
+test('keeps the server-owned payment capability unverified for the inactive code deploy', () => {
+  const capability=getConfiguredPaymentsCapability();
+  assert.deepEqual(capability, {
+    accounting:false,
+    payments:false,
+    mode:'documented-intuit-flow',
+    supportsImmediatePayment:false,
+    supportsCards:false,
+    supportsApplePay:false,
+    supportsPayPal:false,
+    supportsAch:false,
+    supportsWebhooks:false,
+    surchargingEnabled:false,
+    onlineInvoiceDelivery:false,
+  });
+  assert.equal(Object.isFrozen(capability), true);
+});
+
+test('records owner-approved nationwide electronic-only NON treatment', () => {
+  const item = getConfiguredCommerceItem('home-inspection-study-guide');
+  assert.equal(item.delivery, 'electronic_only');
+  assert.equal(item.physicalCopyIncluded, false);
+  assert.equal(item.tax.quickBooksTaxCode, 'NON');
+  assert.equal(item.tax.accountantVerified, true);
+  assert.equal(item.tax.geographicRestriction, 'none_owner_approved');
+  assert.equal(item.release.fulfillmentRuntimeVerified, true);
+  assert.equal(item.active, false);
+  assert.equal(item.release.deployApproved, false);
 });
 
 test('stays unavailable at a nonzero price until every server verification gate is true', () => {
@@ -53,7 +104,8 @@ test('activation predicate requires every authoritative verification gate', () =
     artifact:{...configured.artifact,generation:'1785951381246665',objectVerified:true},
     release:{...configured.release,fulfillmentRuntimeVerified:true,deployApproved:true},
   };
-  assert.equal(isCommerceItemPurchasable(ready), true);
+  assert.equal(isCommerceItemPurchasable(ready), false);
+  assert.equal(isCommerceItemPurchasable(ready, verifiedPaymentsCapability), true);
   for (const blocked of [
     {...ready,active:false},
     {...ready,quickBooks:{...ready.quickBooks,itemId:null}},
@@ -69,7 +121,7 @@ test('activation predicate requires every authoritative verification gate', () =
     {...ready,release:{...ready.release,priceApproved:false}},
     {...ready,release:{...ready.release,fulfillmentRuntimeVerified:false}},
     {...ready,release:{...ready.release,deployApproved:false}},
-  ]) assert.equal(isCommerceItemPurchasable(blocked), false);
+  ]) assert.equal(isCommerceItemPurchasable(blocked, verifiedPaymentsCapability), false);
 });
 
 test('does not disclose private configuration through buyer capabilities', () => {

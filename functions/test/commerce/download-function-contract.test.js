@@ -43,6 +43,16 @@ test('binds neither protected endpoint to QuickBooks, Microsoft, nor recipient s
   }
 });
 
+test('keeps the public auth callable behind Firebase App Check transport rejection and generic valid-request results', async () => {
+  const source=await readFile(sourceUrl,'utf8');
+  const start=source.indexOf('export const requestPilotSignInLink = ');
+  const next=source.indexOf('\nexport const ',start + 1);
+  const declaration=source.slice(start,next);
+  assert.match(declaration,/enforceAppCheck:true/);
+  assert.match(declaration,/APP_CHECK_TRANSPORT_CONTRACT/);
+  assert.match(declaration,/return \{status:'request_received'\};/);
+});
+
 test('scoped deployment inventory contains exactly 20 reviewed exports and excludes legacy booking send', async () => {
   const source=await readFile(sourceUrl,'utf8');
   assert.equal(scopedDeploymentInventory.length,20);
