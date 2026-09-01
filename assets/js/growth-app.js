@@ -9,6 +9,7 @@
   if (!DATA) return;
 
   var LOG_KEY = 'bk_inner_game_log_v1';
+  var YOUR_GAME_KEY = 'bk_your_game_profile_v1';
   var app = document.getElementById('ig-app');
   if (!app) return;
 
@@ -32,6 +33,22 @@
   }
   function findEmotion(id) {
     return DATA.emotions.filter(function (e) { return e.id === id; })[0];
+  }
+  function loadYourGame() {
+    try { return JSON.parse(localStorage.getItem(YOUR_GAME_KEY)) || null; }
+    catch (e) { return null; }
+  }
+  function yourGameContext() {
+    var profile = loadYourGame();
+    if (!profile) return null;
+    var roles = {
+      playmaker: { name: 'Playmaker', prompt: 'Am I serving this person, or trying to secure my place by being indispensable?' },
+      builder: { name: 'Builder', prompt: 'What am I trying to control because I fear the work will fail without me?' },
+      guardian: { name: 'Guardian', prompt: 'Is this a real boundary to protect, or is fear making change feel unsafe?' },
+      pathfinder: { name: 'Pathfinder', prompt: 'Is this a faithful next step, or an escape from the discipline of staying and finishing?' },
+      catalyst: { name: 'Catalyst', prompt: 'Is this urgency coming from conviction, or from anxiety that nothing matters unless it happens now?' }
+    };
+    return roles[profile.primary] || null;
   }
 
   // ---- Log (localStorage) ----
@@ -63,6 +80,17 @@
     wrap.appendChild(el('h2', 'ig-h2', 'What are you feeling right now?'));
     wrap.appendChild(el('p', 'ig-lead',
       'Pick the one that fits best. There are no wrong answers \u2014 naming it is the first move.'));
+
+    var role = yourGameContext();
+    if (role) {
+      wrap.appendChild(el('div', 'ig-your-game',
+        '<span>Your Game · ' + esc(role.name) + '</span><strong>' + esc(role.prompt) + '</strong>' +
+        '<a href="your-game.html">View my Kingdom Playbook \u2192</a>'));
+    } else {
+      wrap.appendChild(el('div', 'ig-your-game quiet',
+        '<span>Begin with identity</span><strong>Not sure what pressure may be bending in you? Discover your Kingdom Roles first.</strong>' +
+        '<a href="your-game.html">Start Your Game \u2192</a>'));
+    }
 
     var grid = el('div', 'ig-grid');
     DATA.emotions.forEach(function (em) {

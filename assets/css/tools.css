@@ -36,6 +36,11 @@
    INNER GAME
    =========================================== */
 #ig-app { max-width: 760px; margin: 0 auto; }
+.ig-your-game { display: grid; gap: 7px; margin: 0 0 26px; padding: 18px 20px; background: #101a2e; border-left: 3px solid var(--royal-glow); }
+.ig-your-game.quiet { background: #0d121c; border-left-color: #46526a; }
+.ig-your-game span { color: var(--royal-glow); font: 600 .72rem var(--font-display); text-transform: uppercase; letter-spacing: .16em; }
+.ig-your-game strong { color: #e8edf7; line-height: 1.5; }
+.ig-your-game a { color: #9bb7ff; font-size: .86rem; font-weight: 600; }
 
 .ig-kicker {
   font-family: var(--font-display);
