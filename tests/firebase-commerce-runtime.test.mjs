@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createFirebaseCommerceRuntime } from '../assets/js/firebase-commerce-runtime.js';
+import { validateCapabilityResponse } from '../assets/js/commerce-client.js';
 
 const verifiedPublicConfig = Object.freeze({
   apiKey: 'verified-public-api-key',
@@ -153,4 +154,24 @@ test('public browser boundary is a compatibility adapter rather than a pilot-lab
   assert.match(client, /requestPublicSignInLink/);
   assert.match(client, /realCallable\('requestPilotSignInLink',data\)/);
   assert.doesNotMatch(client, /requestPilotSignInLink\(request\)/);
+});
+
+test('client accepts only the authoritative public display contract from buyer capability', () => {
+  const capability = validateCapabilityResponse({products:[{
+    sku:'home-inspection-study-guide',active:true,
+    display:{
+      name:'Home Inspection Study Guide',amountCents:4900,currency:'USD',
+      invoiceProvider:'quickbooks',paymentMethods:['card','apple_pay','paypal','venmo'],
+      delivery:'protected_electronic_delivery',
+    },
+  }]});
+  assert.equal(capability.products[0].display.amountCents, 4900);
+  assert.throws(() => validateCapabilityResponse({products:[{
+    sku:'home-inspection-study-guide',active:true,
+    display:{
+      name:'Home Inspection Study Guide',amountCents:4900,currency:'USD',
+      invoiceProvider:'quickbooks',paymentMethods:['card','browser-supplied-method'],
+      delivery:'protected_electronic_delivery',
+    },
+  }]}), /Invalid capability response/);
 });

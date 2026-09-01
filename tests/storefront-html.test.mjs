@@ -119,16 +119,31 @@ test('protected delivery client uses an in-memory blob and never requests creden
   assert.doesNotMatch(client, /localStorage|sessionStorage/);
 });
 
-test('public checkout presents a $49 QuickBooks invoice flow without payment credential fields or payment-method guarantees', async () => {
+test('public checkout binds product, price, invoice, delivery, and payment-method copy to server capability', async () => {
   const html = await read('order-status.html');
-  assert.match(html, /\$49\.00/);
-  assert.match(html, /QuickBooks invoice/i);
-  assert.match(html, /card, Apple Pay, PayPal, or Venmo/i);
+  for (const binding of ['data-product-name','data-price','data-invoice-provider','data-delivery','data-payment-methods','data-apple-pay-label']) {
+    assert.match(html, new RegExp(binding));
+  }
   assert.match(html, /eligible Apple device, eligible card, and Safari/i);
-  assert.match(html, /electronic delivery/i);
   assert.match(html, /Refund and cancellation terms/i);
   assert.match(html, /href=["']terms\.html["']/i);
+  assert.doesNotMatch(html, /\$49\.00|card, Apple Pay, PayPal, or Venmo/);
   assert.doesNotMatch(html, /payment method guaranteed|all payment methods/i);
   assert.doesNotMatch(html, /<input[^>]+(?:type=["']card|name=["'][^"']*(?:card|paypal|venmo))/i);
   assert.doesNotMatch(html, /approved identity|pilot/i);
+});
+
+test('digital-product terms state delivery, cancellation, refund review, access, and support boundaries', async () => {
+  const html = await read('terms.html');
+  for (const value of [
+    'Digital Products',
+    'QuickBooks invoice',
+    'protected electronic delivery',
+    'Cancellation requests received before payment is verified',
+    'Refund requests are reviewed case by case',
+    'access has already been used or downloaded',
+    'info@ballkingdom.com',
+  ]) assert.match(html, new RegExp(escapeRegExp(value), 'i'));
+  assert.match(html, /do not promise automatic refunds/i);
+  assert.doesNotMatch(html, /guaranteed refund/i);
 });

@@ -9,11 +9,13 @@ function renderProductCard(product) {
   const state = product.availability === 'free-intake-preview' ? 'Free preview' : 'Secure checkout coming soon';
   const commerce = product.commerceSku ? ` data-commerce-sku="${escapeHtml(product.commerceSku)}" aria-disabled="true"` : '';
   const href = product.commerceSku ? 'products.html#home-inspection-study-guide' : product.href;
+  const commerceName = product.commerceSku ? ' data-commerce-product-name' : '';
+  const commercePrice = product.commerceSku ? ' data-commerce-product-price' : '';
   return `<article class="product-offer" id="${escapeHtml(product.slug)}">
     <p class="product-offer__eyebrow">${escapeHtml(product.eyebrow)}</p>
-    <h2>${escapeHtml(product.name)}</h2>
+    <h2${commerceName}>${escapeHtml(product.name)}</h2>
     <p>${escapeHtml(product.summary)}</p>
-    <p class="product-offer__price">${escapeHtml(product.priceLabel)}</p>
+    <p class="product-offer__price"${commercePrice}>${escapeHtml(product.priceLabel)}</p>
     <p class="product-offer__state">${escapeHtml(state)}</p>
     <a class="btn btn-primary${product.commerceSku ? ' btn-disabled' : ''}" href="${escapeHtml(href)}"${commerce}>${escapeHtml(product.cta)}</a>
     <p class="product-offer__disclaimer">${escapeHtml(product.disclaimer)}</p>
@@ -36,8 +38,14 @@ async function applyCommerceAvailability() {
     const release = validateCapabilityResponse(await boundary.getBuyerCommerceCapability());
     const products = release.products;
     controls.forEach(control => {
-      const active = products.some(item => item && item.sku === control.dataset.commerceSku && item.active === true && Object.keys(item).every(key => ['sku','active'].includes(key)));
-      if (!active) { unavailable(control); return; }
+      const product = products.find(item => item.sku === control.dataset.commerceSku);
+      if (!product) { unavailable(control); return; }
+      const card=control.closest('.product-offer');
+      const name=card?.querySelector('[data-commerce-product-name]');
+      const price=card?.querySelector('[data-commerce-product-price]');
+      if(name)name.textContent=product.display.name;
+      if(price)price.textContent=new Intl.NumberFormat('en-US',{style:'currency',currency:product.display.currency}).format(product.display.amountCents/100);
+      if (!product.active) { unavailable(control); return; }
       control.href = `order-status.html?sku=${encodeURIComponent(control.dataset.commerceSku)}`;
       control.classList.remove('btn-disabled');
       control.removeAttribute('aria-disabled');

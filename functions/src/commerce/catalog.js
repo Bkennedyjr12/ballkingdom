@@ -22,6 +22,8 @@ const PAYMENTS_CAPABILITY = deepFreeze({
   onlineInvoiceDelivery:false,
 });
 
+const INVOICE_PAYMENT_METHODS = Object.freeze(['card','apple_pay','paypal','venmo']);
+
 const ITEMS = deepFreeze({
   'home-inspection-study-guide': {
     sku: 'home-inspection-study-guide',
@@ -137,5 +139,13 @@ export function listCommerceCapabilities() {
   return Object.freeze(Object.values(ITEMS).map(item => Object.freeze({
     sku:item.sku,
     active:isCommerceItemPurchasable(item),
+    display:Object.freeze({
+      name:item.name,
+      amountCents:item.amountCents,
+      currency:item.currency,
+      invoiceProvider:'quickbooks',
+      paymentMethods:INVOICE_PAYMENT_METHODS,
+      delivery:'protected_electronic_delivery',
+    }),
   })));
 }

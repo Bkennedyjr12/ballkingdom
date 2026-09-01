@@ -24,6 +24,7 @@ const REFUND_REASON_MAXIMUM = 500;
 const PUBLIC_AUTH_WINDOW_MS = 10 * 60 * 1000;
 const SHA256_DIGEST = /^[a-f0-9]{64}$/;
 const PUBLIC_APP_ID = /^[A-Za-z0-9._:-]{1,200}$/;
+const PUBLIC_PAYMENT_METHODS = new Set(['card','apple_pay','paypal','venmo']);
 
 function commerceError(code, message) {
   const error = new Error(message);
@@ -33,6 +34,19 @@ function commerceError(code, message) {
 
 function record(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function buyerDisplay(value) {
+  const display = value?.display;
+  const keys = ['name','amountCents','currency','invoiceProvider','paymentMethods','delivery'];
+  if (!record(display) || Object.keys(display).length !== keys.length || keys.some(key => !Object.hasOwn(display,key))
+    || typeof display.name !== 'string' || display.name.trim().length < 1 || display.name.length > 160
+    || !Number.isSafeInteger(display.amountCents) || display.amountCents < 1 || display.amountCents > 100000000
+    || display.currency !== 'USD' || display.invoiceProvider !== 'quickbooks' || display.delivery !== 'protected_electronic_delivery'
+    || !Array.isArray(display.paymentMethods) || display.paymentMethods.length < 1 || display.paymentMethods.length > 4
+    || new Set(display.paymentMethods).size !== display.paymentMethods.length
+    || display.paymentMethods.some(method => !PUBLIC_PAYMENT_METHODS.has(method))) return null;
+  return Object.freeze({...display,paymentMethods:Object.freeze([...display.paymentMethods])});
 }
 
 export function buildPilotActionCodeSettings(orderHandle = null, base = DEFAULT_ACTION_CODE_SETTINGS) {
@@ -884,10 +898,12 @@ export function createCommerceService({
       const releaseReady = flags.publicDigitalCheckoutEnabled === true
         && isDigitalFulfillmentAvailable() === true
         && verifiedPaymentsCapability() !== null;
-      const products = listCommerceCapabilities().map(item => Object.freeze({
-        sku:item.sku,
-        active:releaseReady && item.active === true,
-      }));
+      const products = listCommerceCapabilities().map(item => {
+        const display = buyerDisplay(item);
+        if (!display || typeof item?.sku !== 'string' || item.sku.length < 1 || item.sku.length > 128
+          || typeof item.active !== 'boolean') throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable');
+        return Object.freeze({sku:item.sku,active:releaseReady && item.active === true,display});
+      });
       return Object.freeze({products:Object.freeze(products)});
     },
 

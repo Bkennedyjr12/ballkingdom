@@ -3,7 +3,14 @@ import {createHash} from 'node:crypto';
 import {createCommerceService} from '../functions/src/commerce/commerce-service.js';
 
 const activeRelease = Object.freeze({
-  products: [{sku:'home-inspection-study-guide',active:true}],
+  products: [{
+    sku:'home-inspection-study-guide',active:true,
+    display:{
+      name:'Home Inspection Study Guide',amountCents:4900,currency:'USD',
+      invoiceProvider:'quickbooks',paymentMethods:['card','apple_pay','paypal','venmo'],
+      delivery:'protected_electronic_delivery',
+    },
+  }],
 });
 
 test.beforeEach(async ({page}) => {
@@ -73,7 +80,12 @@ async function installCommerceMock(page, scenario = 'pending') {
     const calls = [];
     window.__commerceTestCalls = calls;
     window.__BALLERS_COMMERCE__ = {
-      async getBuyerCommerceCapability() { calls.push(['release']); return scenario === 'resume-late' ? {products:[{sku:'home-inspection-study-guide',active:false}]} : release; },
+      async getBuyerCommerceCapability() {
+        calls.push(['release']);
+        if (scenario === 'resume-late') return {products:[{sku:'home-inspection-study-guide',active:false}]};
+        if (scenario === 'display-override') return {products:[{sku:'home-inspection-study-guide',active:true,display:{name:'Server Catalog Guide',amountCents:5100,currency:'USD',invoiceProvider:'quickbooks',paymentMethods:['card'],delivery:'protected_electronic_delivery'}}]};
+        return release;
+      },
       async requestPublicSignInLink(input) {
         calls.push(['auth', input]);
         if (scenario === 'slow-auth') await new Promise(resolve => setTimeout(resolve, 120));
@@ -84,6 +96,8 @@ async function installCommerceMock(page, scenario = 'pending') {
       async createDigitalOrder(input) {
         calls.push(['create', input]);
         if (scenario === 'slow-create') await new Promise(resolve => setTimeout(resolve, 120));
+        if (scenario === 'reuse-paid') return {orderHandle:'safe-order-1',amountCents:4900,currency:'USD',status:'paid',message:'Payment was received and delivery is being prepared.'};
+        if (scenario === 'reuse-fulfilled') return {orderHandle:'safe-order-1',amountCents:4900,currency:'USD',status:'fulfilled',message:'Your protected delivery is ready.'};
         return {orderHandle:'safe-order-1',amountCents:4900,currency:'USD',status:'payment_verification_pending',message:'Payment verification is pending.'};
       },
       async getOrderStatus() {
@@ -93,6 +107,8 @@ async function installCommerceMock(page, scenario = 'pending') {
           return {orderHandle:'safe-order-1',status:'fulfilled',message:'Your protected delivery is ready.',downloadReady:true};
         }
         if (scenario === 'unexpected') return {orderHandle:'safe-order-1',status:'fulfilled',message:'Ready',downloadReady:true,providerUrl:'https://example.invalid'};
+        if (scenario === 'reuse-paid') return {orderHandle:'safe-order-1',status:'paid',message:'Payment was received and delivery is being prepared.',downloadReady:false};
+        if (scenario === 'reuse-fulfilled') return {orderHandle:'safe-order-1',status:'fulfilled',message:'Your protected delivery is ready.',downloadReady:true};
         if (scenario === 'fulfilled' || scenario === 'replay') return {orderHandle:'safe-order-1',status:'fulfilled',message:'Your protected delivery is ready.',downloadReady:true};
         if (scenario === 'status-denied') throw new Error('owner denied');
         return {orderHandle:'safe-order-1',status:'payment_verification_pending',message:'QuickBooks sent payment instructions to your email. Payment verification is pending.',downloadReady:false};
@@ -214,6 +230,21 @@ test('public checkout creates at most one invoice order for a rapid double-click
   expect(calls.filter(([name])=>name==='create')).toHaveLength(1);
 });
 
+for (const [scenario, expectedStatus] of [['reuse-paid', 'paid'], ['reuse-fulfilled', 'fulfilled']]) {
+  test(`public checkout safely resumes a ${expectedStatus} order returned by createDigitalOrder reuse`, async ({page}) => {
+    await installCommerceMock(page, scenario);
+    await page.goto('/order-status.html?sku=home-inspection-study-guide');
+    await page.getByLabel(/name/i).fill('Customer Example');
+    await page.getByRole('button',{name:/Request QuickBooks invoice/i}).click();
+    await expect(page.getByText(expectedStatus === 'paid' ? /Payment was received/i : /protected delivery is ready/i)).toBeVisible();
+    if (expectedStatus === 'fulfilled') await expect(page.getByRole('button',{name:/Download protected guide/i})).toBeVisible();
+    else await expect(page.getByRole('button',{name:/Download protected guide/i})).toHaveCount(0);
+    const calls=await page.evaluate(()=>window.__commerceTestCalls);
+    expect(calls.filter(([name])=>name==='create')).toHaveLength(1);
+    expect(calls.filter(([name])=>name==='status')).toHaveLength(1);
+  });
+}
+
 test('digital product shows QuickBooks email instructions without a pay URL', async ({page}) => {
   await installCommerceMock(page);
   await page.goto('/products.html');
@@ -224,6 +255,14 @@ test('digital product shows QuickBooks email instructions without a pay URL', as
   await page.getByRole('button',{name:/Request QuickBooks invoice/i}).click();
   await expect(page.getByText(/QuickBooks sent payment instructions to your email/i)).toBeVisible();
   await expect(page.locator('a[href*="quickbooks"], a[href*="intuit"]')).toHaveCount(0);
+});
+
+test('product card renders server-authoritative name and price instead of its static checkout copy', async ({page}) => {
+  await installCommerceMock(page,'display-override');
+  await page.goto('/products.html');
+  const card=page.locator('[data-commerce-sku="home-inspection-study-guide"]').locator('xpath=ancestor::article');
+  await expect(card.getByRole('heading')).toHaveText('Server Catalog Guide');
+  await expect(card.locator('.product-offer__price')).toHaveText('$51.00');
 });
 
 test('client assertions do not unlock fulfillment', async ({page}) => {

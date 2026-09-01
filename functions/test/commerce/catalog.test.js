@@ -126,7 +126,7 @@ test('activation predicate requires every authoritative verification gate', () =
 
 test('does not disclose private configuration through buyer capabilities', () => {
   const serialized = JSON.stringify(listCommerceCapabilities());
-  assert.doesNotMatch(serialized, /private-commerce|guide-v1|sha256|md5|generation|71250419|quickbooks/i);
+  assert.doesNotMatch(serialized, /private-commerce|guide-v1|sha256|md5|generation|71250419|itemId|tax/i);
 });
 
 test('rejects unknown or inactive products', () => {
@@ -139,10 +139,16 @@ test('does not publish inactive products', () => {
   assert.equal(Object.isFrozen(items), true);
 });
 
-test('publishes only strict buyer-safe SKU capability fields', () => {
+test('publishes only strict buyer-safe SKU and display capability fields', () => {
   assert.deepEqual(listCommerceCapabilities(), [
-    {sku:'home-inspection-study-guide',active:false},
+    {sku:'home-inspection-study-guide',active:false,display:{
+      name:'Home Inspection Study Guide',amountCents:4900,currency:'USD',
+      invoiceProvider:'quickbooks',paymentMethods:['card','apple_pay','paypal','venmo'],
+      delivery:'protected_electronic_delivery',
+    }},
   ]);
-  assert.deepEqual(Object.keys(listCommerceCapabilities()[0]), ['sku','active']);
+  assert.deepEqual(Object.keys(listCommerceCapabilities()[0]), ['sku','active','display']);
+  assert.deepEqual(Object.keys(listCommerceCapabilities()[0].display), ['name','amountCents','currency','invoiceProvider','paymentMethods','delivery']);
   assert.equal(Object.isFrozen(listCommerceCapabilities()[0]), true);
+  assert.equal(Object.isFrozen(listCommerceCapabilities()[0].display), true);
 });

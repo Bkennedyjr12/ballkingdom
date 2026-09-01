@@ -16,6 +16,11 @@ const catalogItem = Object.freeze({
   quickBooks:{itemId:'8',itemName:'Home Inspection Study Guide',itemVerified:true},
   tax:{quickBooksTaxCode:'NON',accountantVerified:true},
 });
+const publicDisplay = Object.freeze({
+  name:'Home Inspection Study Guide',amountCents:4900,currency:'USD',
+  invoiceProvider:'quickbooks',paymentMethods:Object.freeze(['card','apple_pay','paypal','venmo']),
+  delivery:'protected_electronic_delivery',
+});
 const verifiedPaymentsCapability=Object.freeze({
   accounting:true,payments:true,mode:'documented-intuit-flow',
   supportsImmediatePayment:true,supportsCards:true,supportsApplePay:true,
@@ -1963,13 +1968,13 @@ test('buyer catalog capability requires App Check and stays inactive until every
   const state = fixture();
   await assert.rejects(state.service.getBuyerCommerceCapability({}), {code:'APP_CHECK_REQUIRED'});
   assert.deepEqual(await state.service.getBuyerCommerceCapability(appCheck), {
-    products:[{sku:'home-inspection-study-guide',active:false}],
+    products:[{sku:'home-inspection-study-guide',active:false,display:publicDisplay}],
   });
-  assert.deepEqual(Object.keys((await state.service.getBuyerCommerceCapability(appCheck)).products[0]), ['sku','active']);
+  assert.deepEqual(Object.keys((await state.service.getBuyerCommerceCapability(appCheck)).products[0]), ['sku','active','display']);
 });
 
 test('buyer capability remains inactive until the server payment record is fully verified', async () => {
-  const listCommerceCapabilities=() => [{sku:catalogItem.sku,active:true}];
+  const listCommerceCapabilities=() => [{sku:catalogItem.sku,active:true,display:publicDisplay}];
   const flags={
     publicDigitalCheckoutEnabled:true,digitalInvoicePilotEnabled:true,serviceQboSendEnabled:false,
   };
@@ -1993,13 +1998,13 @@ test('buyer capability remains inactive until the server payment record is fully
   });
 
   assert.deepEqual(await blocked.service.getBuyerCommerceCapability(appCheck), {
-    products:[{sku:catalogItem.sku,active:false}],
+    products:[{sku:catalogItem.sku,active:false,display:publicDisplay}],
   });
   assert.deepEqual(await verified.service.getBuyerCommerceCapability(appCheck), {
-    products:[{sku:catalogItem.sku,active:true}],
+    products:[{sku:catalogItem.sku,active:true,display:publicDisplay}],
   });
   assert.deepEqual(await publicDisabled.service.getBuyerCommerceCapability(appCheck), {
-    products:[{sku:catalogItem.sku,active:false}],
+    products:[{sku:catalogItem.sku,active:false,display:publicDisplay}],
   });
 });
 
