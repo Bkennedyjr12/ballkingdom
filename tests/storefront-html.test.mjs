@@ -118,3 +118,17 @@ test('protected delivery client uses an in-memory blob and never requests creden
   assert.doesNotMatch(client, /credentials\s*:\s*["']include["']/);
   assert.doesNotMatch(client, /localStorage|sessionStorage/);
 });
+
+test('public checkout presents a $49 QuickBooks invoice flow without payment credential fields or payment-method guarantees', async () => {
+  const html = await read('order-status.html');
+  assert.match(html, /\$49\.00/);
+  assert.match(html, /QuickBooks invoice/i);
+  assert.match(html, /card, Apple Pay, PayPal, or Venmo/i);
+  assert.match(html, /eligible Apple device, eligible card, and Safari/i);
+  assert.match(html, /electronic delivery/i);
+  assert.match(html, /Refund and cancellation terms/i);
+  assert.match(html, /href=["']terms\.html["']/i);
+  assert.doesNotMatch(html, /payment method guaranteed|all payment methods/i);
+  assert.doesNotMatch(html, /<input[^>]+(?:type=["']card|name=["'][^"']*(?:card|paypal|venmo))/i);
+  assert.doesNotMatch(html, /approved identity|pilot/i);
+});

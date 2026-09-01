@@ -147,3 +147,10 @@ test('uses direct in-memory Auth persistence with no default Auth or application
   assert.equal(sdk.calls.filter(([name]) => name === 'initializeAuth').length, 1);
   assert.equal(sdk.calls.find(([name]) => name === 'initializeAuth')[2].persistence, sdk.inMemoryPersistence);
 });
+
+test('public browser boundary is a compatibility adapter rather than a pilot-labelled client contract', async () => {
+  const client = await readFile(new URL('../assets/js/commerce-client.js', import.meta.url), 'utf8');
+  assert.match(client, /requestPublicSignInLink/);
+  assert.match(client, /realCallable\('requestPilotSignInLink',data\)/);
+  assert.doesNotMatch(client, /requestPilotSignInLink\(request\)/);
+});

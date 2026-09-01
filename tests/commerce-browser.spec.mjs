@@ -6,6 +6,15 @@ const activeRelease = Object.freeze({
   products: [{sku:'home-inspection-study-guide',active:true}],
 });
 
+test.beforeEach(async ({page}) => {
+  await page.route(/\/order-status\.html(?:\?.*)?$/, async route => {
+    const response=await route.fetch();
+    const body=(await response.text()).replace('<script type="module" src="assets/js/firebase-commerce-runtime.js"></script>','');
+    await route.fulfill({response,body});
+  });
+  await page.route(/^https:\/\/fonts\.(?:googleapis|gstatic)\.com\//, route => route.abort());
+});
+
 async function captureServerDeliveredResumeLink(request){
   const approvedEmail='approved@example.test';
   const binding=createHash('sha256').update(`binding\0${approvedEmail}`).digest('hex');
@@ -65,10 +74,16 @@ async function installCommerceMock(page, scenario = 'pending') {
     window.__commerceTestCalls = calls;
     window.__BALLERS_COMMERCE__ = {
       async getBuyerCommerceCapability() { calls.push(['release']); return scenario === 'resume-late' ? {products:[{sku:'home-inspection-study-guide',active:false}]} : release; },
-      async requestPilotSignInLink(input) { calls.push(['auth', input]); return {status:'request_received'}; },
+      async requestPublicSignInLink(input) {
+        calls.push(['auth', input]);
+        if (scenario === 'slow-auth') await new Promise(resolve => setTimeout(resolve, 120));
+        if (scenario === 'rate-limited') throw new Error('rate limited');
+        return {status:'request_received'};
+      },
       async completeEmailLink() { calls.push(['complete']); return scenario === 'invalid-link' ? {signedIn:false} : {signedIn:true}; },
       async createDigitalOrder(input) {
         calls.push(['create', input]);
+        if (scenario === 'slow-create') await new Promise(resolve => setTimeout(resolve, 120));
         return {orderHandle:'safe-order-1',amountCents:4900,currency:'USD',status:'payment_verification_pending',message:'Payment verification is pending.'};
       },
       async getOrderStatus() {
@@ -153,14 +168,60 @@ async function expectProtectedFailure(page,options){
   return evidence;
 }
 
+test('public customer completes verified invoice flow without payment credential fields', async ({page}) => {
+  await installCommerceMock(page);
+  await page.goto('/order-status.html?sku=home-inspection-study-guide');
+  await expect(page.getByText('$49.00')).toBeVisible();
+  await expect(page.getByText(/Apple Pay/).first()).toBeVisible();
+  await expect(page.locator('input[type=card], input[name*=card], input[name*=paypal], input[name*=venmo]')).toHaveCount(0);
+  await page.getByLabel('Email').fill('customer@example.test');
+  await page.getByRole('button',{name:/email.*sign-in link/i}).click();
+  await expect(page.getByText(/request has been received/i)).toBeVisible();
+  const calls=await page.evaluate(()=>window.__commerceTestCalls);
+  expect(calls.filter(([name])=>name==='auth')).toHaveLength(1);
+});
+
+test('public checkout keeps one email-link request in flight and restores the control after a bounded failure', async ({page}) => {
+  await installCommerceMock(page,'slow-auth');
+  await page.goto('/order-status.html?sku=home-inspection-study-guide');
+  await page.getByLabel('Email').fill('customer@example.test');
+  const button=page.getByRole('button',{name:/email.*sign-in link/i});
+  await button.dblclick();
+  await expect(button).toBeDisabled();
+  await expect(page.getByText(/request has been received/i)).toBeVisible();
+  await expect(button).toBeEnabled();
+  const calls=await page.evaluate(()=>window.__commerceTestCalls);
+  expect(calls.filter(([name])=>name==='auth')).toHaveLength(1);
+
+  await installCommerceMock(page,'rate-limited');
+  await page.goto('/order-status.html?sku=home-inspection-study-guide');
+  await page.getByLabel('Email').fill('customer@example.test');
+  const limitedButton=page.getByRole('button',{name:/email.*sign-in link/i});
+  await limitedButton.click();
+  await expect(page.getByText(/request has been received/i)).toBeVisible();
+  await expect(limitedButton).toBeEnabled();
+});
+
+test('public checkout creates at most one invoice order for a rapid double-click', async ({page}) => {
+  await installCommerceMock(page,'slow-create');
+  await page.goto('/order-status.html?sku=home-inspection-study-guide');
+  await page.getByLabel(/name/i).fill('Customer Example');
+  const button=page.getByRole('button',{name:/Request QuickBooks invoice/i});
+  await button.dblclick();
+  await expect(button).toBeDisabled();
+  await expect(page.getByText(/QuickBooks sent payment instructions/i)).toBeVisible();
+  const calls=await page.evaluate(()=>window.__commerceTestCalls);
+  expect(calls.filter(([name])=>name==='create')).toHaveLength(1);
+});
+
 test('digital product shows QuickBooks email instructions without a pay URL', async ({page}) => {
   await installCommerceMock(page);
   await page.goto('/products.html');
   await page.getByRole('link',{name:/Get the Home Inspection Guide/i}).click();
   await expect(page).toHaveURL(/order-status/);
-  await expect(page.getByRole('heading',{name:/Review your order/i})).toBeVisible();
+  await expect(page.getByRole('heading',{name:/Get the guide/i})).toBeVisible();
   await page.getByLabel(/name/i).fill('Pilot Buyer');
-  await page.getByRole('button',{name:/Send payment instructions/i}).click();
+  await page.getByRole('button',{name:/Request QuickBooks invoice/i}).click();
   await expect(page.getByText(/QuickBooks sent payment instructions to your email/i)).toBeVisible();
   await expect(page.locator('a[href*="quickbooks"], a[href*="intuit"]')).toHaveCount(0);
 });
@@ -180,24 +241,24 @@ test('unavailable Functions leave purchase controls fail closed', async ({page})
   await control.dispatchEvent('click');
   await expect(page).toHaveURL(/products\.html$/);
   await page.goto('/order-status.html');
-  await expect(page.getByRole('button',{name:/Email me a sign-in link/i})).toBeDisabled();
-  await expect(page.getByRole('button',{name:/Send payment instructions/i})).toBeDisabled();
+  await expect(page.getByRole('button',{name:/Email.*sign-in link/i})).toBeDisabled();
+  await expect(page.getByRole('button',{name:/Request QuickBooks invoice/i})).toBeDisabled();
 });
 
 test('direct order route requires the exact active server SKU',async({page})=>{
   await installCommerceMock(page);
   await page.goto('/order-status.html?sku=unknown-product');
   await expect(page.getByText(/Purchasing is temporarily unavailable/i)).toBeVisible();
-  await expect(page.getByRole('button',{name:/Email me a sign-in link/i})).toBeDisabled();
-  await expect(page.getByRole('button',{name:/Send payment instructions/i})).toBeDisabled();
+  await expect(page.getByRole('button',{name:/Email.*sign-in link/i})).toBeDisabled();
+  await expect(page.getByRole('button',{name:/Request QuickBooks invoice/i})).toBeDisabled();
 });
 
 test('generic sign-in response does not reveal recipient decision or call client mail', async ({page}) => {
   await installCommerceMock(page);
   await page.goto('/order-status.html?sku=home-inspection-study-guide');
   for (const email of ['approved@example.test','arbitrary@example.com','approved@example.test']) {
-    await page.getByLabel(/email address/i).fill(email);
-    await page.getByRole('button',{name:/Email me a sign-in link/i}).click();
+    await page.getByLabel(/email/i).fill(email);
+    await page.getByRole('button',{name:/Email.*sign-in link/i}).click();
     await expect(page.getByText(/If this address is eligible/i)).toBeVisible();
   }
   const calls = await page.evaluate(() => window.__commerceTestCalls);
@@ -208,12 +269,12 @@ test('generic sign-in response does not reveal recipient decision or call client
 test('expired modified or reused email link remains signed out and requires a new request', async ({page}) => {
   await installCommerceMock(page,'invalid-link');
   await page.goto('/order-status.html?sku=home-inspection-study-guide&mode=signIn&oobCode=modified');
-  await page.getByLabel(/email address/i).fill('approved@example.test');
+  await page.getByLabel(/email/i).fill('approved@example.test');
   await page.getByLabel(/name/i).fill('Pilot Buyer');
-  await page.getByRole('button',{name:/Send payment instructions/i}).click();
+  await page.getByRole('button',{name:/Request QuickBooks invoice/i}).click();
   await expect(page.getByText(/expired, modified, already used/i)).toBeVisible();
-  await expect(page.getByRole('button',{name:/Email me a sign-in link/i})).toBeEnabled();
-  await expect(page.getByRole('button',{name:/Send payment instructions/i})).toBeDisabled();
+  await expect(page.getByRole('button',{name:/Email.*sign-in link/i})).toBeEnabled();
+  await expect(page.getByRole('button',{name:/Request QuickBooks invoice/i})).toBeEnabled();
   const calls=await page.evaluate(()=>window.__commerceTestCalls);
   expect(calls.some(([name])=>name==='create')).toBe(false);
 });
@@ -231,8 +292,8 @@ test('returning buyer completes email-link auth and resumes the existing late-fu
   await expect(page.getByText(/verified owner/i)).toBeVisible();
   await expect(page.getByRole('button',{name:/Sign in and resume order/i})).toBeVisible();
   await expect(page.getByLabel(/name/i)).not.toHaveAttribute('required','');
-  await page.getByLabel(/email address/i).fill('approved@example.test');
-  await page.getByRole('button',{name:/Email me a sign-in link/i}).click();
+  await page.getByLabel(/email/i).fill('approved@example.test');
+  await page.getByRole('button',{name:/Email.*sign-in link/i}).click();
   const request=await page.evaluate(()=>window.__commerceTestCalls.find(([name])=>name==='auth')[1]);
   expect(request).toEqual({email:'approved@example.test',orderHandle:'safe-order-1'});
   const deliveredLink=await captureServerDeliveredResumeLink(request);
@@ -243,7 +304,7 @@ test('returning buyer completes email-link auth and resumes the existing late-fu
   returnUrl.searchParams.set('mode',firebaseLink.searchParams.get('mode'));
   returnUrl.searchParams.set('oobCode',firebaseLink.searchParams.get('oobCode'));
   await page.goto(`${returnUrl.pathname}${returnUrl.search}`);
-  await page.getByLabel(/email address/i).fill('approved@example.test');
+  await page.getByLabel(/email/i).fill('approved@example.test');
   await page.getByRole('button',{name:/Sign in and resume order/i}).click();
   await expect(page.getByRole('button',{name:/Download protected guide/i})).toBeVisible();
   await expect(page.getByText(/protected delivery is ready/i)).toBeVisible();
@@ -266,7 +327,7 @@ test('unexpected provider fields fail closed instead of unlocking delivery', asy
   await installCommerceMock(page, 'unexpected');
   await page.goto('/order-status.html?sku=home-inspection-study-guide');
   await page.getByLabel(/name/i).fill('Pilot Buyer');
-  await page.getByRole('button',{name:/Send payment instructions/i}).click();
+  await page.getByRole('button',{name:/Request QuickBooks invoice/i}).click();
   await expect(page.getByText(/could not safely create or read/i)).toBeVisible();
   await expect(page.getByRole('button',{name:/download/i})).toHaveCount(0);
 });
@@ -275,7 +336,7 @@ test('download grant stays in memory for one redemption attempt', async ({page})
   await installCommerceMock(page, 'fulfilled');
   await page.goto('/order-status.html?sku=home-inspection-study-guide');
   await page.getByLabel(/name/i).fill('Pilot Buyer');
-  await page.getByRole('button',{name:/Send payment instructions/i}).click();
+  await page.getByRole('button',{name:/Request QuickBooks invoice/i}).click();
   await page.getByRole('button',{name:/Download protected guide/i}).click();
   const evidence = await page.evaluate(() => ({calls:window.__commerceTestCalls,url:location.href,storage:{...localStorage}}));
   const grant = evidence.calls.find(([name]) => name === 'grant')[1];
@@ -288,7 +349,7 @@ test('consumed grant denial returns to a safe fulfilled view and a new grant can
   await installCommerceMock(page,'replay');
   await page.goto('/order-status.html?sku=home-inspection-study-guide');
   await page.getByLabel(/name/i).fill('Pilot Buyer');
-  await page.getByRole('button',{name:/Send payment instructions/i}).click();
+  await page.getByRole('button',{name:/Request QuickBooks invoice/i}).click();
   const button=page.getByRole('button',{name:/Download protected guide/i});
   await button.click();
   await expect(page.getByText(/one-time delivery attempt could not be completed/i)).toBeVisible();
