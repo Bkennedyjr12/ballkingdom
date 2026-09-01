@@ -8,6 +8,7 @@ const protectedExports=['createDownloadGrant','redeemDownloadGrant'];
 const existingScopedExports=[
   'requestPilotSignInLink','createDigitalOrder','getOrderStatus',
   'getBuyerCommerceCapability','verifyOrderPayment','getCommerceReleaseState',
+  'getQuickBooksCommerceHealth',
   'requestRefundReview','reconcileOrder','reconcileRefund','quickBooksCommerceWebhook',
   'reconcileCommerceOrders','dispatchCommerceEffects','stageInvoiceApprovals','approveInvoice',
   'beginQuickBooksConnection','quickBooksOAuthCallback','beginMicrosoftConnection',
@@ -55,10 +56,23 @@ test('keeps the public auth callable behind Firebase App Check transport rejecti
   assert.match(declaration,/return \{status:'request_received'\};/);
 });
 
-test('scoped deployment inventory contains exactly 20 reviewed exports and excludes legacy booking send', async () => {
+test('protects QuickBooks commerce health with admin auth, App Check, and redacted read-only wiring', async () => {
   const source=await readFile(sourceUrl,'utf8');
-  assert.equal(scopedDeploymentInventory.length,20);
-  assert.equal(new Set(scopedDeploymentInventory).size,20);
+  const start=source.indexOf('export const getQuickBooksCommerceHealth = ');
+  const next=source.indexOf('\nexport const ',start + 1);
+  const declaration=source.slice(start,next);
+  assert.notEqual(start,-1);
+  assert.match(declaration,/secrets:QBO_RUNTIME_SECRETS/);
+  assert.match(declaration,/enforceAppCheck:true/);
+  assert.ok(declaration.indexOf('requireAdmin(request.auth)') < declaration.indexOf('runQuickBooksCommerceHealth'));
+  assert.doesNotMatch(declaration,/request\.data/);
+  assert.doesNotMatch(declaration,/createCustomer|createInvoice|sendInvoice|sendMail|sendMessage/);
+});
+
+test('scoped deployment inventory contains exactly 21 reviewed exports and excludes legacy booking send', async () => {
+  const source=await readFile(sourceUrl,'utf8');
+  assert.equal(scopedDeploymentInventory.length,21);
+  assert.equal(new Set(scopedDeploymentInventory).size,21);
   for (const name of scopedDeploymentInventory) {
     assert.match(source,new RegExp(`export const ${name} = `),name);
   }

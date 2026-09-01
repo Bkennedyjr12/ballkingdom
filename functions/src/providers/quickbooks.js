@@ -470,6 +470,17 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
   }
 
   return {
+    async getCompanyInfo() {
+      const data=await requestJson(
+        `/companyinfo/${encodeURIComponent(config.realmId)}?minorversion=${MINOR_VERSION}`,
+        undefined,
+        'CompanyInfo read',
+      );
+      const companyName=data?.CompanyInfo?.CompanyName;
+      if (!isNonEmptyString(companyName)) throw invalidResponse('CompanyInfo read');
+      return Object.freeze({companyName});
+    },
+
     async createInvoice({customerName, customerEmail, itemName, description, amount, useCatalogPrice, appointmentId}) {
       const customer = await ensureCustomer({customerName, customerEmail});
       const item = await query('Item', 'Name', itemName);

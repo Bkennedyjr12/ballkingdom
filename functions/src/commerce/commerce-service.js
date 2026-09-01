@@ -814,7 +814,7 @@ export function createCommerceService({
       } catch {
         return GENERIC_AUTH_RESULT;
       }
-      if (allowed !== true || readFlags().publicDigitalCheckoutEnabled !== true) return GENERIC_AUTH_RESULT;
+      if (allowed !== true || readFlags().publicAuthResumeEnabled !== true) return GENERIC_AUTH_RESULT;
       let settings = buildPilotActionCodeSettings(null, actionCodeSettings);
       if (hasOrderHandle) {
         const order = await repository.getOrder(input.orderHandle);
@@ -1227,7 +1227,8 @@ export function createCommerceService({
       }
       const flags = readFlags();
       return Object.freeze({
-        digitalInvoicePilotEnabled:flags.digitalInvoicePilotEnabled,
+        publicAuthResumeEnabled:flags.publicAuthResumeEnabled,
+        publicDigitalCheckoutEnabled:flags.publicDigitalCheckoutEnabled,
         serviceQboSendEnabled:flags.serviceQboSendEnabled,
       });
     },

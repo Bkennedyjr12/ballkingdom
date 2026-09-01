@@ -17,6 +17,7 @@ import {createOrderRepository} from './commerce/order-repository.js';
 import {readCommerceFeatureFlags} from './commerce/feature-flags.js';
 import {createLazyProvider} from './commerce/lazy-provider.js';
 import {createPublicAuthLimiter} from './commerce/public-auth-limits.js';
+import {runQuickBooksCommerceHealth} from './commerce/quickbooks-commerce-health.js';
 import {publicAuthRequestContext} from './commerce/public-auth-request-context.js';
 import {
   createQuickBooksRefreshSecretStore,
@@ -172,7 +173,7 @@ function quickBooksTokenCoordinator() {
 }
 
 function quickBooksClient() {
-  const methodNames=['createInvoice','getInvoicePdf','createCommerceInvoice','sendInvoice','getInvoice','getPayment','getAccountingChanges'];
+  const methodNames=['createInvoice','getInvoicePdf','createCommerceInvoice','sendInvoice','getInvoice','getPayment','getAccountingChanges','getCompanyInfo'];
   return Object.freeze(Object.fromEntries(methodNames.map(methodName=>[methodName,async(...args)=>{
     const credentials=await quickBooksTokenCoordinator().getCredentials();
     const client=createQuickBooksClient({realmId:credentials.realmId,accessTokenProvider:{getAccessToken:async()=>credentials.accessToken}});
@@ -566,6 +567,23 @@ export const getCommerceReleaseState = onCall({region:REGION,enforceAppCheck:tru
       uid:request.auth?.uid,
       token:request.auth?.token,
       app:request.app,
+    });
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
+export const getQuickBooksCommerceHealth = onCall({
+  region:REGION,secrets:QBO_RUNTIME_SECRETS,enforceAppCheck:true,
+}, async request => {
+  requireAdmin(request.auth);
+  try {
+    return await runQuickBooksCommerceHealth({
+      credentialCoordinator:quickBooksTokenCoordinator(),
+      createClient:credentials=>createQuickBooksClient({
+        realmId:credentials.realmId,
+        accessTokenProvider:{getAccessToken:async()=>credentials.accessToken},
+      }),
     });
   } catch (error) {
     throw commerceHttpsError(error);

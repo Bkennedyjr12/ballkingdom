@@ -515,7 +515,7 @@ function fixture(overrides = {}) {
       return 'https://ballkingdom.com/finish-sign-in?mode=signIn&oobCode=synthetic';
     },
   };
-  const flags = overrides.flags ?? {publicDigitalCheckoutEnabled:true,digitalInvoicePilotEnabled:true,serviceQboSendEnabled:false};
+  const flags = overrides.flags ?? {publicAuthResumeEnabled:true,publicDigitalCheckoutEnabled:true,digitalInvoicePilotEnabled:true,serviceQboSendEnabled:false};
   const getCurrentUser = overrides.getCurrentUser ?? (async uid => ({
     uid,
     email:pilotEmail,
@@ -579,7 +579,7 @@ const publicEmail = 'public-customer@example.test';
 test('public sign-in gives malformed, extra, invalid, limited, and App-Check-missing traffic one generic result without effects', async () => {
   const limiterCalls=[];
   const state=fixture({
-    flags:{publicDigitalCheckoutEnabled:true,serviceQboSendEnabled:false},
+    flags:{publicAuthResumeEnabled:true,publicDigitalCheckoutEnabled:true,serviceQboSendEnabled:false},
     publicAuthLimiter:{async consume(input){limiterCalls.push(input);return false;}},
   });
   const expected={status:'request_received'};
@@ -599,7 +599,7 @@ test('public sign-in gives malformed, extra, invalid, limited, and App-Check-mis
 
 test('public sign-in accepts unrelated emails once per parallel request and caps completed reissues', async () => {
   const state=fixture({
-    flags:{publicDigitalCheckoutEnabled:true,serviceQboSendEnabled:false},
+    flags:{publicAuthResumeEnabled:true,publicDigitalCheckoutEnabled:true,serviceQboSendEnabled:false},
     publicAuthLimiter:{async consume(){return true;}},
   });
   const second='another-public@example.test';
@@ -615,6 +615,34 @@ test('public sign-in accepts unrelated emails once per parallel request and caps
     await state.service.requestPublicSignInLink({email:publicEmail},publicAuthContext);
   }
   assert.equal(state.calls.graph.filter(call => call.to===publicEmail).length,5);
+});
+
+test('public auth/resume remains available when new ordering is emergency-disabled', async () => {
+  const state=fixture({
+    flags:{publicAuthResumeEnabled:true,publicDigitalCheckoutEnabled:false,serviceQboSendEnabled:false},
+    publicAuthLimiter:{async consume(){return true;}},
+  });
+  assert.deepEqual(
+    await state.service.requestPublicSignInLink({email:publicEmail},publicAuthContext),
+    {status:'request_received'},
+  );
+  assert.equal(state.calls.graph.length,1);
+  await assert.rejects(state.service.createDigitalOrder({
+    sku:catalogItem.sku,customerName:'Ada',idempotencyKey:'disabled-order',
+  },ownerAuth),{code:'COMMERCE_DISABLED'});
+});
+
+test('inactive auth flag suppresses public sign-in even if ordering is enabled', async () => {
+  const state=fixture({
+    flags:{publicAuthResumeEnabled:false,publicDigitalCheckoutEnabled:true,serviceQboSendEnabled:false},
+    publicAuthLimiter:{async consume(){return true;}},
+  });
+  assert.deepEqual(
+    await state.service.requestPublicSignInLink({email:publicEmail},publicAuthContext),
+    {status:'request_received'},
+  );
+  assert.equal(state.calls.links.length,0);
+  assert.equal(state.calls.graph.length,0);
 });
 
 test('counts recovered public-auth manual reviews without exposing recipient data', async () => {
@@ -2201,12 +2229,13 @@ test('null status input returns the intended safe not-found error', async () => 
   await assert.rejects(state.service.getOrderStatus(null, ownerAuth), {code:'ORDER_NOT_FOUND'});
 });
 
-test('release state requires App Check and an administrator and exposes only two Booleans', async () => {
+test('release state requires App Check and an administrator and exposes only reviewed Booleans', async () => {
   const state = fixture();
   await assert.rejects(state.service.getCommerceReleaseState({uid:'admin',admin:true}), {code:'APP_CHECK_REQUIRED'});
   await assert.rejects(state.service.getCommerceReleaseState({uid:'user',app:{},admin:false}), {code:'ADMIN_REQUIRED'});
   assert.deepEqual(await state.service.getCommerceReleaseState({uid:'admin',app:{},admin:true}), {
-    digitalInvoicePilotEnabled:true,
+    publicAuthResumeEnabled:true,
+    publicDigitalCheckoutEnabled:true,
     serviceQboSendEnabled:false,
   });
 });

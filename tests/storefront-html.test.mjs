@@ -112,6 +112,7 @@ test('public checkout release inventories the exact reviewed Function surface', 
     'getBuyerCommerceCapability',
     'verifyOrderPayment',
     'getCommerceReleaseState',
+    'getQuickBooksCommerceHealth',
     'requestRefundReview',
     'reconcileOrder',
     'reconcileRefund',
@@ -132,6 +133,30 @@ test('public checkout release inventories the exact reviewed Function surface', 
     assert.match(release, new RegExp(`functions:${name}(?:,|\\s)`), name);
   }
   assert.doesNotMatch(release, /functions:confirmAcceptedBooking(?:,|\s)/);
+});
+
+test('public auth and ordering flags support inactive launch and customer-preserving disable', async () => {
+  const env=await read('functions/.env.the-ballers-kingdom');
+  assert.match(env,/^COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=false$/m);
+  assert.match(env,/^COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false$/m);
+  const release=await read('docs/operations/public-quickbooks-checkout-release.md');
+  assert.match(release,/activate[^.]*AUTH_RESUME[^.]*DIGITAL_CHECKOUT/i);
+  assert.match(release,/emergency[^.]*DIGITAL_CHECKOUT_ENABLED=false[^.]*AUTH_RESUME_ENABLED=true/is);
+});
+
+test('operative QuickBooks health documentation names the deployed redacted callable gate', async () => {
+  const release=await read('docs/operations/public-quickbooks-checkout-release.md');
+  assert.match(release,/getQuickBooksCommerceHealth/);
+  assert.match(release,/admin[^.]*App Check/i);
+  assert.match(release,/redacted[^.]*booleans/i);
+  for (const path of [
+    'docs/operations/quickbooks-commerce-runbook.md',
+    'docs/operations/quickbooks-token-rotation-local-evidence.md',
+  ]) {
+    const text=await read(path);
+    assert.doesNotMatch(text,/rotating_token_persistence_runtime_fix_unreviewed_undeployed/);
+    assert.doesNotMatch(text,/implementation remains local\/unreviewed\/undeployed/i);
+  }
 });
 
 test('public checkout release gates every customer effect on authoritative QuickBooks health', async () => {

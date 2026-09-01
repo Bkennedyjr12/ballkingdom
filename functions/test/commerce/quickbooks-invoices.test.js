@@ -151,6 +151,24 @@ test('QuickBooks Accounting OAuth uses only the accounting scope', () => {
   assert.equal(url.searchParams.get('scope')?.includes('payments'), false);
 });
 
+test('reads exact CompanyInfo through the production Accounting realm without exposing raw provider data', async () => {
+  const fetchImpl=scriptedFetch([tokenStep(),call=>{
+    const url=new URL(call.url);
+    assert.equal(`${url.origin}${url.pathname}`,`${PROD_ROOT}/companyinfo/realm-7`);
+    assert.equal(url.searchParams.get('minorversion'),'75');
+    assertAccountingHeaders(call);
+    return json({CompanyInfo:{CompanyName:'The Ballers Kingdom',Id:'realm-7'},time:'provider-time'});
+  }]);
+  const result=await createQuickBooksClient(clientConfig(),fetchImpl).getCompanyInfo();
+  assert.deepEqual(result,{companyName:'The Ballers Kingdom'});
+  assertNoProviderPayloadKeys(result);
+});
+
+test('rejects malformed CompanyInfo instead of returning provider material', async () => {
+  const fetchImpl=scriptedFetch([tokenStep(),()=>json({CompanyInfo:{CompanyName:'',Id:'realm-7'}})]);
+  await assert.rejects(createQuickBooksClient(clientConfig(),fetchImpl).getCompanyInfo(),/CompanyInfo/);
+});
+
 test('creates a commerce Invoice on the production Accounting host with a stable order reference and deterministic requestid', async () => {
   let persistedRefreshToken;
   const fetchImpl = scriptedFetch([

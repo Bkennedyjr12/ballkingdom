@@ -93,13 +93,15 @@ Duplicate or parallel calls recover the same owned order or fail closed. Status,
 download redemption require the same UID. Download grants are short-lived, single-use, digest-only,
 and bound to one paid order/customer/SKU. Direct Storage reads remain denied.
 
-The committed deployment flags are `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false` and
-`COMMERCE_SERVICE_QBO_SEND_ENABLED=false`. The inactive release must read back false/false before
+The committed deployment flags are `COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=false`,
+`COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false`, and
+`COMMERCE_SERVICE_QBO_SEND_ENABLED=false`. The inactive release must read back false/false/false before
 any customer effect. Before activation, the post-deploy Accounting health gate must prove the
 published credential binding and version metadata, bounded refresh, persisted rotation, exact realm,
 and `CompanyInfo.CompanyName='The Ballers Kingdom'`. Any failure stops before an authentication
 email, order, QuickBooks Customer, or Invoice. Only a separately reviewed activation commit may set
-the public flag true; the service flag remains false.
+the auth/resume and ordering flags true together; the service flag remains false. An emergency disable
+sets ordering false while leaving auth/resume true for existing paid-customer recovery.
 
 ## Send and webhook safety boundary
 
@@ -114,7 +116,7 @@ Webhooks are optional acceleration. The production app is visible, but its webho
 - Preserve the verified private per-SKU artifact identity, direct-read denial, and signed-out/wrong-user/owner/admin emulator proof before release.
 - Only after recovering and merging the authoritative Firestore source, add `"rules":"firestore.rules"` alongside the existing indexes mapping in `firebase.json`; only after the equivalent Storage recovery, add `"storage":{"rules":"storage.rules"}`. A missing or mismatched mapping blocks its dry run and release.
 - Confirm Firebase email-link authentication, verified-email UID binding, same-owner status, expired/replayed link denial, capped public abuse controls, and single-use download-grant behavior.
-- Keep both commerce feature flags false in the inactive project parameter file. Activation may change only `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED`; `COMMERCE_SERVICE_QBO_SEND_ENABLED` remains false. Record the reviewed config commit, deploy log, and protected runtime readback.
+- Keep all three commerce feature flags false in the inactive project parameter file. Activation enables `COMMERCE_PUBLIC_AUTH_RESUME_ENABLED` and `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED` together; `COMMERCE_SERVICE_QBO_SEND_ENABLED` remains false. Emergency disable turns ordering off while preserving auth/resume. Record the reviewed config commit, deploy log, and protected runtime readback.
 - Pass the post-inactive-deploy QuickBooks health gate before the first authentication email or any order/Customer/Invoice mutation.
 - Confirm the current Invoice send request/response against official documentation in tests; do not invent a path, field, delivery receipt, or pay URL.
 - Approve the exact SKU, price, QuickBooks item, tax treatment, scoped deploys, one controlled owner authentication email, one later QuickBooks invoice send, the owner payment, and any refund as separate production actions. Confirm Apple Pay is visible on that controlled invoice before public activation.

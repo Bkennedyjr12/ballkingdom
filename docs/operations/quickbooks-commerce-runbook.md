@@ -38,13 +38,26 @@ Non-secret rollout state is committed in `functions/.env.the-ballers-kingdom`. B
 
 ### Rotating QuickBooks refresh credentials
 
-Production commerce is currently blocked by `rotating_token_persistence_runtime_fix_unreviewed_undeployed`. The first approved health check proved one refresh and CompanyInfo read, but Intuit returned a rotated refresh credential that the no-payload-retention test deliberately did not persist. Reuse of the deployment-pinned stored credential then failed. Brian approved the exact OAuth reconnect; the existing callback completed and added enabled version 3 for `QBO_REFRESH_TOKEN` and `QBO_REALM_ID` without mutating an Accounting record. Versions 1 and 2 remain enabled and were not read.
+The 2026-08-30 rotation incident is historical: an approved health check refreshed successfully but
+the no-payload-retention probe did not persist Intuit's replacement refresh credential. The current
+implementation addresses that failure mode with a generation-bound coordinator and an explicit
+post-inactive-deploy health gate. Historical success and reconnect metadata remain non-operative;
+only the current deployed health callable can establish release-time Accounting health.
 
 Do not treat a new secret version or historical CompanyInfo response as continuing health. The local implementation reads only the exact `QBO_REFRESH_TOKEN` and `QBO_REALM_ID` versions atomically published in protected `integrationControl/qbo-credential-binding`; arbitrary latest versions and unreferenced orphan versions are ignored. It acquires one generation-bound Firestore claim for no more than five minutes and, immediately before Intuit, atomically records `dispatchStartedAtMs` and `attemptCount:1`. Concurrent calls in one runtime share the same pending refresh. Another runtime may reclaim only an expired claim for which dispatch never started. A started claim is never automatically retried, even after expiry or clock skew.
 
 Every Intuit and Secret Manager operation has a bounded deadline well below the lease. After Intuit returns, exact claim ownership and binding generation are rechecked before persistence and again during atomic publish. The replacement is added and its exact version read back before the binding advances; loss of the publish race leaves an ignored orphan and a redacted alert. Ambiguous persistence becomes `qbo_refresh_persistence_unknown`; `invalid_grant`, a crash/expiry after dispatch, or an unknown outcome becomes `qbo_reconnect_required`. None is blindly retried. Reconnect fences the generation before storing token and realm separately, exact-readbacks both, and publishes only the verified pair; a token-only, realm-only, or ambiguous result leaves the prior published pair unchanged and status `manual_review`. Firestore stores only redacted state, reason, attempt, timing, owner, generation, and version-number receipts—never either value.
 
-This implementation remains local/unreviewed/undeployed. `QBO_REFRESH_TOKEN` and `QBO_REALM_ID` are intentionally absent from `defineSecret` and every Function binding; dynamic exact-version Secret Manager access is the sole runtime path. Runtime fails closed when the binding is absent, so the first post-deploy step is a separately approved OAuth reconnect that publishes the initial pair. Deployment requires secret-scoped access/add permissions on both named secrets plus narrowly scoped Firestore access to the two control documents and redacted alerts. Only after the pair exists may a separately approved read-only refresh/CompanyInfo check occur. Review orphan/old-version cleanup separately against rollback and audit needs; never delete or disable versions merely to tidy the list.
+`QBO_REFRESH_TOKEN` and `QBO_REALM_ID` remain intentionally absent from `defineSecret` and every
+Function binding; dynamic exact-version Secret Manager access is the sole runtime path. Runtime fails
+closed when the binding is absent. After an inactive reviewed deploy and any separately approved
+bootstrap/reconnect, an authenticated administrator with `admin:true` and valid App Check invokes
+`getQuickBooksCommerceHealth`. That callable forces one bounded refresh through the deployed
+coordinator, exact-readbacks any replacement token, atomically publishes the new binding, re-reads
+that binding, and requires `CompanyInfo.CompanyName='The Ballers Kingdom'`. Its response contains
+only redacted status booleans and no realm, version, company name, token, or provider body. Review
+orphan/old-version cleanup separately against rollback and audit needs; never delete or disable
+versions merely to tidy the list.
 
 ## Local and sandbox verification
 

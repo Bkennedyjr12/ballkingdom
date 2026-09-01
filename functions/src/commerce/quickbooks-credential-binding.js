@@ -34,8 +34,60 @@ export function createBoundQuickBooksCredentialCoordinator({credentialStore,toke
   if(!credentialStore?.readPublished||!credentialStore?.claimRefresh||!tokenStore?.readVersion||!tokenStore?.addVersion||!realmStore?.readVersion||typeof refresh!=='function')throw new TypeError('QuickBooks bound credential dependencies are invalid');
   let cache=null;let pending=null;
   const realmFor=async binding=>{const realm=await realmStore.readVersion(binding.realmVersion);if(realm.version!==binding.realmVersion||!realm.value)throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');return realm.value;};
-  async function run(){const ownerId=ownerIdFactory();let binding;let started=false;try{binding=await credentialStore.readPublished();const claim=await credentialStore.claimRefresh({ownerId,binding,nowMs:clock().getTime(),expiresAtMs:clock().getTime()+leaseMs});if(claim.status!=='claimed')throw coded(claim.status==='busy'?'QBO_REFRESH_BUSY':'QBO_RECONNECT_REQUIRED',claim.status==='busy'?'QuickBooks authentication is temporarily unavailable':'QuickBooks must be reconnected');const [source,realmId]=await Promise.all([tokenStore.readVersion(binding.refreshTokenVersion),realmFor(binding)]);if(source.version!==binding.refreshTokenVersion||!source.value)throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');if(!await credentialStore.markDispatchStarted({ownerId,generation:binding.generation,nowMs:clock().getTime()}))throw coded('QBO_REFRESH_BUSY','QuickBooks authentication is temporarily unavailable');started=true;let result;try{result=await refresh(source.value);}catch(error){if(error?.code==='QBO_REFRESH_TIMEOUT')throw coded('QBO_REFRESH_TIMEOUT','QuickBooks authentication timed out');throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');}if(!result?.accessToken||!result?.refreshToken)throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');if(!await credentialStore.verifyPublishFence({ownerId,generation:binding.generation}))throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');let nextVersion=binding.refreshTokenVersion;if(!equal(result.refreshToken,source.value)){let added,exact;try{added=await tokenStore.addVersion(result.refreshToken);exact=await tokenStore.readVersion(added.version);}catch{throw coded('QBO_REFRESH_PERSISTENCE_UNKNOWN','QuickBooks credential rotation requires operator review');}if(exact.version!==added.version||!equal(exact.value,result.refreshToken))throw coded('QBO_REFRESH_PERSISTENCE_UNKNOWN','QuickBooks credential rotation requires operator review');nextVersion=added.version;}if(!await credentialStore.publishRotation({ownerId,generation:binding.generation,refreshTokenVersion:nextVersion,realmVersion:binding.realmVersion,nowMs:clock().getTime()})){await credentialStore.recordAlert({reason:'qbo_reconnect_required',nowMs:clock().getTime()});throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');}const expires=Number.isFinite(result.expiresIn)?Math.max(1,result.expiresIn):300;cache={accessToken:result.accessToken,realmId,expiresAtMs:clock().getTime()+Math.min(expires*1000,55*60*1000)};return {accessToken:cache.accessToken,realmId};}catch(error){if(binding){if(started){let reason='qbo_reconnect_required';if(error.code==='QBO_REFRESH_PERSISTENCE_UNKNOWN')reason='qbo_refresh_persistence_unknown';if(error.code==='QBO_REFRESH_TIMEOUT')reason='qbo_refresh_timeout';await credentialStore.requireManualReview({ownerId,generation:binding.generation,reason,nowMs:clock().getTime()});}else await credentialStore.failBeforeDispatch({ownerId,generation:binding.generation,reason:'qbo_refresh_predispatch_retry',nowMs:clock().getTime()});}throw error;}}
-  return Object.freeze({getCredentials(){if(cache&&cache.expiresAtMs>clock().getTime()+30_000)return Promise.resolve({accessToken:cache.accessToken,realmId:cache.realmId});if(!pending)pending=run().finally(()=>{pending=null;});return pending;},async getRealmId(){return realmFor(await credentialStore.readPublished());}});
+  async function run({provePublished=false}={}){
+    const ownerId=ownerIdFactory();let binding;let started=false;
+    try{
+      binding=await credentialStore.readPublished();
+      const claim=await credentialStore.claimRefresh({ownerId,binding,nowMs:clock().getTime(),expiresAtMs:clock().getTime()+leaseMs});
+      if(claim.status!=='claimed')throw coded(claim.status==='busy'?'QBO_REFRESH_BUSY':'QBO_RECONNECT_REQUIRED',claim.status==='busy'?'QuickBooks authentication is temporarily unavailable':'QuickBooks must be reconnected');
+      const [source,realmId]=await Promise.all([tokenStore.readVersion(binding.refreshTokenVersion),realmFor(binding)]);
+      if(source.version!==binding.refreshTokenVersion||!source.value)throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');
+      if(!await credentialStore.markDispatchStarted({ownerId,generation:binding.generation,nowMs:clock().getTime()}))throw coded('QBO_REFRESH_BUSY','QuickBooks authentication is temporarily unavailable');
+      started=true;
+      let result;
+      try{result=await refresh(source.value);}catch(error){if(error?.code==='QBO_REFRESH_TIMEOUT')throw coded('QBO_REFRESH_TIMEOUT','QuickBooks authentication timed out');throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');}
+      if(!result?.accessToken||!result?.refreshToken)throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');
+      if(!await credentialStore.verifyPublishFence({ownerId,generation:binding.generation}))throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');
+      let nextVersion=binding.refreshTokenVersion;
+      if(!equal(result.refreshToken,source.value)){
+        let added,exact;
+        try{added=await tokenStore.addVersion(result.refreshToken);exact=await tokenStore.readVersion(added.version);}catch{throw coded('QBO_REFRESH_PERSISTENCE_UNKNOWN','QuickBooks credential rotation requires operator review');}
+        if(exact.version!==added.version||!equal(exact.value,result.refreshToken))throw coded('QBO_REFRESH_PERSISTENCE_UNKNOWN','QuickBooks credential rotation requires operator review');
+        nextVersion=added.version;
+      }
+      if(!await credentialStore.publishRotation({ownerId,generation:binding.generation,refreshTokenVersion:nextVersion,realmVersion:binding.realmVersion,nowMs:clock().getTime()})){
+        await credentialStore.recordAlert({reason:'qbo_reconnect_required',nowMs:clock().getTime()});
+        throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');
+      }
+      if(provePublished){
+        const published=await credentialStore.readPublished();
+        if(published.generation!==binding.generation+1||published.refreshTokenVersion!==nextVersion||published.realmVersion!==binding.realmVersion){
+          throw coded('QBO_REFRESH_PERSISTENCE_UNKNOWN','QuickBooks credential rotation requires operator review');
+        }
+      }
+      const expires=Number.isFinite(result.expiresIn)?Math.max(1,result.expiresIn):300;
+      cache={accessToken:result.accessToken,realmId,expiresAtMs:clock().getTime()+Math.min(expires*1000,55*60*1000)};
+      return {accessToken:cache.accessToken,realmId,credentialBindingPublished:true,rotationPersisted:true,realmBound:true};
+    }catch(error){
+      if(binding){
+        if(started){let reason='qbo_reconnect_required';if(error.code==='QBO_REFRESH_PERSISTENCE_UNKNOWN')reason='qbo_refresh_persistence_unknown';if(error.code==='QBO_REFRESH_TIMEOUT')reason='qbo_refresh_timeout';const recorded=await credentialStore.requireManualReview({ownerId,generation:binding.generation,reason,nowMs:clock().getTime()});if(recorded!==true&&reason==='qbo_refresh_persistence_unknown')await credentialStore.recordAlert({reason,nowMs:clock().getTime()});}
+        else await credentialStore.failBeforeDispatch({ownerId,generation:binding.generation,reason:'qbo_refresh_predispatch_retry',nowMs:clock().getTime()});
+      }
+      throw error;
+    }
+  }
+  async function execute({force=false}={}){
+    if(!force&&cache&&cache.expiresAtMs>clock().getTime()+30_000)return {accessToken:cache.accessToken,realmId:cache.realmId};
+    if(pending)await pending;
+    if(!force&&cache&&cache.expiresAtMs>clock().getTime()+30_000)return {accessToken:cache.accessToken,realmId:cache.realmId};
+    pending=run({provePublished:force}).finally(()=>{pending=null;});
+    return pending;
+  }
+  return Object.freeze({
+    async getCredentials(){const result=await execute();return {accessToken:result.accessToken,realmId:result.realmId};},
+    getHealthCredentials(){return execute({force:true});},
+    async getRealmId(){return realmFor(await credentialStore.readPublished());},
+  });
 }
 
 export async function publishQuickBooksReconnect({credentialStore,tokenStore,realmStore,refreshToken,realmId,clock=()=>new Date()}={}){

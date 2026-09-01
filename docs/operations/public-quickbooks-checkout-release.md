@@ -22,6 +22,7 @@ activation.
 
 The committed state remains fail-closed:
 
+- `COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=false`
 - `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false`
 - `COMMERCE_SERVICE_QBO_SEND_ENABLED=false`
 - configured Payments capability fields remain false until the separately reviewed activation
@@ -52,12 +53,13 @@ No setting was edited, no invoice was created or sent, and no provider write occ
 
 ## Exact reviewed Function inventory
 
-The source exports 21 deployed-function candidates. The scoped release allowlist is the following
-20 and deliberately excludes `confirmAcceptedBooking`:
+The source exports 22 deployed-function candidates. The scoped release allowlist is the following
+21 and deliberately excludes `confirmAcceptedBooking`:
 
 ```text
 requestPilotSignInLink,createDigitalOrder,getOrderStatus,createDownloadGrant,
 redeemDownloadGrant,getBuyerCommerceCapability,verifyOrderPayment,getCommerceReleaseState,
+getQuickBooksCommerceHealth,
 requestRefundReview,reconcileOrder,reconcileRefund,quickBooksCommerceWebhook,
 reconcileCommerceOrders,dispatchCommerceEffects,stageInvoiceApprovals,approveInvoice,
 beginQuickBooksConnection,quickBooksOAuthCallback,beginMicrosoftConnection,
@@ -71,14 +73,14 @@ one owner email. No renamed deployment export is required.
 ## Inactive scoped deployment manifest
 
 These commands are documentation only. They were not executed by Task 6. The expected dry run and
-deployment must load `functions/.env.the-ballers-kingdom` without prompting and must keep both
+deployment must load `functions/.env.the-ballers-kingdom` without prompting and must keep all three
 flags false.
 
 ```bash
-firebase deploy --only functions:requestPilotSignInLink,functions:createDigitalOrder,functions:getOrderStatus,functions:createDownloadGrant,functions:redeemDownloadGrant,functions:getBuyerCommerceCapability,functions:verifyOrderPayment,functions:getCommerceReleaseState,functions:requestRefundReview,functions:reconcileOrder,functions:reconcileRefund,functions:quickBooksCommerceWebhook,functions:reconcileCommerceOrders,functions:dispatchCommerceEffects,functions:stageInvoiceApprovals,functions:approveInvoice,functions:beginQuickBooksConnection,functions:quickBooksOAuthCallback,functions:beginMicrosoftConnection,functions:microsoftOAuthCallback,hosting:public \
+firebase deploy --only functions:requestPilotSignInLink,functions:createDigitalOrder,functions:getOrderStatus,functions:createDownloadGrant,functions:redeemDownloadGrant,functions:getBuyerCommerceCapability,functions:verifyOrderPayment,functions:getCommerceReleaseState,functions:getQuickBooksCommerceHealth,functions:requestRefundReview,functions:reconcileOrder,functions:reconcileRefund,functions:quickBooksCommerceWebhook,functions:reconcileCommerceOrders,functions:dispatchCommerceEffects,functions:stageInvoiceApprovals,functions:approveInvoice,functions:beginQuickBooksConnection,functions:quickBooksOAuthCallback,functions:beginMicrosoftConnection,functions:microsoftOAuthCallback,hosting:public \
   --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run
 
-firebase deploy --only functions:requestPilotSignInLink,functions:createDigitalOrder,functions:getOrderStatus,functions:createDownloadGrant,functions:redeemDownloadGrant,functions:getBuyerCommerceCapability,functions:verifyOrderPayment,functions:getCommerceReleaseState,functions:requestRefundReview,functions:reconcileOrder,functions:reconcileRefund,functions:quickBooksCommerceWebhook,functions:reconcileCommerceOrders,functions:dispatchCommerceEffects,functions:stageInvoiceApprovals,functions:approveInvoice,functions:beginQuickBooksConnection,functions:quickBooksOAuthCallback,functions:beginMicrosoftConnection,functions:microsoftOAuthCallback,hosting:public \
+firebase deploy --only functions:requestPilotSignInLink,functions:createDigitalOrder,functions:getOrderStatus,functions:createDownloadGrant,functions:redeemDownloadGrant,functions:getBuyerCommerceCapability,functions:verifyOrderPayment,functions:getCommerceReleaseState,functions:getQuickBooksCommerceHealth,functions:requestRefundReview,functions:reconcileOrder,functions:reconcileRefund,functions:quickBooksCommerceWebhook,functions:reconcileCommerceOrders,functions:dispatchCommerceEffects,functions:stageInvoiceApprovals,functions:approveInvoice,functions:beginQuickBooksConnection,functions:quickBooksOAuthCallback,functions:beginMicrosoftConnection,functions:microsoftOAuthCallback,hosting:public \
   --project the-ballers-kingdom --account lilpelejr12@gmail.com
 ```
 
@@ -87,8 +89,10 @@ This manifest excludes Firestore Rules, Storage Rules, indexes, the redirect sit
 
 ## Post-inactive-deploy QuickBooks health gate
 
-Before any authentication email, order, Customer, or Invoice, the operator must complete all of the
-following without exposing credential values:
+Before any authentication email, order, Customer, or Invoice, an authenticated administrator with
+the `admin:true` claim and valid App Check must invoke the deployed read-only Accounting callable
+`getQuickBooksCommerceHealth`. The callable must complete all of the following without exposing
+credential values:
 
 1. Read the deployed coordinator's published credential binding and highest enabled Secret Manager
    version metadata for the expected QuickBooks realm.
@@ -99,16 +103,26 @@ following without exposing credential values:
    `CompanyInfo.CompanyName='The Ballers Kingdom'`.
 
 Missing metadata, refresh failure, ambiguous persistence, realm mismatch, or company-name mismatch
-fails closed. Do not send an auth email and do not create an order, QuickBooks Customer, or Invoice.
+fails closed. Its response is limited to a status and redacted booleans; it returns no realm, version,
+company name, token, provider body, or credential material. Its only provider-side mutation is the
+OAuth refresh-token rotation required by the bounded refresh. It performs no email, order, Customer,
+or Invoice mutation.
+
+After this health gate and every remaining activation gate passes, activate
+`COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true` and
+`COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=true` together in one reviewed activation commit;
+`COMMERCE_SERVICE_QBO_SEND_ENABLED` remains false.
 
 ## Emergency disable and customer-preserving selective rollback
 
 Emergency response starts by disabling public ordering, not by deleting Functions:
 
-1. Set only `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false`; keep
-   `COMMERCE_SERVICE_QBO_SEND_ENABLED=false`.
+1. For an emergency disable, set `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false`, keep
+   `COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true`, and keep
+   `COMMERCE_SERVICE_QBO_SEND_ENABLED=false`. This blocks new orders while preserving public
+   authentication and resume for existing paid customers.
 2. Commit and review that fail-closed configuration change.
-3. Redeploy the exact 20-Function allowlist above with `hosting:public`, the explicit project and
+3. Redeploy the exact 21-Function allowlist above with `hosting:public`, the explicit project and
    account, then read back the runtime release state and verify the disabled browser behavior.
 4. Reconcile any already-created order using authoritative QuickBooks Invoice/Payment evidence;
    do not resend an ambiguous email or invoice effect.
@@ -137,12 +151,12 @@ Storage emulators, and made no mail, invoice, payment, refund, or provider mutat
 | Control | Result |
 | --- | --- |
 | Locked installs | Root: 18 packages; Functions: 334 packages |
-| Storefront unit/content | 25 passed; 0 failed/skipped |
+| Storefront unit/content | 31 passed; 0 failed/skipped |
 | Storefront browser | 4 passed; 0 failed/skipped |
 | Protected-commerce browser | 34 passed; 0 failed/skipped |
-| Functions without emulators | 486 tests; 484 passed; 2 documented emulator-only skips; 0 failed |
+| Functions without emulators | 496 tests; 494 passed; 2 documented emulator-only skips; 0 failed |
 | Functions syntax | passed |
-| Firestore + Storage emulator matrix | 486 passed; 0 failed/skipped |
+| Firestore + Storage emulator matrix | 496 passed; 0 failed/skipped |
 | Root production dependency audit | 0 vulnerabilities |
 | Functions production dependency audit | 7 moderate transitive findings; 0 high/critical |
 | Repository security scan | no production credential confirmed; fixture and public Firebase/App Check configuration matches classified below |
@@ -164,6 +178,16 @@ above came from the separate signed-in QuickBooks views.
 
 ## Scope rulings and residual risks
 
+- **Ruling:** Public authentication/resume and new ordering require separate server-owned flags.
+  Activation turns both on together; emergency disable leaves authentication on while turning ordering
+  off so existing paid customers retain status and download recovery. **Cost if wrong:** a mistaken
+  auth-only activation could permit bounded generic sign-in-email requests while ordering remains off;
+  App Check, fixed-key rate limits, authoritative-user checks, and generic responses remain enforced.
+- **Ruling:** The health callable's forced OAuth refresh is a narrowly required credential mutation,
+  not an Accounting entity mutation. It must prove the newly rotated secret version was persisted,
+  published, and read back before reporting healthy. **Cost if wrong:** interruption or ambiguous
+  persistence fails closed, records manual-review evidence, and may require owner reconnect; no email,
+  order, Customer, Invoice, payment, or refund operation is attempted.
 - **Ruling:** Opening QuickBooks edit panels solely to read their current values is read-only because
   no field was changed and every panel was canceled or abandoned without Save. **Cost if wrong:** an
   unexpected provider autosave could alter merchant state; no autosave or changed state was observed.

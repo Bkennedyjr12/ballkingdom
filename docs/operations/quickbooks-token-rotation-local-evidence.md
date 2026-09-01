@@ -1,8 +1,12 @@
 # QuickBooks rotating-credential local evidence
 
-Status: **LOCAL ONLY — not reviewed, deployed, or production-tested**
+Status: **DATED HISTORICAL LOCAL EVIDENCE — superseded by the current public-commerce release packet**
 
 Date: 2026-08-30 (America/Los_Angeles)
+
+This document records the original rotation-remediation proof at that date. It is not an operative
+deployment or health-check instruction. Current controls and verification totals live in
+[`public-quickbooks-checkout-release.md`](public-quickbooks-checkout-release.md).
 
 ## Incident addressed
 
@@ -19,7 +23,10 @@ An approved read-only health check obtained an Intuit access credential and a ro
 - Firestore receipts contain version metadata only; no access credential, refresh credential, provider body, or authorization header is persisted or returned.
 - OAuth reconnect fences the binding generation, stores token and realm independently, exact-readbacks both, and publishes only the verified pair. Partial or ambiguous writes stay orphaned and fail closed in manual review.
 - Intuit and all Secret Manager calls have bounded deadlines well below the claim duration. Both `QBO_REFRESH_TOKEN` and `QBO_REALM_ID` are removed from Firebase secret declarations/bindings and are accessed only through explicit secret-scoped runtime IAM.
-- An absent binding intentionally requires an approved OAuth reconnect/bootstrap after deployment. Old and orphan version cleanup remains an operator task.
+- At the time of this historical proof, an absent binding required an approved OAuth
+  reconnect/bootstrap after deployment. The current release additionally requires the protected
+  deployed `getQuickBooksCommerceHealth` callable to prove post-rotation binding readback and the
+  exact company before customer effects. Old and orphan version cleanup remains an operator task.
 
 ## Local proof
 
@@ -41,4 +48,4 @@ No production Secret Manager read/write, Firestore write, QuickBooks request, Fi
 4. Separately approve and perform the scoped Functions deployment.
 5. Separately approve the OAuth reconnect/bootstrap that publishes the first paired binding.
 6. Separately approve one read-only production refresh plus CompanyInfo verification, retaining no credential values.
-7. Keep both commerce feature flags false until all broader commerce release gates pass.
+7. Keep all commerce feature flags false until all broader commerce release gates pass.
