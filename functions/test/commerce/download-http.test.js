@@ -199,6 +199,30 @@ test('consumes the limited-use App Check token and rejects invalid or replayed t
   }
 });
 
+test('the same limited-use App Check token can stream at most once', async () => {
+  let verificationCount=0;
+  let redemptions=0;
+  const appCheck={async verifyToken(token,options){
+    verificationCount+=1;
+    assert.equal(token,APP_TOKEN);
+    assert.deepEqual(options,{consume:true});
+    return {appId:'app-1',alreadyConsumed:verificationCount > 1};
+  }};
+  const fulfillment={async redeemDownloadGrant(_input,context){
+    redemptions+=1;
+    context.response.setHeader('Content-Type','application/pdf');
+    context.response.end('%PDF');
+    return {streamed:true,contentType:'application/pdf',bytesWritten:4};
+  }};
+  const state=fixture({appCheck,fulfillment});
+
+  assert.equal((await invoke(state)).statusCode,200);
+  const replay=await invoke(state);
+  assert.equal(replay.statusCode,403);
+  assert.equal(replay.body,'Forbidden');
+  assert.equal(redemptions,1);
+});
+
 test('passes only normalized identity, consumed App Check context, and response to fulfillment', async () => {
   const state=fixture();
   await invoke(state);

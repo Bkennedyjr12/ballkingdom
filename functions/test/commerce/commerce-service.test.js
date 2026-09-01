@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {buildPilotActionCodeSettings,createCommerceService} from '../../src/commerce/commerce-service.js';
+import {createFulfillmentService} from '../../src/commerce/fulfillment.js';
 
 const pilotEmail = 'approved-pilot@example.test';
 const pilotBinding = createHash('sha256').update(`binding\0${pilotEmail}`).digest('hex');
@@ -16,6 +17,11 @@ const catalogItem = Object.freeze({
   quickBooks:{itemId:'8',itemName:'Home Inspection Study Guide',itemVerified:true},
   tax:{quickBooksTaxCode:'NON',accountantVerified:true},
 });
+const accountingSnapshot=Object.freeze({
+  provider:'quickbooks',itemId:'8',itemName:'Home Inspection Study Guide',taxCode:'NON',
+  fingerprint:createHash('sha256')
+    .update('quickbooks\0' + '8\0Home Inspection Study Guide\0NON').digest('hex'),
+});
 const publicDisplay = Object.freeze({
   name:'Home Inspection Study Guide',amountCents:4900,currency:'USD',
   invoiceProvider:'quickbooks',paymentMethods:Object.freeze(['card','apple_pay','paypal','venmo']),
@@ -27,6 +33,11 @@ const verifiedPaymentsCapability=Object.freeze({
   supportsPayPal:true,supportsAch:true,supportsWebhooks:true,
   surchargingEnabled:false,onlineInvoiceDelivery:true,
 });
+const protectedArtifact=Object.freeze({
+  key:'private-commerce/home-inspection-study-guide.pdf',contentType:'application/pdf',exactBytes:4,
+  generation:'1785951381246665',md5Hash:'XXzfi6ddgB6rru9fLIrv7Q==',
+  sha256:'2bdf6b760b426cc088ade620334fd8ff735f3276bb0b68589ceaccbc1d93cc9d',
+});
 
 function createMemoryRepository() {
   const orders = new Map();
@@ -35,6 +46,7 @@ function createMemoryRepository() {
   const authEffects = new Map();
   const publicAuthEffects = new Map();
   const fulfillmentGrants = new Map();
+  const downloadGrants = new Map();
   const webhookHints = new Map();
   const disabledAudits = [];
   const operatorAlerts = [];
@@ -50,6 +62,7 @@ function createMemoryRepository() {
     authEffects,
     publicAuthEffects,
     fulfillmentGrants,
+    downloadGrants,
     webhookHints,
     disabledAudits,
     operatorAlerts,
@@ -99,6 +112,19 @@ function createMemoryRepository() {
     },
     async getOrder(orderId) {
       return orders.get(orderId) ?? null;
+    },
+    async getEntitlement(orderId) {
+      return fulfillmentGrants.get(orderId) ?? null;
+    },
+    async createDownloadGrant(grant) {
+      downloadGrants.set(`${grant.orderId}:${grant.digest}`,structuredClone(grant));
+    },
+    async consumeDownloadGrant({orderId,digest,customerUid,sku,now}) {
+      const grant=downloadGrants.get(`${orderId}:${digest}`);
+      if (!grant || grant.customerUid !== customerUid || grant.sku !== sku || grant.consumedAt
+        || now.getTime() >= grant.expiresAt.getTime()) return null;
+      grant.consumedAt=new Date(now);
+      return structuredClone(grant);
     },
     async getEffect(orderId, effect) {
       return orderEffect(orderId, effect) ?? null;
@@ -419,6 +445,8 @@ function unpaidEvidence(orderId = 'order-1') {
     realmId:'realm-1',
     invoice:{
       invoiceId:'invoice-1',providerOrderRef:`bk-order-${orderId}`,
+      customerId:'customer-1',itemId:'8',taxCode:'NON',quantity:1,
+      lineAmountCents:4900,unitPriceCents:4900,
       totalAmountCents:4900,balanceCents:4900,currency:'USD',
       entityState:'present',paymentState:'unpaid',
     },
@@ -431,6 +459,8 @@ function paidEvidence(orderId = 'order-1') {
     realmId:'realm-1',
     invoice:{
       invoiceId:'invoice-1',providerOrderRef:`bk-order-${orderId}`,
+      customerId:'customer-1',itemId:'8',taxCode:'NON',quantity:1,
+      lineAmountCents:4900,unitPriceCents:4900,
       totalAmountCents:4900,balanceCents:0,currency:'USD',
       entityState:'present',paymentState:'paid',
     },
@@ -517,6 +547,15 @@ function fixture(overrides = {}) {
     clock: overrides.clock ?? (() => new Date('2026-08-29T18:00:00.000Z')),
   });
   return {service,repository,quickbooks,graph,auth,calls,flags};
+}
+
+function fulfillmentFor(repository) {
+  return createFulfillmentService({
+    repository,artifactKeys:{[catalogItem.sku]:protectedArtifact},
+    randomBytes:() => Buffer.alloc(32,7),
+    clock:() => new Date('2026-08-29T18:00:00.000Z'),
+    streamArtifact:async () => ({streamed:true,contentType:'application/pdf',bytesWritten:4}),
+  });
 }
 
 const ownerAuth = Object.freeze({
@@ -1218,6 +1257,7 @@ test('recovers an already-bound Invoice by exact readback before considering ano
     order:{
       sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
       orderType:'digital_product',fulfillmentType:'protected_download',
+      accountingSnapshot,
       customer:{name:'Ada'},customerUid:'customer-uid',
       authorizedRecipientBinding:pilotBinding,status:'pending_payment',
     },
@@ -1298,7 +1338,7 @@ test('scheduled dispatcher sends one pending Invoice with a durable ID even when
     recipientBinding:pilotBinding,orderId:'order-1',
     order:{
       sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
-      orderType:'digital_product',fulfillmentType:'protected_download',customer:{name:'Ada'},
+      orderType:'digital_product',fulfillmentType:'protected_download',accountingSnapshot,customer:{name:'Ada'},
       customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,status:'pending_payment',
     },
   });
@@ -1331,7 +1371,7 @@ test('expired pre-dispatch Invoice send is quarantined and can never be dispatch
     recipientBinding:pilotBinding,orderId:'order-1',
     order:{
       sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
-      orderType:'digital_product',fulfillmentType:'protected_download',customer:{name:'Ada'},
+      orderType:'digital_product',fulfillmentType:'protected_download',accountingSnapshot,customer:{name:'Ada'},
       customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,status:'pending_payment',
     },
   });
@@ -1369,7 +1409,7 @@ test('dispatcher quarantines a poisoned oldest page so later valid effects canno
     recipientBinding:pilotBinding,orderId:'order-1',
     order:{
       sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
-      orderType:'digital_product',fulfillmentType:'protected_download',customer:{name:'Ada'},
+      orderType:'digital_product',fulfillmentType:'protected_download',accountingSnapshot,customer:{name:'Ada'},
       customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,status:'pending_payment',
     },
   });
@@ -1466,6 +1506,100 @@ test('authoritative exact payment evidence fulfills once while an unpaid Invoice
   const pending = await pendingState.service.verifyOrderPayment({orderId:pendingOrder.orderHandle,source:'scheduled'});
   assert.equal(pending.status, 'payment_verification_pending');
   assert.equal(pendingState.repository.fulfillmentGrants.size, 0);
+});
+
+test('a verified public buyer receives no grant before exact Accounting evidence and one after verification', async () => {
+  const state=fixture();
+  const fulfillment=fulfillmentFor(state.repository);
+  const created=await state.service.createDigitalOrder({
+    sku:catalogItem.sku,customerName:'Public Buyer',idempotencyKey:'public-e2e-order',
+  },ownerAuth);
+
+  await assert.rejects(
+    fulfillment.createDownloadGrant({orderId:created.orderHandle},{app:{appId:'web'},auth:{uid:ownerAuth.uid}}),
+    /not available/i,
+  );
+  state.quickbooks.getInvoice=async () => paidEvidence(created.orderHandle);
+  assert.deepEqual(
+    await state.service.verifyOrderPayment({orderId:created.orderHandle,source:'scheduled'}),
+    {status:'fulfilled'},
+  );
+  const grant=await fulfillment.createDownloadGrant(
+    {orderId:created.orderHandle},{app:{appId:'web'},auth:{uid:ownerAuth.uid}},
+  );
+  assert.match(grant.grant,/^[A-Za-z0-9_-]{43}$/);
+  assert.equal(state.repository.fulfillmentGrants.size,1);
+});
+
+test('a second verified public customer cannot read status or obtain a grant for the buyer order', async () => {
+  const first={...ownerAuth,uid:'public-buyer-1',email:'first@example.test',token:{
+    ...ownerAuth.token,email:'first@example.test',
+  }};
+  const second={...ownerAuth,uid:'public-buyer-2',email:'second@example.test',token:{
+    ...ownerAuth.token,email:'second@example.test',
+  }};
+  const state=fixture({getCurrentUser:async uid => ({
+    uid,email:uid === first.uid ? first.email : second.email,emailVerified:true,disabled:false,
+    tokensValidAfterTime:'2026-08-29T17:00:00.000Z',
+  })});
+  const created=await state.service.createDigitalOrder({
+    sku:catalogItem.sku,customerName:'First Buyer',idempotencyKey:'first-public-order',
+  },first);
+  state.quickbooks.getInvoice=async () => paidEvidence(created.orderHandle);
+  await state.service.verifyOrderPayment({orderId:created.orderHandle,source:'scheduled'});
+
+  await assert.rejects(
+    state.service.getOrderStatus({orderHandle:created.orderHandle},second),
+    {code:'ORDER_NOT_FOUND'},
+  );
+  await assert.rejects(
+    fulfillmentFor(state.repository).createDownloadGrant(
+      {orderId:created.orderHandle},{app:{appId:'web'},auth:{uid:second.uid}},
+    ),
+    /not found/i,
+  );
+});
+
+test('wrong public Accounting realm, customer, item, tax, amount, currency, or partial evidence never fulfills', async t => {
+  const cases=[
+    ['realm',evidence => { evidence.realmId='realm-other'; }],
+    ['customer',evidence => { evidence.invoice.customerId='customer-other'; }],
+    ['item',evidence => { evidence.invoice.itemId='item-other'; }],
+    ['tax',evidence => { evidence.invoice.taxCode='TAX'; }],
+    ['quantity',evidence => { evidence.invoice.quantity=2; evidence.invoice.unitPriceCents=2450; }],
+    ['line amount',evidence => { evidence.invoice.lineAmountCents=4800; }],
+    ['total amount',evidence => { evidence.invoice.totalAmountCents=4800; }],
+    ['currency',evidence => { evidence.invoice.currency='CAD'; }],
+    ['partial payment',evidence => {
+      evidence.invoice.balanceCents=100;
+      evidence.invoice.paymentState='partially_paid';
+      evidence.payments[0].totalAmountCents=4800;
+      evidence.payments[0].applications[0].amountCents=4800;
+    }],
+  ];
+  for (const [name,mutate] of cases) {
+    await t.test(name,async () => {
+      const state=fixture();
+      const created=await state.service.createDigitalOrder({
+        sku:catalogItem.sku,customerName:'Public Buyer',idempotencyKey:`mismatch-${name.replace(/ /g,'-')}`,
+      },ownerAuth);
+      const evidence=paidEvidence(created.orderHandle);
+      mutate(evidence);
+      state.quickbooks.getInvoice=async () => evidence;
+
+      assert.deepEqual(
+        await state.service.verifyOrderPayment({orderId:created.orderHandle,source:'scheduled'}),
+        {status:'manual_review'},
+      );
+      assert.equal(state.repository.fulfillmentGrants.size,0);
+      await assert.rejects(
+        fulfillmentFor(state.repository).createDownloadGrant(
+          {orderId:created.orderHandle},{app:{appId:'web'},auth:{uid:ownerAuth.uid}},
+        ),
+        /not available/i,
+      );
+    });
+  }
 });
 
 test('payment verification survives a crash after every repository boundary without duplicate fulfillment', async () => {
@@ -1876,7 +2010,7 @@ test('invalid auth-mail configuration cannot block the Accounting payment lane',
   await repository.createReservedDigitalOrder({
     recipientBinding:pilotBinding,orderId:'order-1',order:{
       sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
-      orderType:'digital_product',fulfillmentType:'protected_download',customer:{name:'Ada'},
+      orderType:'digital_product',fulfillmentType:'protected_download',accountingSnapshot,customer:{name:'Ada'},
       customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,status:'pending_payment',
       providerRefs:{
         realmId:'realm-1',invoiceId:'invoice-1',customerId:'customer-1',providerOrderRef:'bk-order-order-1',

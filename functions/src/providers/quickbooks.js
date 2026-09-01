@@ -149,6 +149,20 @@ function normalizeInvoiceEntity(invoice, expectedId) {
     throw unusable('Invoice');
   }
   const providerOrderRef = invoice.PrivateNote;
+  const customerId = requireProviderId(invoice.CustomerRef?.value, 'Invoice');
+  const salesLines = Array.isArray(invoice.Line)
+    ? invoice.Line.filter(line => line?.DetailType === 'SalesItemLineDetail')
+    : [];
+  if (salesLines.length !== 1) throw unusable('Invoice');
+  const salesLine = salesLines[0];
+  const salesDetail = salesLine?.SalesItemLineDetail;
+  const itemId = requireProviderId(salesDetail?.ItemRef?.value, 'Invoice');
+  const taxCode = requireProviderId(salesDetail?.TaxCodeRef?.value, 'Invoice');
+  const quantity = salesDetail?.Qty;
+  if (!Number.isSafeInteger(quantity) || quantity <= 0) throw unusable('Invoice');
+  const lineAmountCents = providerMoneyToCents(salesLine.Amount, 'Invoice');
+  const unitPriceCents = providerMoneyToCents(salesDetail.UnitPrice, 'Invoice');
+  if (lineAmountCents <= 0 || unitPriceCents <= 0) throw unusable('Invoice');
   const totalAmountCents = providerMoneyToCents(invoice.TotalAmt, 'Invoice');
   const balanceCents = providerMoneyToCents(invoice.Balance, 'Invoice');
   const currency = invoice.CurrencyRef?.value;
@@ -174,6 +188,12 @@ function normalizeInvoiceEntity(invoice, expectedId) {
     invoice:{
       invoiceId,
       providerOrderRef,
+      customerId,
+      itemId,
+      taxCode,
+      quantity,
+      lineAmountCents,
+      unitPriceCents,
       totalAmountCents,
       balanceCents,
       currency,

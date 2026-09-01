@@ -264,6 +264,12 @@ function isExactlyUnpaid(evidence, order) {
   return evidence?.realmId === order.providerRefs.realmId
     && invoice?.invoiceId === order.providerRefs.invoiceId
     && invoice?.providerOrderRef === order.providerRefs.providerOrderRef
+    && invoice?.customerId === order.providerRefs.customerId
+    && invoice?.itemId === order.accountingSnapshot?.itemId
+    && invoice?.taxCode === order.accountingSnapshot?.taxCode
+    && invoice?.quantity === 1
+    && invoice?.lineAmountCents === order.amountCents
+    && invoice?.unitPriceCents === order.amountCents
     && invoice?.totalAmountCents === order.amountCents
     && invoice?.balanceCents === order.amountCents
     && invoice?.currency === order.currency
@@ -279,9 +285,33 @@ function isExactBoundInvoice(evidence, order) {
     && invoice?.invoiceId === order.providerRefs.invoiceId
     && invoice?.providerOrderRef === `bk-order-${order.id}`
     && invoice?.providerOrderRef === order.providerRefs.providerOrderRef
+    && invoice?.customerId === order.providerRefs.customerId
+    && invoice?.itemId === order.accountingSnapshot?.itemId
+    && invoice?.taxCode === order.accountingSnapshot?.taxCode
+    && invoice?.quantity === 1
+    && invoice?.lineAmountCents === order.amountCents
+    && invoice?.unitPriceCents === order.amountCents
     && invoice?.totalAmountCents === order.amountCents
     && invoice?.currency === order.currency
     && invoice?.entityState === 'present';
+}
+
+function paymentExpectation(order) {
+  const expected = {
+    realmId:order.providerRefs.realmId,
+    invoiceId:order.providerRefs.invoiceId,
+    providerOrderRef:order.providerRefs.providerOrderRef,
+    amountCents:order.amountCents,
+    currency:order.currency,
+  };
+  if (order.orderType === 'digital_product') {
+    Object.assign(expected, {
+      customerId:order.providerRefs.customerId,
+      itemId:order.accountingSnapshot?.itemId,
+      taxCode:order.accountingSnapshot?.taxCode,
+    });
+  }
+  return expected;
 }
 
 function retryAt(order, now) {
@@ -452,6 +482,12 @@ export function createCommerceService({
           readback = await quickbooks.getInvoice(created.invoiceId);
           if (readback?.invoice?.invoiceId !== created.invoiceId
             || readback.invoice.providerOrderRef !== `bk-order-${orderId}`
+            || readback.invoice.customerId !== created.customerId
+            || readback.invoice.itemId !== order.accountingSnapshot?.itemId
+            || readback.invoice.taxCode !== order.accountingSnapshot?.taxCode
+            || readback.invoice.quantity !== 1
+            || readback.invoice.lineAmountCents !== order.amountCents
+            || readback.invoice.unitPriceCents !== order.amountCents
             || readback.invoice.totalAmountCents !== order.amountCents
             || readback.invoice.currency !== order.currency
             || readback.invoice.entityState !== 'present'
@@ -637,13 +673,7 @@ export function createCommerceService({
     }
 
     try {
-      const verified = verifyQuickBooksPaymentEvidence(evidence, {
-        realmId:order.providerRefs.realmId,
-        invoiceId:order.providerRefs.invoiceId,
-        providerOrderRef:order.providerRefs.providerOrderRef,
-        amountCents:order.amountCents,
-        currency:order.currency,
-      });
+      const verified = verifyQuickBooksPaymentEvidence(evidence, paymentExpectation(order));
       const completeVerified = order.orderType === 'service'
         ? repository.completeVerifiedServiceOrder.bind(repository)
         : repository.completeVerifiedDigitalOrder.bind(repository);
@@ -1061,13 +1091,7 @@ export function createCommerceService({
       let refundEvidence;
       try {
         paymentEvidence = await quickbooks?.getInvoice?.(order.providerRefs.invoiceId);
-        verifyQuickBooksPaymentEvidence(paymentEvidence, {
-          realmId:order.providerRefs.realmId,
-          invoiceId:order.providerRefs.invoiceId,
-          providerOrderRef:order.providerRefs.providerOrderRef,
-          amountCents:order.amountCents,
-          currency:order.currency,
-        });
+        verifyQuickBooksPaymentEvidence(paymentEvidence, paymentExpectation(order));
         refundEvidence = await quickbooks.getRefundEvidence(order.providerRefs.invoiceId);
       } catch {
         throw commerceError('REFUND_EVIDENCE_UNAVAILABLE', 'Refund amount cannot be verified');
@@ -1114,13 +1138,7 @@ export function createCommerceService({
       }
       try {
         const evidence = await quickbooks?.getInvoice?.(order.providerRefs.invoiceId);
-        verifyQuickBooksPaymentEvidence(evidence, {
-          realmId:order.providerRefs.realmId,
-          invoiceId:order.providerRefs.invoiceId,
-          providerOrderRef:order.providerRefs.providerOrderRef,
-          amountCents:order.amountCents,
-          currency:order.currency,
-        });
+        verifyQuickBooksPaymentEvidence(evidence, paymentExpectation(order));
       } catch {
         throw commerceError('PAYMENT_EVIDENCE_UNAVAILABLE', 'Accounting evidence is unavailable');
       }
@@ -1145,13 +1163,7 @@ export function createCommerceService({
       let refundEvidence;
       try {
         paymentEvidence = await quickbooks?.getInvoice?.(order.providerRefs.invoiceId);
-        verifyQuickBooksPaymentEvidence(paymentEvidence, {
-          realmId:order.providerRefs.realmId,
-          invoiceId:order.providerRefs.invoiceId,
-          providerOrderRef:order.providerRefs.providerOrderRef,
-          amountCents:order.amountCents,
-          currency:order.currency,
-        });
+        verifyQuickBooksPaymentEvidence(paymentEvidence, paymentExpectation(order));
         if (quickbooks?.refundEvidenceCapability !== true
           || typeof quickbooks?.getRefundEvidence !== 'function') {
           return preserveForManualReview('refund_evidence_unsupported');

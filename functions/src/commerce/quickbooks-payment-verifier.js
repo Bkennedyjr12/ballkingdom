@@ -4,11 +4,20 @@ const EVIDENCE_KEYS = ['invoice','payments','realmId'];
 const INVOICE_KEYS = [
   'balanceCents',
   'currency',
+  'customerId',
   'entityState',
   'invoiceId',
+  'itemId',
+  'lineAmountCents',
   'paymentState',
   'providerOrderRef',
+  'quantity',
+  'taxCode',
   'totalAmountCents',
+  'unitPriceCents',
+];
+const LEGACY_INVOICE_KEYS = [
+  'balanceCents','currency','entityState','invoiceId','paymentState','providerOrderRef','totalAmountCents',
 ];
 const PAYMENT_KEYS = [
   'applications',
@@ -19,6 +28,9 @@ const PAYMENT_KEYS = [
 ];
 const APPLICATION_KEYS = ['amountCents','linkedTxnId','linkedTxnType'];
 const EXPECTED_KEYS = ['amountCents','currency','invoiceId','providerOrderRef','realmId'];
+const DIGITAL_EXPECTED_KEYS = [
+  'amountCents','currency','customerId','invoiceId','itemId','providerOrderRef','realmId','taxCode',
+];
 
 function mismatch() {
   const error = new Error('Payment verification mismatch');
@@ -53,23 +65,38 @@ function isPositiveCents(value) {
 }
 
 function isValidExpected(expected) {
+  const digital = hasExactKeys(expected, DIGITAL_EXPECTED_KEYS);
   return (
-    hasExactKeys(expected, EXPECTED_KEYS) &&
+    (digital || hasExactKeys(expected, EXPECTED_KEYS)) &&
     isNonEmptyString(expected.realmId) &&
     isNonEmptyString(expected.invoiceId) &&
     isNonEmptyString(expected.providerOrderRef) &&
     isPositiveCents(expected.amountCents) &&
-    isCurrency(expected.currency)
+    isCurrency(expected.currency) &&
+    (!digital || (
+      isNonEmptyString(expected.customerId) &&
+      isNonEmptyString(expected.itemId) &&
+      isNonEmptyString(expected.taxCode)
+    ))
   );
 }
 
 function isValidInvoice(invoice, expected) {
+  const digital = hasExactKeys(expected, DIGITAL_EXPECTED_KEYS);
   return (
-    hasExactKeys(invoice, INVOICE_KEYS) &&
+    (hasExactKeys(invoice, INVOICE_KEYS) || (!digital && hasExactKeys(invoice, LEGACY_INVOICE_KEYS))) &&
     isNonEmptyString(invoice.invoiceId) &&
     invoice.invoiceId === expected.invoiceId &&
     isNonEmptyString(invoice.providerOrderRef) &&
     invoice.providerOrderRef === expected.providerOrderRef &&
+    (!digital || (
+      invoice.customerId === expected.customerId &&
+      invoice.itemId === expected.itemId &&
+      invoice.taxCode === expected.taxCode &&
+      invoice.quantity === 1 &&
+      invoice.lineAmountCents === expected.amountCents &&
+      invoice.unitPriceCents === expected.amountCents
+    )) &&
     isPositiveCents(invoice.totalAmountCents) &&
     invoice.totalAmountCents === expected.amountCents &&
     isNonNegativeCents(invoice.balanceCents) &&

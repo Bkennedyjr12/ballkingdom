@@ -28,6 +28,8 @@ test('exports both protected endpoints with their required Firebase protections'
   assert.match(source,/typeof request\.auth\?\.uid !== 'string'/);
   assert.match(transport,/verifyIdToken\([^,]+,true\)/);
   assert.match(transport,/getUser\(/);
+  assert.match(transport,/verifyToken\([^,]+,\{consume:true\}\)/);
+  assert.match(transport,/alreadyConsumed/);
   assert.match(source,/expectedUid:request\.auth\?\.uid/);
   assert.match(source,/auth:authoritativeUser/);
 });

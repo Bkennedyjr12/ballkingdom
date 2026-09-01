@@ -67,6 +67,13 @@ test('requires App Check and the authenticated owner and ignores a client UID', 
     service.createDownloadGrant({orderId:'order-1',customerUid:'customer-1'}, auth('wrong-user')),
     /not found/i,
   );
+  await assert.rejects(
+    service.createDownloadGrant(
+      {orderId:'order-1'},
+      {app:{appId:'test-app'},auth:{uid:'admin',token:{admin:true}}},
+    ),
+    /not found/i,
+  );
 });
 
 test('derives identity only from auth.uid and rejects a spoofed top-level owner UID', async () => {
@@ -93,8 +100,11 @@ test('accepts bounded Firebase custom UIDs and rejects controls or oversize auth
   }
 });
 
-test('denies every state that is not independently fulfilled and denies guessed handles', async () => {
-  for (const status of ['draft','invoice_created','invoice_sent','pending_payment','paid','webhook_hint']) {
+test('denies every unpaid, partial, cancelled, refunded, or unverified state and guessed handles', async () => {
+  for (const status of [
+    'draft','invoice_created','invoice_sent','pending_payment','partially_paid','paid','webhook_hint',
+    'cancelled','refunded','manual_review',
+  ]) {
     const {service} = fixture({status});
     await assert.rejects(service.createDownloadGrant({orderId:'order-1'}, auth()), /not available/i, status);
   }

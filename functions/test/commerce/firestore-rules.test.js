@@ -119,6 +119,7 @@ test('mapped root Firestore rules deny commerce clients while preserving retaine
     const contexts = [
       environment.unauthenticatedContext(),
       environment.authenticatedContext('ordinary'),
+      environment.authenticatedContext('public-buyer',{email_verified:true}),
       environment.authenticatedContext('owner-1',{companionOwner:true}),
       environment.authenticatedContext('owner-2',{companionOwner:true}),
       environment.authenticatedContext('admin',{admin:true}),
@@ -138,6 +139,7 @@ test('mapped root Firestore rules deny commerce clients while preserving retaine
     )));
     for (const context of [
       environment.unauthenticatedContext(),environment.authenticatedContext('ordinary'),
+      environment.authenticatedContext('public-buyer',{email_verified:true}),
       environment.authenticatedContext('owner-2',{companionOwner:true}),
       environment.authenticatedContext('admin',{admin:true}),
     ]) {

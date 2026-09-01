@@ -63,6 +63,19 @@ test('verifies the exact raw bytes before attempting JSON parsing', async () => 
   );
 });
 
+test('a forged public payment webhook cannot persist a hint or mutate an order', async () => {
+  const state=fixture();
+  const raw=rawWebhook();
+
+  await assert.rejects(
+    state.processor.acceptQuickBooksWebhook({rawBody:raw,signature:signature(Buffer.from('different bytes'))}),
+    {code:'WEBHOOK_SIGNATURE_INVALID'},
+  );
+  assert.equal(state.hints.size,0);
+  assert.equal(state.batchCalls,0);
+  assert.equal(state.orderWrites,0);
+});
+
 test('rejects validly signed notifications from the wrong realm', async () => {
   const {processor, hints} = fixture();
   const raw = rawWebhook({realmId:'wrong-realm'});

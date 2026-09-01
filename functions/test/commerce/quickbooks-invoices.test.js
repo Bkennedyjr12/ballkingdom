@@ -571,10 +571,15 @@ test('reads an Invoice and its linked Payment and returns only integer-cent norm
       return json({
         Invoice:{
           Id:'invoice-30',
+          CustomerRef:{value:'customer-9'},
           PrivateNote:'bk-order-order-1',
           TotalAmt:49,
           Balance:0,
           CurrencyRef:{value:'USD'},
+          Line:[{
+            DetailType:'SalesItemLineDetail',Amount:49,
+            SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'NON'},Qty:1,UnitPrice:49},
+          }],
           LinkedTxn:[{TxnId:'payment-42',TxnType:'Payment'}],
         },
         time:'2026-08-30T10:02:00-07:00',
@@ -606,6 +611,12 @@ test('reads an Invoice and its linked Payment and returns only integer-cent norm
     invoice:{
       invoiceId:'invoice-30',
       providerOrderRef:'bk-order-order-1',
+      customerId:'customer-9',
+      itemId:'8',
+      taxCode:'NON',
+      quantity:1,
+      lineAmountCents:4900,
+      unitPriceCents:4900,
       totalAmountCents:4900,
       balanceCents:0,
       currency:'USD',
@@ -622,6 +633,50 @@ test('reads an Invoice and its linked Payment and returns only integer-cent norm
   });
   assertNoProviderPayloadKeys(evidence);
   fetchImpl.assertDone();
+});
+
+test('normalizes authoritative customer and sales-line identity for downstream payment verification', async t => {
+  const cases=[
+    ['customer reference',{CustomerRef:{value:'customer-other'}},
+      {customerId:'customer-other',itemId:'8',taxCode:'NON',quantity:1,lineAmountCents:4900,unitPriceCents:4900}],
+    ['item reference',{Line:[{DetailType:'SalesItemLineDetail',Amount:49,
+      SalesItemLineDetail:{ItemRef:{value:'item-other'},TaxCodeRef:{value:'NON'},Qty:1,UnitPrice:49}}]},
+      {customerId:'customer-9',itemId:'item-other',taxCode:'NON',quantity:1,lineAmountCents:4900,unitPriceCents:4900}],
+    ['tax code',{Line:[{DetailType:'SalesItemLineDetail',Amount:49,
+      SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'TAX'},Qty:1,UnitPrice:49}}]},
+      {customerId:'customer-9',itemId:'8',taxCode:'TAX',quantity:1,lineAmountCents:4900,unitPriceCents:4900}],
+    ['quantity',{Line:[{DetailType:'SalesItemLineDetail',Amount:49,
+      SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'NON'},Qty:2,UnitPrice:24.5}}]},
+      {customerId:'customer-9',itemId:'8',taxCode:'NON',quantity:2,lineAmountCents:4900,unitPriceCents:2450}],
+    ['line amount',{Line:[{DetailType:'SalesItemLineDetail',Amount:48,
+      SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'NON'},Qty:1,UnitPrice:49}}]},
+      {customerId:'customer-9',itemId:'8',taxCode:'NON',quantity:1,lineAmountCents:4800,unitPriceCents:4900}],
+  ];
+  for (const [name,overrides,expected] of cases) {
+    await t.test(name, async () => {
+      const providerInvoice={
+        Id:'invoice-30',CustomerRef:{value:'customer-9'},PrivateNote:'bk-order-order-1',
+        TotalAmt:49,Balance:0,CurrencyRef:{value:'USD'},
+        Line:[{DetailType:'SalesItemLineDetail',Amount:49,
+          SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'NON'},Qty:1,UnitPrice:49}}],
+        LinkedTxn:[{TxnId:'payment-42',TxnType:'Payment'}],
+        ...overrides,
+      };
+      const fetchImpl=scriptedFetch([
+        tokenStep(),
+        () => json({Invoice:providerInvoice}),
+        () => json({Payment:{Id:'payment-42',TotalAmt:49,UnappliedAmt:0,
+          Line:[{Amount:49,LinkedTxn:[{TxnId:'invoice-30',TxnType:'Invoice'}]}]}}),
+      ]);
+      const evidence=await createQuickBooksClient(clientConfig(),fetchImpl).getInvoice('invoice-30');
+      assert.deepEqual({
+        customerId:evidence.invoice.customerId,itemId:evidence.invoice.itemId,
+        taxCode:evidence.invoice.taxCode,quantity:evidence.invoice.quantity,
+        lineAmountCents:evidence.invoice.lineAmountCents,unitPriceCents:evidence.invoice.unitPriceCents,
+      },expected);
+      fetchImpl.assertDone();
+    });
+  }
 });
 
 test('reads and normalizes one exact Payment on the sandbox Accounting host', async () => {
