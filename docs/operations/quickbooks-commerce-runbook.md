@@ -55,7 +55,9 @@ bootstrap/reconnect, an authenticated administrator with `admin:true` and valid 
 `getQuickBooksCommerceHealth`. That callable forces one bounded refresh through the deployed
 coordinator, exact-readbacks any replacement token, atomically publishes the new binding, re-reads
 that binding, and requires `CompanyInfo.CompanyName='The Ballers Kingdom'`. Its response contains
-only redacted status booleans and no realm, version, company name, token, or provider body. Review
+only redacted status booleans and no realm, version, company name, token, or provider body. This
+proves refresh continuity: an unchanged token reports `rotationPersisted=false`; a replacement
+reports true only after exact persistence and published-binding readback. Review
 orphan/old-version cleanup separately against rollback and audit needs; never delete or disable
 versions merely to tidy the list.
 
@@ -133,4 +135,17 @@ In protected Firestore operator tooling, filter `commerceAudit` for `refund_revi
 
 During a QuickBooks, Firebase, Secret Manager, or App Check outage, fail closed: accept no provider mutation, send nothing, preserve `paid`/`fulfilled`, and record only a redacted retry/manual-review code. Do not rotate or inspect secret values as a troubleshooting shortcut.
 
-Rollback disables both commerce flags in the reviewed `functions/.env.the-ballers-kingdom` commit and redeploys only the separately approved scoped Functions target. Rollback does not reverse an invoice, payment, email, or refund already accepted by an external system. Reconcile those independently after service recovery. If a refund may have been submitted but its outcome is ambiguous, do not retry; verify in QuickBooks Payments, Accounting, settlement/deposit, and the original payment method first.
+Rollback sets `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false`, keeps
+`COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true`, and keeps
+`COMMERCE_SERVICE_QBO_SEND_ENABLED=false` in the reviewed
+`functions/.env.the-ballers-kingdom` commit. Redeploy only the separately approved scoped Functions
+target. Retain `requestPilotSignInLink` for returning-customer authentication. Retain
+`getOrderStatus` for customer-safe order recovery. Retain `createDownloadGrant` and retain
+`redeemDownloadGrant` for existing paid-customer delivery. A selective-code rollback may revert only
+the defective ordering mutation while preserving these endpoints and authoritative reconciliation;
+do not restore the full pre-feature Function surface or delete customer-recovery Functions.
+
+Rollback does not reverse an invoice, payment, email, or refund already accepted by an external
+system. Reconcile those independently after service recovery. If a refund may have been submitted
+but its outcome is ambiguous, do not retry; verify in QuickBooks Payments, Accounting,
+settlement/deposit, and the original payment method first.

@@ -97,16 +97,18 @@ credential values:
 1. Read the deployed coordinator's published credential binding and highest enabled Secret Manager
    version metadata for the expected QuickBooks realm.
 2. Run one bounded refresh through the deployed credential coordinator.
-3. Prove rotation persistence by re-reading the published credential binding/version metadata and
-   confirming the deployed runtime now points to the newly persisted enabled version.
-4. Use that rotated credential for a bounded Accounting read of the exact realm and require
+3. Prove refresh continuity by re-reading the published credential binding/version metadata. If
+   Intuit returns the unchanged token, report `rotationPersisted=false`; if Intuit returns a
+   replacement, exact-write and read back its enabled version and publish that version before
+   reporting `rotationPersisted=true`.
+4. Use the verified access credential for a bounded Accounting read of the exact realm and require
    `CompanyInfo.CompanyName='The Ballers Kingdom'`.
 
 Missing metadata, refresh failure, ambiguous persistence, realm mismatch, or company-name mismatch
 fails closed. Its response is limited to a status and redacted booleans; it returns no realm, version,
-company name, token, provider body, or credential material. Its only provider-side mutation is the
-OAuth refresh-token rotation required by the bounded refresh. It performs no email, order, Customer,
-or Invoice mutation.
+company name, token, provider body, or credential material. The bounded OAuth refresh may rotate the
+refresh token; only that conditional credential rotation is persisted. It performs no email, order,
+Customer, or Invoice mutation.
 
 After this health gate and every remaining activation gate passes, activate
 `COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true` and
@@ -151,12 +153,12 @@ Storage emulators, and made no mail, invoice, payment, refund, or provider mutat
 | Control | Result |
 | --- | --- |
 | Locked installs | Root: 18 packages; Functions: 334 packages |
-| Storefront unit/content | 31 passed; 0 failed/skipped |
+| Storefront unit/content | 34 passed; 0 failed/skipped |
 | Storefront browser | 4 passed; 0 failed/skipped |
 | Protected-commerce browser | 34 passed; 0 failed/skipped |
-| Functions without emulators | 496 tests; 494 passed; 2 documented emulator-only skips; 0 failed |
+| Functions without emulators | 498 tests; 496 passed; 2 documented emulator-only skips; 0 failed |
 | Functions syntax | passed |
-| Firestore + Storage emulator matrix | 496 passed; 0 failed/skipped |
+| Firestore + Storage emulator matrix | 498 passed; 0 failed/skipped |
 | Root production dependency audit | 0 vulnerabilities |
 | Functions production dependency audit | 7 moderate transitive findings; 0 high/critical |
 | Repository security scan | no production credential confirmed; fixture and public Firebase/App Check configuration matches classified below |
@@ -183,9 +185,10 @@ above came from the separate signed-in QuickBooks views.
   off so existing paid customers retain status and download recovery. **Cost if wrong:** a mistaken
   auth-only activation could permit bounded generic sign-in-email requests while ordering remains off;
   App Check, fixed-key rate limits, authoritative-user checks, and generic responses remain enforced.
-- **Ruling:** The health callable's forced OAuth refresh is a narrowly required credential mutation,
-  not an Accounting entity mutation. It must prove the newly rotated secret version was persisted,
-  published, and read back before reporting healthy. **Cost if wrong:** interruption or ambiguous
+- **Ruling:** The health callable's forced OAuth refresh is a narrowly required credential operation,
+  not an Accounting entity mutation. It must prove refresh continuity; an unchanged token reports
+  `rotationPersisted=false`, while a replacement reports true only after exact persistence,
+  publication, and readback. **Cost if wrong:** interruption or ambiguous
   persistence fails closed, records manual-review evidence, and may require owner reconnect; no email,
   order, Customer, Invoice, payment, or refund operation is attempted.
 - **Ruling:** Opening QuickBooks edit panels solely to read their current values is read-only because

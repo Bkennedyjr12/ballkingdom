@@ -17,7 +17,9 @@ An approved read-only health check obtained an Intuit access credential and a ro
 - Runtime reads only the exact refresh-token and realm versions in the atomically published Firestore binding; later orphan versions are ignored.
 - A Firestore one-attempt claim serializes refresh use for at most five minutes. Only a never-started expired claim is recoverable.
 - Immediately before Intuit, the exact owner atomically records `dispatchStartedAtMs` and `attemptCount:1`. A started claim is never automatically reclaimed after timeout, expiry, crash, or clock skew.
-- The Intuit replacement refresh credential is validated, added as a Secret Manager version, and read back exactly before an access credential can reach the Accounting adapter.
+- Refresh continuity is proved by published-binding readback. An unchanged token reports
+  `rotationPersisted=false`; an Intuit replacement is validated, added as a Secret Manager version,
+  and read back exactly before `rotationPersisted=true` or Accounting health can be reported.
 - A same-runtime concurrent request shares the pending operation. Other runtimes cannot refresh in parallel under an active lease.
 - `invalid_grant` and unknown post-dispatch outcomes become durable `qbo_reconnect_required`; timeout becomes `qbo_refresh_timeout`; unresolved version-add ambiguity becomes `qbo_refresh_persistence_unknown`. All fail closed before Accounting.
 - Firestore receipts contain version metadata only; no access credential, refresh credential, provider body, or authorization header is persisted or returned.

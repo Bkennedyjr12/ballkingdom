@@ -12,7 +12,8 @@ export async function runQuickBooksCommerceHealth({credentialCoordinator,createC
   }
   const credentials=await credentialCoordinator.getHealthCredentials();
   if (credentials?.credentialBindingPublished !== true
-    || credentials?.rotationPersisted !== true
+    || credentials?.refreshContinuityVerified !== true
+    || typeof credentials.rotationPersisted !== 'boolean'
     || credentials?.realmBound !== true
     || typeof credentials.accessToken !== 'string' || credentials.accessToken.length < 1
     || typeof credentials.realmId !== 'string' || credentials.realmId.length < 1) {
@@ -24,7 +25,8 @@ export async function runQuickBooksCommerceHealth({credentialCoordinator,createC
   }).getCompanyInfo();
   if (company?.companyName !== EXPECTED_COMPANY_NAME) throw healthError('QBO_COMPANY_MISMATCH');
   return Object.freeze({
-    status:'healthy',credentialBindingPublished:true,rotationPersisted:true,
+    status:'healthy',credentialBindingPublished:true,refreshContinuityVerified:true,
+    rotationPersisted:credentials.rotationPersisted,
     realmVerified:true,companyVerified:true,
   });
 }

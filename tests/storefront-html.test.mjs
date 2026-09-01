@@ -90,6 +90,16 @@ test('Firebase Hosting excludes backend, tests, and local source material', asyn
   ]) assert.ok(publicTarget.ignore.includes(pattern), `missing Hosting ignore: ${pattern}`);
 });
 
+test('Firebase Hosting excludes every tracked root Markdown operations file', async () => {
+  const config = JSON.parse(await read('firebase.json'));
+  const publicTarget = config.hosting.find((entry) => entry.target === 'public');
+  assert.ok(publicTarget.ignore.includes('*.md'));
+  for (const name of ['HANDOFF_FIREBASE_MIGRATION.md','FORM_1ON1_REBUILD_SPEC.md','FORM_1ON1_LEGAL_STRUCTURE_V2.md','HOSTING.md']) {
+    assert.match(name,/\.md$/);
+    assert.ok(publicTarget.ignore.includes('*.md'),name);
+  }
+});
+
 test('public checkout release keeps private and backend files off Hosting', async () => {
   const config = JSON.parse(await read('firebase.json'));
   const target = config.hosting.find((entry) => entry.target === 'public');
@@ -164,7 +174,8 @@ test('public checkout release gates every customer effect on authoritative Quick
   for (const value of [
     'published credential binding',
     'bounded refresh',
-    'rotation persistence',
+    'refresh continuity',
+    'rotationPersisted=false',
     'CompanyInfo',
     "CompanyName='The Ballers Kingdom'",
     'before any authentication email, order, Customer, or Invoice',
@@ -178,6 +189,34 @@ test('public checkout rollback preserves paid-customer access and avoids full pr
     assert.match(release, new RegExp(`retain[^.]*${name}|${name}[^.]*retain`, 'i'), name);
   }
   assert.doesNotMatch(release, /git worktree add --detach/);
+});
+
+test('release packet and operator runbook share the three-flag customer-preserving rollback', async () => {
+  for (const path of [
+    'docs/operations/public-quickbooks-checkout-release.md',
+    'docs/operations/quickbooks-commerce-runbook.md',
+  ]) {
+    const text=await read(path);
+    assert.match(text,/COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false/);
+    assert.match(text,/COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true/);
+    assert.match(text,/COMMERCE_SERVICE_QBO_SEND_ENABLED=false/);
+    for (const name of ['requestPilotSignInLink','getOrderStatus','createDownloadGrant','redeemDownloadGrant']) {
+      assert.match(text,new RegExp(`retain[^.]*${name}|${name}[^.]*retain`,'i'),`${path}: ${name}`);
+    }
+  }
+});
+
+test('health documentation distinguishes unchanged continuity from persisted rotation', async () => {
+  for (const path of [
+    'docs/operations/public-quickbooks-checkout-release.md',
+    'docs/operations/quickbooks-commerce-capability-evidence.md',
+    'docs/operations/quickbooks-commerce-runbook.md',
+  ]) {
+    const text=await read(path);
+    assert.match(text,/refresh continuity/i,path);
+    assert.match(text,/unchanged[^.]*rotationPersisted=false/is,path);
+    assert.match(text,/replacement[^.]*exact[^.]*persist/is,path);
+  }
 });
 
 test('Apple Pay release evidence cites Intuit and requires controlled invoice visibility', async () => {

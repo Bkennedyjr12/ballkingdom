@@ -49,7 +49,8 @@ export function createBoundQuickBooksCredentialCoordinator({credentialStore,toke
       if(!result?.accessToken||!result?.refreshToken)throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');
       if(!await credentialStore.verifyPublishFence({ownerId,generation:binding.generation}))throw coded('QBO_RECONNECT_REQUIRED','QuickBooks must be reconnected');
       let nextVersion=binding.refreshTokenVersion;
-      if(!equal(result.refreshToken,source.value)){
+      const rotated=!equal(result.refreshToken,source.value);
+      if(rotated){
         let added,exact;
         try{added=await tokenStore.addVersion(result.refreshToken);exact=await tokenStore.readVersion(added.version);}catch{throw coded('QBO_REFRESH_PERSISTENCE_UNKNOWN','QuickBooks credential rotation requires operator review');}
         if(exact.version!==added.version||!equal(exact.value,result.refreshToken))throw coded('QBO_REFRESH_PERSISTENCE_UNKNOWN','QuickBooks credential rotation requires operator review');
@@ -67,7 +68,7 @@ export function createBoundQuickBooksCredentialCoordinator({credentialStore,toke
       }
       const expires=Number.isFinite(result.expiresIn)?Math.max(1,result.expiresIn):300;
       cache={accessToken:result.accessToken,realmId,expiresAtMs:clock().getTime()+Math.min(expires*1000,55*60*1000)};
-      return {accessToken:cache.accessToken,realmId,credentialBindingPublished:true,rotationPersisted:true,realmBound:true};
+      return {accessToken:cache.accessToken,realmId,credentialBindingPublished:true,refreshContinuityVerified:true,rotationPersisted:rotated,realmBound:true};
     }catch(error){
       if(binding){
         if(started){let reason='qbo_reconnect_required';if(error.code==='QBO_REFRESH_PERSISTENCE_UNKNOWN')reason='qbo_refresh_persistence_unknown';if(error.code==='QBO_REFRESH_TIMEOUT')reason='qbo_refresh_timeout';const recorded=await credentialStore.requireManualReview({ownerId,generation:binding.generation,reason,nowMs:clock().getTime()});if(recorded!==true&&reason==='qbo_refresh_persistence_unknown')await credentialStore.recordAlert({reason,nowMs:clock().getTime()});}

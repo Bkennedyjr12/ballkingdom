@@ -63,9 +63,23 @@ test('health refresh proves the newly published credential binding by exact read
   const coordinator=createBoundQuickBooksCredentialCoordinator({credentialStore,tokenStore,realmStore,refresh:async()=>({accessToken:'access',refreshToken:'rotated',expiresIn:3600}),clock:()=>new Date(10),ownerIdFactory:()=>'owner'});
   assert.deepEqual(await coordinator.getHealthCredentials(),{
     accessToken:'access',realmId:'bound-realm',credentialBindingPublished:true,
-    rotationPersisted:true,realmBound:true,
+    refreshContinuityVerified:true,rotationPersisted:true,realmBound:true,
   });
   assert.deepEqual(reads,[['binding',2,'4'],['binding',3,'5']]);
+});
+
+test('health refresh reports continuity without claiming persistence when Intuit keeps the existing token',async()=>{
+  let published={generation:2,refreshTokenVersion:'4',realmVersion:'3'};let adds=0;
+  const credentialStore={async readPublished(){return {...published};},async claimRefresh(){return {status:'claimed'};},async markDispatchStarted(){return true;},async verifyPublishFence(){return true;},async publishRotation(input){published={generation:input.generation+1,refreshTokenVersion:input.refreshTokenVersion,realmVersion:input.realmVersion};return true;},async requireManualReview(){},async failBeforeDispatch(){},async recordAlert(){}};
+  const tokenStore={async readVersion(version){return {value:'bound-token',version};},async addVersion(){adds+=1;return {version:'5'};}};
+  const realmStore={async readVersion(version){return {value:'bound-realm',version};}};
+  const coordinator=createBoundQuickBooksCredentialCoordinator({credentialStore,tokenStore,realmStore,refresh:async()=>({accessToken:'access',refreshToken:'bound-token',expiresIn:3600}),clock:()=>new Date(10),ownerIdFactory:()=>'owner'});
+  assert.deepEqual(await coordinator.getHealthCredentials(),{
+    accessToken:'access',realmId:'bound-realm',credentialBindingPublished:true,
+    refreshContinuityVerified:true,rotationPersisted:false,realmBound:true,
+  });
+  assert.equal(adds,0);
+  assert.equal(published.refreshTokenVersion,'4');
 });
 
 test('health refresh fails closed when the published post-rotation binding cannot be read back',async()=>{

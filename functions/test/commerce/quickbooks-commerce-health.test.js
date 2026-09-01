@@ -4,7 +4,7 @@ import {runQuickBooksCommerceHealth} from '../../src/commerce/quickbooks-commerc
 
 const healthyCredentials=Object.freeze({
   accessToken:'private-access',realmId:'private-realm',credentialBindingPublished:true,
-  rotationPersisted:true,realmBound:true,
+  refreshContinuityVerified:true,rotationPersisted:true,realmBound:true,
 });
 
 test('returns only redacted health booleans after exact company verification',async()=>{
@@ -14,17 +14,28 @@ test('returns only redacted health booleans after exact company verification',as
     createClient:credentials=>{calls.push(credentials);return {async getCompanyInfo(){return {companyName:'The Ballers Kingdom'};}};},
   });
   assert.deepEqual(result,{
-    status:'healthy',credentialBindingPublished:true,rotationPersisted:true,
+    status:'healthy',credentialBindingPublished:true,refreshContinuityVerified:true,rotationPersisted:true,
     realmVerified:true,companyVerified:true,
   });
   assert.deepEqual(calls,['refresh',{accessToken:'private-access',realmId:'private-realm'}]);
   assert.doesNotMatch(JSON.stringify(result),/private-access|private-realm|token|The Ballers Kingdom/i);
 });
 
-test('fails closed before CompanyInfo when rotation evidence is incomplete',async()=>{
+test('accepts exact unchanged-token continuity without claiming a persisted rotation',async()=>{
+  const result=await runQuickBooksCommerceHealth({
+    credentialCoordinator:{async getHealthCredentials(){return {...healthyCredentials,rotationPersisted:false};}},
+    createClient:()=>({async getCompanyInfo(){return {companyName:'The Ballers Kingdom'};}}),
+  });
+  assert.deepEqual(result,{
+    status:'healthy',credentialBindingPublished:true,refreshContinuityVerified:true,
+    rotationPersisted:false,realmVerified:true,companyVerified:true,
+  });
+});
+
+test('fails closed before CompanyInfo when refresh continuity evidence is incomplete',async()=>{
   let companyReads=0;
   await assert.rejects(runQuickBooksCommerceHealth({
-    credentialCoordinator:{async getHealthCredentials(){return {...healthyCredentials,rotationPersisted:false};}},
+    credentialCoordinator:{async getHealthCredentials(){return {...healthyCredentials,refreshContinuityVerified:false};}},
     createClient:()=>({async getCompanyInfo(){companyReads+=1;}}),
   }),/health/i);
   assert.equal(companyReads,0);
