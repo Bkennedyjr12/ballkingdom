@@ -450,45 +450,122 @@ Push the feature branch, create a PR to `main`, inspect the exact changed-file l
 
 - [ ] **Step 3: Deploy code inactive**
 
-Deploy only the documented exact Function allowlist and `hosting:public`, with:
+Require all four committed flags to remain false:
+
+```text
+COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=false
+COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false
+COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=false
+COMMERCE_SERVICE_QBO_SEND_ENABLED=false
+```
+
+The scheduler cleanup queries depend on the committed composite indexes. Dry-run, deploy, and wait
+for the index readback to complete as a separately approved prerequisite. Do not start the inactive
+Function/Hosting deployment while any required index is still building or missing:
 
 ```bash
-firebase deploy --only functions:requestPilotSignInLink,functions:createDigitalOrder,functions:getOrderStatus,functions:getBuyerCommerceCapability,functions:verifyOrderPayment,functions:getCommerceReleaseState,functions:requestRefundReview,functions:reconcileOrder,functions:reconcileRefund,functions:quickBooksCommerceWebhook,functions:reconcileCommerceOrders,functions:dispatchCommerceEffects,functions:stageInvoiceApprovals,functions:approveInvoice,functions:beginQuickBooksConnection,functions:quickBooksOAuthCallback,functions:beginMicrosoftConnection,functions:microsoftOAuthCallback,functions:createDownloadGrant,functions:redeemDownloadGrant,hosting:public \
+firebase deploy --only firestore:indexes \
+  --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run
+
+firebase deploy --only firestore:indexes \
   --project the-ballers-kingdom --account lilpelejr12@gmail.com
 ```
 
-Both public digital checkout and service invoice flags remain false. Read back Functions, runtime identities, Hosting assets/headers, App Check, IAM, private object metadata, unauthenticated/wrong-origin denial, and direct Storage denial.
+Then dry-run and, only with separate deploy approval, deploy the exact current 24-Function allowlist
+plus `hosting:public`:
 
-- [ ] **Step 4: Stop for action-time controlled transaction approval**
+```bash
+firebase deploy --only functions:requestPilotSignInLink,functions:requestOwnerPilotSignInLink,functions:createDigitalOrder,functions:createControlledOwnerPilotOrder,functions:getOrderStatus,functions:createDownloadGrant,functions:redeemDownloadGrant,functions:getBuyerCommerceCapability,functions:verifyOrderPayment,functions:getCommerceReleaseState,functions:resolvePublicAuthEmailQuarantine,functions:getQuickBooksCommerceHealth,functions:requestRefundReview,functions:reconcileOrder,functions:reconcileRefund,functions:quickBooksCommerceWebhook,functions:reconcileCommerceOrders,functions:dispatchCommerceEffects,functions:stageInvoiceApprovals,functions:approveInvoice,functions:beginQuickBooksConnection,functions:quickBooksOAuthCallback,functions:beginMicrosoftConnection,functions:microsoftOAuthCallback,hosting:public \
+  --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run
+
+firebase deploy --only functions:requestPilotSignInLink,functions:requestOwnerPilotSignInLink,functions:createDigitalOrder,functions:createControlledOwnerPilotOrder,functions:getOrderStatus,functions:createDownloadGrant,functions:redeemDownloadGrant,functions:getBuyerCommerceCapability,functions:verifyOrderPayment,functions:getCommerceReleaseState,functions:resolvePublicAuthEmailQuarantine,functions:getQuickBooksCommerceHealth,functions:requestRefundReview,functions:reconcileOrder,functions:reconcileRefund,functions:quickBooksCommerceWebhook,functions:reconcileCommerceOrders,functions:dispatchCommerceEffects,functions:stageInvoiceApprovals,functions:approveInvoice,functions:beginQuickBooksConnection,functions:quickBooksOAuthCallback,functions:beginMicrosoftConnection,functions:microsoftOAuthCallback,hosting:public \
+  --project the-ballers-kingdom --account lilpelejr12@gmail.com
+```
+
+This allowlist deliberately excludes `confirmAcceptedBooking`, Firestore Rules, Storage Rules, and
+the redirect Hosting site. Read back the 24 names, runtime identities, all four flags, Hosting
+assets/headers, App Check, IAM, private object metadata, unauthenticated/wrong-origin denial, and
+direct Storage denial. Run the administrator/App-Check-protected redacted
+`getQuickBooksCommerceHealth` gate before any authentication email, order, Customer, or Invoice.
+
+- [ ] **Step 4: Stage the separately gated controlled-owner proof**
+
+Keep both public flags, the service flag, catalog `active`, and `release.deployApproved` false. In a
+focused reviewed pilot commit, set the complete Payments capability to the exact values in Step 6
+and set only `COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=true`. Deploy only
+`requestOwnerPilotSignInLink` and `createControlledOwnerPilotOrder` with explicit project/account
+after separate approval. Read back that the controlled-owner flag alone is true and that the current
+token plus current Admin user record both carry `companionOwner:true` for the protected exact owner
+identity.
+
+- [ ] **Step 5: Stop for action-time controlled transaction approval**
 
 Present the exact owner test email, the two messages that will be sent, the $49 QuickBooks invoice, available payment methods including Apple Pay conditions, expected real charge/processing fee, and refund/void recovery plan. Do not send the sign-in link or create/send the invoice until Brian approves that exact transaction.
 
-- [ ] **Step 5: Execute and verify one controlled owner purchase**
+- [ ] **Step 6: Execute, verify, and disable one controlled owner purchase**
 
 After approval, request one sign-in link, complete Auth, create one invoice, pay it using the chosen QuickBooks-presented method, and independently verify the exact QuickBooks Payment/Invoice evidence before downloading the generation-pinned PDF. Confirm one auth email, one invoice, one order, one payment, one fulfillment, and no duplicate provider action.
 
-- [ ] **Step 6: Create the activation commit and obtain deploy approval**
+Immediately set `COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=false`, redeploy the same two owner
+callables after separate approval, and read back all four inactive flag values before preparing
+public activation.
 
-Set only:
+- [ ] **Step 7: Create the exact activation commit and obtain deploy approval**
+
+Public capability and ordering may become active only when one reviewed activation commit contains
+this exact required state:
 
 ```text
+COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true
 COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=true
+COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=false
+COMMERCE_SERVICE_QBO_SEND_ENABLED=false
+
+PAYMENTS_CAPABILITY.accounting=true
+PAYMENTS_CAPABILITY.payments=true
+PAYMENTS_CAPABILITY.mode=documented-intuit-flow
+PAYMENTS_CAPABILITY.supportsImmediatePayment=true
+PAYMENTS_CAPABILITY.supportsCards=true
+PAYMENTS_CAPABILITY.supportsApplePay=true
+PAYMENTS_CAPABILITY.supportsPayPal=true
+PAYMENTS_CAPABILITY.supportsAch=true
+PAYMENTS_CAPABILITY.supportsWebhooks=true
+PAYMENTS_CAPABILITY.surchargingEnabled=false
+PAYMENTS_CAPABILITY.onlineInvoiceDelivery=true
+
+Home Inspection Study Guide active=true
+release.ownerPilotApproved=true
+release.priceApproved=true
+release.fulfillmentRuntimeVerified=true
+release.deployApproved=true
+protected fulfillment runtime available=true
 ```
 
-and the Home Inspection item gates:
+`supportsWebhooks=true` means the reviewed QuickBooks provider account supports the webhook
+capability required by the contract; it does not assert that webhook ingestion is active. Ingestion
+remains separately gated and advisory-only, and scheduled authoritative Accounting reconciliation
+remains required.
 
-```js
-active:true,
-release:{...existingRelease,fulfillmentRuntimeVerified:true,deployApproved:true}
-```
+Run the full gate, open a focused activation PR, obtain independent review, merge it, and ask Brian
+for explicit production deploy approval describing that future customer-triggered sign-in and
+QuickBooks invoice emails will begin automatically.
 
-Keep `COMMERCE_SERVICE_QBO_SEND_ENABLED=false`. Run the full gate, open a focused activation PR, obtain independent review, merge it, and ask Brian for explicit production deploy approval describing that future customer-triggered sign-in and QuickBooks invoice emails will begin automatically.
-
-- [ ] **Step 7: Deploy activation and verify public production behavior**
+- [ ] **Step 8: Deploy activation and verify public production behavior**
 
 From the exact activation merge commit, deploy only affected Functions and `hosting:public` using explicit project/account. Verify public capability is active, page copy and price are exact, rejected traffic stays generic, a synthetic/emulator path proves limits without sending, and production logs show no unexpected sends or duplicate orders. Do not create a second real invoice as a smoke test.
 
-- [ ] **Step 8: Merge final evidence and update durable memory**
+- [ ] **Step 9: Preserve customer access during disable or rollback**
+
+Use a **customer-preserving selective rollback**: set
+`COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false`, keep
+`COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true`, and keep both
+`COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=false` and
+`COMMERCE_SERVICE_QBO_SEND_ENABLED=false`. Retain `requestPilotSignInLink`, `getOrderStatus`,
+`createDownloadGrant`, `redeemDownloadGrant`, authoritative payment verification, and reconciliation
+for existing customers. Never restore the full pre-feature Function surface or delete recovery
+Functions while an order depends on them.
+
+- [ ] **Step 10: Merge final evidence and update durable memory**
 
 Record merge commits, exact deploy inventory, controlled transaction identifiers in redacted form, QuickBooks capability evidence, activation readbacks, zero duplicate actions, rollback commit, and residual nationwide tax decision. Merge evidence through a normal PR and run:
 

@@ -363,6 +363,8 @@ function createMemoryRepository() {
         current.status = 'manual_review';
         current.nextAttemptAt = null;
         operatorAlerts.push({code,orderId:descriptor.orderId});
+        const order=orders.get(descriptor.orderId);
+        if (order) Object.assign(order,{status:'manual_review',terminal:true,lastErrorCode:code});
       } else {
         current.nextAttemptAt = new Date(now.getTime() + 5 * 60 * 1000 * (2 ** (current.attemptCount - 1)));
       }
@@ -520,7 +522,7 @@ function fixture(overrides = {}) {
       return 'https://ballkingdom.com/finish-sign-in?mode=signIn&oobCode=synthetic';
     },
   };
-  const flags = {publicAuthResumeEnabled:true,publicDigitalCheckoutEnabled:true,
+  const flags = overrides.exactFlags ?? {publicAuthResumeEnabled:true,publicDigitalCheckoutEnabled:true,
     controlledOwnerPilotEnabled:false,digitalInvoicePilotEnabled:true,serviceQboSendEnabled:false,
     ...(overrides.flags ?? {})};
   const getCurrentUser = overrides.getCurrentUser ?? (async uid => ({
@@ -1386,6 +1388,111 @@ test('recovers an already-bound Invoice by exact readback before considering ano
 
   assert.equal(creates, 0);
   assert.equal(sends, 1);
+});
+
+const exactProductionPublicFlags=Object.freeze({
+  publicAuthResumeEnabled:true,
+  publicDigitalCheckoutEnabled:true,
+  controlledOwnerPilotEnabled:false,
+  serviceQboSendEnabled:false,
+});
+
+test('public dispatcher quarantines an email-dependent create instead of reading owner secret or blindly retrying',async()=>{
+  const repository=createMemoryRepository();
+  await repository.createReservedDigitalOrder({
+    recipientBinding:pilotBinding,orderId:'order-public-no-refs',
+    order:{sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
+      orderType:'digital_product',fulfillmentType:'protected_download',accountingSnapshot,
+      customer:{name:'Ada'},customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,
+      status:'pending_payment'},
+  });
+  const state=fixture({repository,exactFlags:exactProductionPublicFlags,
+    getApprovedPilotEmail:()=>{throw new Error('public recovery must not read owner recipient secret');}});
+
+  await state.service.dispatchPendingEffects(new Date('2026-08-29T18:00:00.000Z'));
+  await state.service.dispatchPendingEffects(new Date('2026-08-29T18:05:00.000Z'));
+
+  assert.equal(state.calls.create.length,0);
+  assert.equal(state.calls.send.length,0);
+  assert.equal(repository.effects.get('order-public-no-refs:invoice_create').status,'manual_review');
+  assert.equal(repository.orders.get('order-public-no-refs').status,'manual_review');
+  assert.equal(repository.operatorAlerts.some(alert=>alert.code==='public_invoice_create_evidence_unavailable'),true);
+  assert.doesNotMatch(JSON.stringify(repository.orders.get('order-public-no-refs')),
+    /approved-pilot@example|public-customer@example|ada@example/i);
+});
+
+test('public dispatcher accepts exact persisted Invoice evidence but quarantines send without customer email',async()=>{
+  const repository=createMemoryRepository();
+  await repository.createReservedDigitalOrder({
+    recipientBinding:pilotBinding,orderId:'order-public-bound',
+    order:{sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
+      orderType:'digital_product',fulfillmentType:'protected_download',accountingSnapshot,
+      customer:{name:'Ada'},customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,
+      status:'pending_payment'},
+  });
+  Object.assign(repository.orders.get('order-public-bound').providerRefs,{
+    realmId:'realm-1',invoiceId:'invoice-1',customerId:'customer-1',
+    providerOrderRef:'bk-order-order-public-bound',
+  });
+  let creates=0;
+  let sends=0;
+  const state=fixture({repository,exactFlags:exactProductionPublicFlags,
+    getApprovedPilotEmail:()=>{throw new Error('public recovery must not read owner recipient secret');},
+    quickbooks:{
+      async createCommerceInvoice(){creates+=1;throw new Error('must not create');},
+      async getInvoice(){return unpaidEvidence('order-public-bound');},
+      async sendInvoice(){sends+=1;throw new Error('must not send without email');},
+      async getAccountingChanges(){return {realmId:'realm-1',changes:[]};},
+    }});
+
+  await state.service.dispatchPendingEffects(new Date('2026-08-29T18:00:00.000Z'));
+
+  assert.equal(creates,0);
+  assert.equal(sends,0);
+  assert.equal(repository.effects.get('order-public-bound:invoice_create').status,'completed');
+  assert.equal(repository.effects.get('order-public-bound:invoice_send').status,'manual_review');
+  assert.equal(repository.orders.get('order-public-bound').status,'manual_review');
+  assert.equal(repository.operatorAlerts.some(alert=>alert.code==='public_invoice_email_unavailable'),true);
+  assert.doesNotMatch(JSON.stringify(repository.orders.get('order-public-bound')),
+    /approved-pilot@example|public-customer@example|ada@example/i);
+});
+
+test('exact production public flags never resend an expired post-dispatch Invoice effect',async()=>{
+  let now=new Date('2026-08-29T18:00:00.000Z');
+  const repository=createMemoryRepository();
+  await repository.createReservedDigitalOrder({
+    recipientBinding:pilotBinding,orderId:'order-public-stale-send',
+    order:{sku:catalogItem.sku,name:catalogItem.name,amountCents:4900,currency:'USD',
+      orderType:'digital_product',fulfillmentType:'protected_download',accountingSnapshot,
+      customer:{name:'Ada'},customerUid:'customer-uid',authorizedRecipientBinding:pilotBinding,
+      status:'pending_payment'},
+  });
+  Object.assign(repository.orders.get('order-public-stale-send').providerRefs,{
+    realmId:'realm-1',invoiceId:'invoice-1',customerId:'customer-1',
+    providerOrderRef:'bk-order-order-public-stale-send',
+  });
+  repository.effects.get('order-public-stale-send:invoice_create').status='completed';
+  const claim=await repository.claimEffect('order-public-stale-send','invoice_send','crashed',now);
+  await repository.markEffectDispatchStarted(
+    'order-public-stale-send','invoice_send','crashed',claim.claimId,now
+  );
+  let sends=0;
+  const state=fixture({repository,exactFlags:exactProductionPublicFlags,clock:()=>now,
+    quickbooks:{
+      async createCommerceInvoice(){throw new Error('must not create');},
+      async getInvoice(){return unpaidEvidence('order-public-stale-send');},
+      async sendInvoice(){sends+=1;throw new Error('must not resend');},
+      async getAccountingChanges(){return {realmId:'realm-1',changes:[]};},
+    }});
+  now=new Date('2026-08-29T18:05:00.000Z');
+
+  await state.service.dispatchPendingEffects(now);
+
+  assert.equal(sends,0);
+  assert.equal(repository.effects.get('order-public-stale-send:invoice_send').status,'manual_review');
+  assert.equal(repository.orders.get('order-public-stale-send').status,'manual_review');
+  assert.doesNotMatch(JSON.stringify(repository.orders.get('order-public-stale-send')),
+    /approved-pilot@example|public-customer@example|ada@example/i);
 });
 
 test('scheduled recovery quarantines an expired invoice-send lease without another provider send', async () => {

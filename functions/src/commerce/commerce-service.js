@@ -666,6 +666,62 @@ export function createCommerceService({
           }
         }
       }
+    } else if (publicActivationReady(flags,getConfiguredCommerceItem(PILOT_SKU))) {
+      for (const effect of dueEffects) {
+        if (!['invoice_create','invoice_send'].includes(effect.effect)) continue;
+        const order=await repository.getOrder(effect.orderId);
+        if (!order) {
+          await repository.recordPendingEffectFailure(effect,{
+            code:'commerce_effect_order_missing',terminal:true,
+          },at);
+          continue;
+        }
+        if (order.status === 'manual_review') {
+          await repository.recordPendingEffectFailure(effect,{
+            code:'commerce_effect_order_manual_review',terminal:true,
+          },at);
+          continue;
+        }
+        if (effect.effect === 'invoice_send') {
+          await repository.recordPendingEffectFailure(effect,{
+            code:'public_invoice_email_unavailable',terminal:true,
+          },at);
+          continue;
+        }
+        const refs=order.providerRefs;
+        if (typeof refs?.realmId !== 'string' || refs.realmId.length < 1
+          || typeof refs?.invoiceId !== 'string' || refs.invoiceId.length < 1
+          || typeof refs?.customerId !== 'string' || refs.customerId.length < 1
+          || refs?.providerOrderRef !== `bk-order-${effect.orderId}`) {
+          await repository.recordPendingEffectFailure(effect,{
+            code:'public_invoice_create_evidence_unavailable',terminal:true,
+          },at);
+          continue;
+        }
+        const workerId=workerIdFactory('public-invoice-create-recovery');
+        const claim=await repository.claimEffect(effect.orderId,'invoice_create',workerId,at);
+        if (!claim) continue;
+        let evidence;
+        try {
+          evidence=await quickbooks.getInvoice(refs.invoiceId);
+        } catch {
+          await repository.recordEffectFailure(
+            effect.orderId,'invoice_create',workerId,claim.claimId,
+            {code:'public_invoice_evidence_unavailable'},at
+          );
+          continue;
+        }
+        if (!isExactBoundInvoice(evidence,order)) {
+          await repository.recordEffectFailure(
+            effect.orderId,'invoice_create',workerId,claim.claimId,
+            {code:'public_invoice_evidence_ambiguous',terminal:true},at
+          );
+          continue;
+        }
+        await repository.completeEffect(
+          effect.orderId,'invoice_create',workerId,claim.claimId,{providerRefs:refs}
+        );
+      }
     }
     return Object.freeze({...recovered,cleanupFailed});
   }
@@ -780,9 +836,18 @@ export function createCommerceService({
         }
         await repository.completeEffect(appointmentId,'invoice_create',createWorker,createClaim.claimId,{providerRefs});
       } catch (error) {
-        if (error?.code !== 'PROVIDER_TIMEOUT') await repository.recordEffectFailure(
-          appointmentId,'invoice_create',createWorker,createClaim.claimId,{code:'invoice_create_failed'},clock()
+        const ambiguousCreate=['PROVIDER_TIMEOUT','QBO_CUSTOMER_AMBIGUOUS','QBO_INVOICE_AMBIGUOUS']
+          .includes(error?.code);
+        await repository.recordEffectFailure(
+          appointmentId,'invoice_create',createWorker,createClaim.claimId,
+          ambiguousCreate
+            ? {code:'service_invoice_accounting_ambiguous',terminal:true}
+            : {code:'invoice_create_failed'},
+          clock()
         );
+        if (ambiguousCreate) {
+          throw commerceError('ORDER_MANUAL_REVIEW','Order requires administrator review');
+        }
         throw commerceError('ORDER_PROCESSING_PENDING','Order processing is pending');
       }
     } else {

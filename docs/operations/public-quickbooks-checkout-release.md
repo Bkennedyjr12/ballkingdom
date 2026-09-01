@@ -192,6 +192,11 @@ release.deployApproved=true
 protected fulfillment runtime available=true
 ```
 
+`PAYMENTS_CAPABILITY.supportsWebhooks=true` means the reviewed QuickBooks provider account supports
+the webhook capability required by this contract. It does not assert that webhook ingestion is
+active. Ingestion remains separately gated and advisory-only; scheduled authoritative Accounting
+reconciliation remains required.
+
 Any false, missing, non-Boolean, or renamed required state remains inactive. Additional metadata
 cannot substitute for a required field. The activation
 commit must show the two public flags, every Payments capability Boolean, `active:true`, and
@@ -236,12 +241,12 @@ Storage emulators, and made no mail, invoice, payment, refund, or provider mutat
 | Control | Result |
 | --- | --- |
 | Locked installs | Root: 18 packages; Functions: 334 packages |
-| Storefront unit/content | 35 passed; 0 failed/skipped |
+| Storefront unit/content | 36 passed; 0 failed/skipped |
 | Storefront browser | 4 passed; 0 failed/skipped |
 | Protected-commerce browser | 34 passed; 0 failed/skipped |
-| Functions without emulators | 507 tests; 505 passed; 2 documented emulator-only skips; 0 failed |
+| Functions without emulators | 513 tests; 511 passed; 2 documented emulator-only skips; 0 failed |
 | Functions syntax | passed |
-| Firestore + Storage emulator matrix | 507 passed; 0 failed/skipped |
+| Firestore + Storage emulator matrix | 513 passed; 0 failed/skipped |
 | Root production dependency audit | 0 vulnerabilities |
 | Functions production dependency audit | 7 moderate transitive findings; 0 high/critical |
 | Repository security scan | no production credential confirmed; fixture and public Firebase/App Check configuration matches classified below |

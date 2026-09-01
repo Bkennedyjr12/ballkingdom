@@ -98,6 +98,52 @@ test('inactive commerce release deploys Firestore indexes before Functions and H
   assert.ok(inactiveDeploy > indexDeploy,'indexes must deploy before scheduled Functions');
 });
 
+test('Task 7 and the operative release packet share one exact inactive manifest and activation contract',async()=>{
+  const allowed=[
+    'requestPilotSignInLink','requestOwnerPilotSignInLink','createDigitalOrder',
+    'createControlledOwnerPilotOrder','getOrderStatus','createDownloadGrant',
+    'redeemDownloadGrant','getBuyerCommerceCapability','verifyOrderPayment',
+    'getCommerceReleaseState','resolvePublicAuthEmailQuarantine','getQuickBooksCommerceHealth',
+    'requestRefundReview','reconcileOrder','reconcileRefund','quickBooksCommerceWebhook',
+    'reconcileCommerceOrders','dispatchCommerceEffects','stageInvoiceApprovals','approveInvoice',
+    'beginQuickBooksConnection','quickBooksOAuthCallback','beginMicrosoftConnection',
+    'microsoftOAuthCallback',
+  ];
+  const exactManifest=`firebase deploy --only ${allowed.map(name=>`functions:${name}`).join(',')},hosting:public`;
+  const paths=[
+    'docs/operations/public-quickbooks-checkout-release.md',
+    'docs/superpowers/plans/2026-08-31-public-quickbooks-checkout.md',
+  ];
+  for (const path of paths) {
+    const text=await read(path);
+    assert.ok(text.indexOf('firebase deploy --only firestore:indexes')>=0,`${path}: indexes`);
+    assert.ok(text.indexOf(exactManifest)>text.indexOf('firebase deploy --only firestore:indexes'),
+      `${path}: manifest after indexes`);
+    for (const state of [
+      'COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=false',
+      'COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false',
+      'COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=false',
+      'COMMERCE_SERVICE_QBO_SEND_ENABLED=false',
+      'COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true',
+      'COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=true',
+      'PAYMENTS_CAPABILITY.accounting=true','PAYMENTS_CAPABILITY.payments=true',
+      'PAYMENTS_CAPABILITY.mode=documented-intuit-flow',
+      'PAYMENTS_CAPABILITY.supportsImmediatePayment=true',
+      'PAYMENTS_CAPABILITY.supportsCards=true','PAYMENTS_CAPABILITY.supportsApplePay=true',
+      'PAYMENTS_CAPABILITY.supportsPayPal=true','PAYMENTS_CAPABILITY.supportsAch=true',
+      'PAYMENTS_CAPABILITY.supportsWebhooks=true',
+      'PAYMENTS_CAPABILITY.surchargingEnabled=false',
+      'PAYMENTS_CAPABILITY.onlineInvoiceDelivery=true',
+      'release.ownerPilotApproved=true','release.priceApproved=true',
+      'release.fulfillmentRuntimeVerified=true','release.deployApproved=true',
+    ]) assert.match(text,new RegExp(escapeRegExp(state)),`${path}: ${state}`);
+    assert.match(text,/requestOwnerPilotSignInLink[^]*createControlledOwnerPilotOrder/i,path);
+    assert.match(text,/customer-preserving selective rollback/i,path);
+    assert.match(text,/supportsWebhooks=true[^]*(?:provider account|account supports)[^]*does not[^]*ingestion/i,
+      `${path}: webhook capability semantics`);
+  }
+});
+
 test('Firebase Hosting excludes every tracked root Markdown operations file', async () => {
   const config = JSON.parse(await read('firebase.json'));
   const publicTarget = config.hosting.find((entry) => entry.target === 'public');
