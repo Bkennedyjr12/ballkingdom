@@ -90,6 +90,50 @@ test('Firebase Hosting excludes backend, tests, and local source material', asyn
   ]) assert.ok(publicTarget.ignore.includes(pattern), `missing Hosting ignore: ${pattern}`);
 });
 
+test('public checkout release keeps private and backend files off Hosting', async () => {
+  const config = JSON.parse(await read('firebase.json'));
+  const target = config.hosting.find((entry) => entry.target === 'public');
+  assert.ok(target);
+  for (const pattern of ['functions/**', 'tests/**', 'docs/**', 'firestore.rules', 'storage.rules']) {
+    assert.ok(target.ignore.includes(pattern), `missing Hosting ignore: ${pattern}`);
+  }
+});
+
+test('public checkout release inventories the exact reviewed Function surface', async () => {
+  const source = await read('functions/src/index.js');
+  const exportedFunctions = [...source.matchAll(/^export const\s+([A-Za-z0-9_]+)\s*=/gm)]
+    .map((match) => match[1]);
+  assert.deepEqual(exportedFunctions, [
+    'requestPilotSignInLink',
+    'createDigitalOrder',
+    'getOrderStatus',
+    'createDownloadGrant',
+    'redeemDownloadGrant',
+    'getBuyerCommerceCapability',
+    'verifyOrderPayment',
+    'getCommerceReleaseState',
+    'requestRefundReview',
+    'reconcileOrder',
+    'reconcileRefund',
+    'quickBooksCommerceWebhook',
+    'reconcileCommerceOrders',
+    'dispatchCommerceEffects',
+    'confirmAcceptedBooking',
+    'stageInvoiceApprovals',
+    'approveInvoice',
+    'beginQuickBooksConnection',
+    'quickBooksOAuthCallback',
+    'beginMicrosoftConnection',
+    'microsoftOAuthCallback',
+  ]);
+
+  const release = await read('docs/operations/public-quickbooks-checkout-release.md');
+  for (const name of exportedFunctions.filter((name) => name !== 'confirmAcceptedBooking')) {
+    assert.match(release, new RegExp(`functions:${name}(?:,|\\s)`), name);
+  }
+  assert.doesNotMatch(release, /functions:confirmAcceptedBooking(?:,|\s)/);
+});
+
 test('Firebase Hosting revalidates mutable CSS and JavaScript assets', async () => {
   const config = JSON.parse(await read('firebase.json'));
   const publicTarget = config.hosting.find((entry) => entry.target === 'public');

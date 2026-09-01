@@ -2,7 +2,7 @@
 
 **Recorded:** 2026-08-29
 
-**Revised:** 2026-08-30 after authorized read-only QuickBooks and Intuit Developer checks
+**Revised:** 2026-09-01 after authorized read-only public-checkout release review
 
 ## Decision
 
@@ -11,6 +11,32 @@ The unsupported embedded/immediate-checkout assumption is retired. The approved 
 This decision does not authorize a production invoice, email, payment, refund, account change, webhook configuration, deployment, or customer pilot. Automatic digital invoice send remains code-only until Brian separately approves the exact production pilot. Service invoicing remains independently gated by the existing authenticated administrator approval.
 
 Ballers Kingdom will not collect payment credentials, expose an inferred invoice pay URL, call a direct PayPal/Venmo API, or depend on a QuickBooks Payments API hosted-checkout/payment-session endpoint. Cards and PayPal/Venmo remain methods presented and processed by QuickBooks; ACH is an option only when QuickBooks exposes it on the particular invoice.
+
+## 2026-09-01 public-checkout capability refresh
+
+The signed-in production company was independently re-read as `The Ballers Kingdom`. Its selected
+QuickBooks Payments merchant account exposes merchant details, deposit configuration, processing
+limits, standard card/bank deposit speeds, and the Merchant Service Center. Account Settings shows
+Payment Methods `Cards` and `PayPal and Venmo`. Sales settings show invoice defaults `Accept Credit
+Cards: On`, `Accept ACH: On`, and `Accept PayPal: On`, plus online invoice email delivery to customers
+with saved email addresses.
+
+The production Products & services view shows item ID `8`, name `Home Inspection Study Guide`, type
+`Non-Inventory`, description `Digital Home Inspection Study Guide — electronic delivery only`, and
+price `$49.00`. Its detail view shows income account `Services`; its read-only edit panel shows sales
+tax category `Nontaxable`, corresponding to the exact reviewed Accounting invoice mapping
+`TaxCodeRef.value='NON'`.
+
+Apple Pay is not a browser-selected provider field. Intuit conditionally presents it through the
+enabled e-invoice card option when the customer uses Safari on an eligible Apple device with an
+eligible card. The representative invoice settings expose no surcharge option or enabled surcharge
+state. PayPal/Venmo remains directly visible as enabled merchant evidence. No settings were changed,
+no invoice was created or sent, and no provider write occurred during this refresh.
+
+The earlier single-recipient pilot authorization prose below is historical design evidence. The
+current public implementation accepts bounded, rate-limited public email recipients after App Check
+and later binds orders to an authoritative verified Firebase user email. The retained callable export
+name `requestPilotSignInLink` is a compatibility interface, not a public-recipient allowlist.
 
 ## Merchant and app evidence
 
