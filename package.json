@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:your-game": "node --test tests/your-game.test.mjs",
+    "test:your-game:browser": "playwright test tests/your-game-browser.spec.mjs",
     "test:storefront:unit": "node --test tests/product-catalog.test.mjs tests/product-artifact-hosting.test.mjs tests/storefront-html.test.mjs",
     "test:storefront:browser": "playwright test tests/storefront-browser.spec.mjs",
     "test:storefront": "npm run test:storefront:unit && npm run test:storefront:browser",
