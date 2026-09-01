@@ -58,20 +58,20 @@ test('records the reviewed owner-pilot price, QuickBooks mapping, tax gate, and 
   assert.equal(Object.isFrozen(item.artifact), true);
 });
 
-test('keeps the server-owned payment capability unverified for the inactive code deploy', () => {
+test('records the complete reviewed payment capability for the controlled-owner pilot', () => {
   const capability=getConfiguredPaymentsCapability();
   assert.deepEqual(capability, {
-    accounting:false,
-    payments:false,
+    accounting:true,
+    payments:true,
     mode:'documented-intuit-flow',
-    supportsImmediatePayment:false,
-    supportsCards:false,
-    supportsApplePay:false,
-    supportsPayPal:false,
-    supportsAch:false,
-    supportsWebhooks:false,
+    supportsImmediatePayment:true,
+    supportsCards:true,
+    supportsApplePay:true,
+    supportsPayPal:true,
+    supportsAch:true,
+    supportsWebhooks:true,
     surchargingEnabled:false,
-    onlineInvoiceDelivery:false,
+    onlineInvoiceDelivery:true,
   });
   assert.equal(Object.isFrozen(capability), true);
 });
@@ -106,7 +106,7 @@ test('activation predicate requires every authoritative verification gate', () =
     artifact:{...configured.artifact,generation:'1785951381246665',objectVerified:true},
     release:{...configured.release,fulfillmentRuntimeVerified:true,deployApproved:true},
   };
-  assert.equal(isCommerceItemPurchasable(ready), false);
+  assert.equal(isCommerceItemPurchasable(ready), true);
   assert.equal(isCommerceItemPurchasable(ready, verifiedPaymentsCapability), true);
   for (const blocked of [
     {...ready,active:false},

@@ -54,13 +54,13 @@ test('does not treat non-Boolean parameter values as enabled', () => {
   });
 });
 
-test('committed project parameter file pins only reviewed flags and OAuth callback URLs', async () => {
+test('committed project parameter file enables only the reviewed controlled-owner pilot', async () => {
   const source = await readFile(new URL('.env.the-ballers-kingdom', functionsUrl), 'utf8');
   const entries = source.trimEnd().split('\n');
   assert.equal(entries.length, 6);
   assert.equal(entries[0], 'COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=false');
   assert.equal(entries[1], 'COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false');
-  assert.equal(entries[2], 'COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=false');
+  assert.equal(entries[2], 'COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=true');
   assert.equal(entries[3], 'COMMERCE_SERVICE_QBO_SEND_ENABLED=false');
   assert.equal(entries[4], 'QBO_REDIRECT_URI=https://us-west1-the-ballers-kingdom.cloudfunctions.net/quickBooksOAuthCallback');
   assert.equal(entries[5], 'MS_REDIRECT_URI=https://us-west1-the-ballers-kingdom.cloudfunctions.net/microsoftOAuthCallback');
