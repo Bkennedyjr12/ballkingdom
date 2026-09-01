@@ -1,8 +1,18 @@
 import {defineBoolean} from 'firebase-functions/params';
 
-export const COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED = defineBoolean(
-  'COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED',
-  {default: false}
+export const COMMERCE_PUBLIC_AUTH_RESUME_ENABLED = defineBoolean(
+  'COMMERCE_PUBLIC_AUTH_RESUME_ENABLED',
+  {default: false},
+);
+
+export const COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED = defineBoolean(
+  'COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED',
+  {default: false},
+);
+
+export const COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED = defineBoolean(
+  'COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED',
+  {default: false},
 );
 
 export const COMMERCE_SERVICE_QBO_SEND_ENABLED = defineBoolean(
@@ -11,14 +21,15 @@ export const COMMERCE_SERVICE_QBO_SEND_ENABLED = defineBoolean(
 );
 
 export function readCommerceFeatureFlags({
-  digitalInvoicePilotParam = COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED,
+  publicAuthResumeParam = COMMERCE_PUBLIC_AUTH_RESUME_ENABLED,
+  publicDigitalCheckoutParam = COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED,
+  controlledOwnerPilotParam = COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED,
   serviceQboSendParam = COMMERCE_SERVICE_QBO_SEND_ENABLED,
 } = {}) {
-  const digitalInvoicePilotEnabled = digitalInvoicePilotParam.value();
-  const serviceQboSendEnabled = serviceQboSendParam.value();
-  if (typeof digitalInvoicePilotEnabled !== 'boolean'
-    || typeof serviceQboSendEnabled !== 'boolean') {
-    throw new TypeError('Commerce feature parameter values must be Boolean');
-  }
-  return Object.freeze({digitalInvoicePilotEnabled, serviceQboSendEnabled});
+  return Object.freeze({
+    publicAuthResumeEnabled: publicAuthResumeParam.value() === true,
+    publicDigitalCheckoutEnabled: publicDigitalCheckoutParam.value() === true,
+    controlledOwnerPilotEnabled: controlledOwnerPilotParam.value() === true,
+    serviceQboSendEnabled: serviceQboSendParam.value() === true,
+  });
 }

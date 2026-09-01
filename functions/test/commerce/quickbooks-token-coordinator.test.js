@@ -54,4 +54,26 @@ test('QuickBooks makes no Accounting request when coordinator fails',async()=>{l
 
 test('QuickBooks Accounting calls carry a bounded abort deadline',async()=>{let signal;const client=createQuickBooksClient({realmId:'realm',accessTokenProvider:{async getAccessToken(){return 'access';}}},async(_url,options)=>{signal=options.signal;return new Response(JSON.stringify({Payment:{Id:'payment-1',TotalAmt:10,UnappliedAmt:10,Line:[]}}),{status:200});});await client.getPayment('payment-1');assert.ok(signal instanceof AbortSignal);});
 
+test('a real QuickBooks Accounting abort is a redacted PROVIDER_TIMEOUT', async () => {
+  const client=createQuickBooksClient({
+    realmId:'realm',requestTimeoutMs:5,
+    accessTokenProvider:{async getAccessToken(){return 'access-secret';}},
+  },async (_url,{signal}) => new Promise((_resolve,reject) => {
+    // AbortSignal.timeout() intentionally uses an unref'ed timer. Keep this
+    // synthetic in-flight request alive so the test observes the real abort
+    // instead of Node cancelling the still-pending test at process quiescence.
+    const keepAlive=setTimeout(()=>{},50);
+    signal.addEventListener('abort',()=>{
+      clearTimeout(keepAlive);
+      reject(signal.reason);
+    },{once:true});
+  }));
+  await assert.rejects(client.getPayment('payment-secret'), error => {
+    assert.equal(error.code,'PROVIDER_TIMEOUT');
+    assert.equal(error.message,'QuickBooks provider request timed out');
+    assert.doesNotMatch(error.message,/secret|payment/i);
+    return true;
+  });
+});
+
 test('runtime has no deployment-pinned QBO credential declaration or binding',async()=>{const source=await readFile(new URL('../../src/index.js',import.meta.url),'utf8');assert.doesNotMatch(source,/defineSecret\(['"]QBO_(?:REFRESH_TOKEN|REALM_ID)/);assert.doesNotMatch(source,/QBO_SECRETS/);assert.match(source,/createBoundQuickBooksCredentialCoordinator/);assert.match(source,/publishQuickBooksReconnect/);});

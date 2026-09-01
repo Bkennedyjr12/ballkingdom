@@ -88,7 +88,7 @@ test('service flag creates an operational order but waits for approval before on
   });
 });
 
-function integratedHarness({storedInvoice=false,ambiguousSend=false,createTimeout=false}={}) {
+function integratedHarness({storedInvoice=false,ambiguousSend=false,createErrorCode=null,unpaid=false}={}) {
   const calls={create:0,send:0,fulfill:0,uniqueInvoiceIds:new Set()};
   let now=new Date('2026-08-29T18:00:00Z');
   const order={id:'appt-1',sku:'service-inspection',name:'Home Inspection',amountCents:45000,
@@ -106,19 +106,26 @@ function integratedHarness({storedInvoice=false,ambiguousSend=false,createTimeou
     async getEffect(_id,name){return {...effects[name]};},
     async completeEffect(_id,name,_worker,_claim,result={}){effects[name].status='completed';Object.assign(order.providerRefs,result.providerRefs??{});},
     async markEffectDispatchStarted(){effects.invoice_send.dispatchStartedAt=new Date();},
-    async recordEffectFailure(_id,name){effects[name].status=name==='invoice_send'?'manual_review':'pending';if(name==='invoice_send')order.status='manual_review';},
+    async recordEffectFailure(_id,name,_worker,_claim,failure={}){
+      effects[name].status=name==='invoice_send'||failure.terminal===true?'manual_review':'pending';
+      if(effects[name].status==='manual_review')order.status='manual_review';
+    },
     async completeServiceInvoiceApproval(_id,receipt){order.status='invoiced';order.serviceInvoiceReceipt={...receipt};},
     async claimPaymentVerification(){order.paymentVerificationClaim={claimId:'pay-claim',workerId:'payment-verification-test'};return {claimId:'pay-claim'};},
     async completeVerifiedServiceOrder(){order.status='paid';},
     async completeVerifiedDigitalOrder(){calls.fulfill+=1;},
+    async completePaymentVerification(_id,_workerId,_claimId,{outcome}){
+      order.status=outcome==='pending'?'pending_payment':'manual_review';
+    },
     async recoverExpiredEffects(at){for(const effect of Object.values(effects)){if(effect.status==='claimed'&&effect.leaseExpiresAt<=at&&effect.dispatchStartedAt==null)effect.status='pending';}return {recoveredCreateOrderIds:['appt-1'],recoveredSendOrderIds:[],manualReviewOrderIds:[],recoveredPilotAuthBindings:[],manualReviewPilotAuthBindings:[]};},
   };
   const evidence=()=>({realmId:'realm-1',invoice:{invoiceId:'invoice-1',providerOrderRef:'bk-order-appt-1',
-    totalAmountCents:45000,balanceCents:0,currency:'USD',entityState:'present',paymentState:'paid'},
-    payments:[{providerPaymentRef:'payment-1',totalAmountCents:45000,unappliedAmountCents:0,entityState:'present',
+    totalAmountCents:45000,balanceCents:unpaid?45000:0,currency:'USD',entityState:'present',
+    paymentState:unpaid?'unpaid':'paid'},
+    payments:unpaid?[]:[{providerPaymentRef:'payment-1',totalAmountCents:45000,unappliedAmountCents:0,entityState:'present',
       applications:[{linkedTxnId:'invoice-1',linkedTxnType:'Invoice',amountCents:45000}]}]});
   const quickbooks={
-    async createCommerceInvoice(){calls.create+=1;calls.uniqueInvoiceIds.add('invoice-1');if(createTimeout&&calls.create===1){const error=new Error('timeout after provider commit');error.code='PROVIDER_TIMEOUT';throw error;}return {invoiceId:'invoice-1',customerId:'customer-1',documentNumber:'1001'};},
+    async createCommerceInvoice(){calls.create+=1;calls.uniqueInvoiceIds.add('invoice-1');if(createErrorCode&&calls.create===1){const error=new Error('redacted provider failure');error.code=createErrorCode;throw error;}return {invoiceId:'invoice-1',customerId:'customer-1',documentNumber:'1001'};},
     async getInvoice(){return evidence();},
     async sendInvoice(){calls.send+=1;return {invoiceId:'invoice-1',sendAccepted:true};},
   };
@@ -149,19 +156,28 @@ test('a stored deterministic Invoice is recovered without another create',async(
   assert.equal(order.status,'invoiced');
 });
 
-test('create timeout after provider commit recovers one deterministic Invoice and sends once',async()=>{
-  const {service,calls,order,advance,repository}=integratedHarness({createTimeout:true});
-  await assert.rejects(service.approveServiceInvoice({appointmentId:'appt-1'}),error=>error.code==='ORDER_PROCESSING_PENDING');
-  assert.equal(calls.create,1);
-  assert.equal(calls.send,0);
-  advance(5*60*1000);
-  await repository.recoverExpiredEffects(new Date('2026-08-29T18:05:00Z'));
-  await service.approveServiceInvoice({appointmentId:'appt-1'});
-  assert.equal(calls.create,2);
-  assert.equal(calls.uniqueInvoiceIds.size,1);
-  assert.equal(calls.send,1);
-  assert.equal(order.providerRefs.invoiceId,'invoice-1');
-  assert.equal(order.status,'invoiced');
+for (const code of ['PROVIDER_TIMEOUT','QBO_CUSTOMER_AMBIGUOUS','QBO_INVOICE_AMBIGUOUS']) {
+  test(`service Invoice create ${code} is terminal manual review and never retried`,async()=>{
+    const {service,calls,order,advance,repository}=integratedHarness({createErrorCode:code});
+    await assert.rejects(service.approveServiceInvoice({appointmentId:'appt-1'}),
+      error=>error.code==='ORDER_MANUAL_REVIEW');
+    assert.equal(calls.create,1);
+    assert.equal(calls.send,0);
+    advance(5*60*1000);
+    await repository.recoverExpiredEffects(new Date('2026-08-29T18:05:00Z'));
+    await assert.rejects(service.approveServiceInvoice({appointmentId:'appt-1'}),
+      error=>error.code==='ORDER_MANUAL_REVIEW');
+    assert.equal(calls.create,1);
+    assert.equal(calls.send,0);
+    assert.equal(order.status,'manual_review');
+  });
+}
+
+test('an unclassified pre-commit service create failure remains retryable for compatibility',async()=>{
+  const {service,order}=integratedHarness({createErrorCode:'QBO_REQUEST_REJECTED'});
+  await assert.rejects(service.approveServiceInvoice({appointmentId:'appt-1'}),
+    error=>error.code==='ORDER_PROCESSING_PENDING');
+  assert.notEqual(order.status,'manual_review');
 });
 
 test('an ambiguous stale send is quarantined and never resent',async()=>{
@@ -178,6 +194,16 @@ test('exact Accounting evidence marks a service paid with zero digital fulfillme
   assert.equal(result.status,'paid');
   assert.equal(order.status,'paid');
   assert.equal(calls.fulfill,0);
+});
+
+test('an exact unpaid service Invoice remains pending without digital accounting fields',async()=>{
+  const {service,order}=integratedHarness({unpaid:true});
+  await service.approveServiceInvoice({appointmentId:'appt-1'});
+
+  const result=await service.verifyOrderPayment({orderId:'appt-1',source:'scheduled'});
+
+  assert.deepEqual(result,{status:'payment_verification_pending'});
+  assert.equal(order.status,'pending_payment');
 });
 
 test('appointment approval recovers after completion crash without another QBO send',async()=>{

@@ -28,6 +28,11 @@ const PILOT_AUTH_MAX_ISSUANCES = 5;
 const WEBHOOK_ENTITY = new Set(['Invoice', 'Payment']);
 const WEBHOOK_OPERATION = new Set(['Create', 'Update', 'Delete', 'Merge', 'Void']);
 const RATE_LIMIT_SCOPE = new Set(['pilot_auth', 'order_status']);
+const PUBLIC_AUTH_EFFECT = 'public_digital_auth_email';
+const PUBLIC_AUTH_APP_ID = /^[A-Za-z0-9._:-]{1,200}$/;
+const PUBLIC_AUTH_NO_BACKGROUND_DISPATCH_AT = new Date('9999-12-31T23:59:59.999Z');
+const PUBLIC_AUTH_RETENTION_MILLISECONDS = 24 * 60 * 60 * 1000;
+const PUBLIC_AUTH_CLEANUP_LIMIT = 500;
 const PAYMENT_RECOVERY_STATUSES = new Set([
   'pending_payment', 'payment_verifying', 'invoiced', 'paid', 'fulfilling',
 ]);
@@ -203,6 +208,24 @@ function digestId(domain, ...parts) {
   return hash.digest('hex');
 }
 
+function publicAuthQuarantineId({email, sku, purpose} = {}) {
+  const normalizedEmail = requiredText(email, 'email', 254);
+  const product = requiredText(sku, 'sku', 128);
+  const effectPurpose = requiredText(purpose, 'purpose', 64);
+  return createHash('sha256').update(
+    `public-auth-quarantine\0${normalizedEmail}\0${product}\0${effectPurpose}`
+  ).digest('hex');
+}
+
+function publicAuthEffectId(identity = {}) {
+  const quarantineBinding = publicAuthQuarantineId(identity);
+  const {issuanceBucket} = identity;
+  if (!Number.isSafeInteger(issuanceBucket) || issuanceBucket < 0) {
+    throw repositoryError('ORDER_INVALID', 'issuanceBucket is invalid');
+  }
+  return createHash('sha256').update(`${quarantineBinding}\0${issuanceBucket}`).digest('hex');
+}
+
 function effectType(value) {
   const normalized = requiredText(value, 'effect', 64);
   if (!EFFECT_TYPES.has(normalized)) throw repositoryError('ORDER_INVALID', 'effect is invalid');
@@ -216,7 +239,7 @@ function effectClaimMatches(effect, workerId, claimId) {
 }
 
 function effectReceipt(fields, fieldValue) {
-  const allowed = ['orderId', 'event', 'effect', 'workerId', 'claimId', 'errorCode'];
+  const allowed = ['orderId', 'event', 'effect', 'effectId', 'workerId', 'claimId', 'errorCode', 'retentionExpiresAt'];
   return Object.fromEntries([
     ...allowed.filter(key => fields[key] != null).map(key => [key, fields[key]]),
     ['createdAt', fieldValue.serverTimestamp()],
@@ -233,6 +256,13 @@ function auditReceipt(fields, fieldValue) {
     'claimId',
     'revision',
     'errorCode',
+    'effect',
+    'effectId',
+    'publicAuth',
+    'cleanupEligible',
+    'retentionExpiresAt',
+    'actorUid',
+    'quarantineBinding',
   ];
   return Object.fromEntries([
     ...allowed.filter(key => fields[key] != null).map(key => [key, fields[key]]),
@@ -262,10 +292,30 @@ export function createOrderRepository({
   const webhookHints = db.collection('commerceWebhookHints');
   const fulfillmentGrants = db.collection('fulfillmentGrants');
   const rateLimits = db.collection('commerceRateLimits');
+  const publicAuthRateLimits = db.collection('commercePublicAuthLimits');
+  const publicAuthQuarantines = db.collection('commercePublicAuthQuarantines');
   const orderRef = orderId => orders.doc(requiredId(orderId, 'orderId'));
   const auditRef = () => audits.doc();
   const effectRef = (orderId, effect) => effects.doc(`${requiredId(orderId, 'orderId')}-${effectType(effect)}`);
   const pilotAuthRef = binding => effects.doc(`pilot-auth-${recipientBinding(binding)}`);
+  const publicAuthEffectReference = binding => effects.doc(`public-auth-${requiredId(binding, 'binding', SHA256_DIGEST)}`);
+  const publicAuthQuarantineRef = binding => publicAuthQuarantines.doc(
+    `public-auth-${requiredId(binding, 'quarantineBinding', SHA256_DIGEST)}`
+  );
+  // One mutable audit receipt per opaque effect bounds audit cardinality across reissues.
+  const publicAuthAuditRef = binding => audits.doc(
+    `public-auth-${requiredId(binding, 'binding', SHA256_DIGEST)}`
+  );
+  const publicAuthRetentionExpiresAt = at => Timestamp.fromDate(new Date(
+    dateValue(at, 'publicAuthRetentionAt').getTime() + PUBLIC_AUTH_RETENTION_MILLISECONDS
+  ));
+  const publicAuthAuditReceipt = (binding, fields, at = clock()) => auditReceipt({
+    ...fields,
+    publicAuth:true,
+    cleanupEligible:fields.event !== 'operator_alert',
+    effectId:`public-auth-${requiredId(binding, 'binding', SHA256_DIGEST)}`,
+    retentionExpiresAt:publicAuthRetentionExpiresAt(at),
+  }, fieldValue);
 
   function orderDocument(order, id) {
     const reconciliationDueAt = Timestamp.fromDate(dateValue(clock(), 'clock'));
@@ -305,6 +355,79 @@ export function createOrderRepository({
     return order.activeTransition?.transition === transition
       && order.activeTransition?.workerId === workerId
       && order.activeTransition?.claimId === claimId;
+  }
+
+  async function reserveDigitalOrder({
+    rawBinding,orderId,rawOrder,sku,requireExplicitNewPurchase = false,
+  }) {
+    const binding = recipientBinding(rawBinding);
+    const id = requiredId(orderId, 'orderId');
+    const product = requiredText(sku, 'sku', 128);
+    if (!plainObject(rawOrder) || !plainObject(rawOrder.customer)) {
+      throw repositoryError('ORDER_INVALID', 'order is invalid');
+    }
+    const order = normalizeOrder({
+      ...rawOrder,
+      customer:{name:rawOrder.customer.name},
+      authorizedRecipientBinding:binding,
+    });
+    if (!order.customerUid || order.sku !== product) {
+      throw repositoryError('ORDER_INVALID', 'Public order ownership is invalid');
+    }
+    // Reuse the original reservation namespace so an owner-pilot order cannot be
+    // duplicated when the same verified customer enters the public checkout.
+    const reservationId = digestId('pilot-order-reservation', binding, product);
+    const reservation = reservations.doc(reservationId);
+    const reference = orderRef(id);
+    const createEffect = effectRef(id, 'invoice_create');
+    const sendEffect = effectRef(id, 'invoice_send');
+    const receipt = auditRef();
+
+    return db.runTransaction(async transaction => {
+      const existingReservation = await transaction.get(reservation);
+      if (existingReservation.exists) {
+        const data = existingReservation.data();
+        if (data.customerUid !== order.customerUid || data.sku !== product
+          || data.authorizedRecipientBinding !== binding) {
+          throw repositoryError('ORDER_RESERVATION_CONFLICT', 'Order reservation ownership is inconsistent');
+        }
+        const existingOrder = await transaction.get(orderRef(data.orderId));
+        const stored = existingOrder.exists ? existingOrder.data() : null;
+        if (!stored || stored.customerUid !== order.customerUid || stored.sku !== product
+          || stored.authorizedRecipientBinding !== binding || !isOrderStatus(stored.status)) {
+          throw repositoryError('ORDER_RESERVATION_CONFLICT', 'Order reservation ownership is inconsistent');
+        }
+        if (requireExplicitNewPurchase && isFinalOrderStatus(stored.status)) {
+          throw repositoryError(
+            'ORDER_NEW_PURCHASE_REQUIRED',
+            'A new purchase rule is required for the completed order'
+          );
+        }
+        return Object.freeze({
+          orderId:data.orderId,
+          idempotencyKey:`bk-order-${data.orderId}`,
+          duplicate:true,
+        });
+      }
+
+      const timestamp = fieldValue.serverTimestamp();
+      transaction.create(reference, orderDocument(order, id));
+      transaction.create(reservation, {
+        orderId:id,
+        customerUid:order.customerUid,
+        sku:product,
+        authorizedRecipientBinding:binding,
+        createdAt:timestamp,
+      });
+      transaction.create(createEffect, pendingEffect(id, 'invoice_create'));
+      transaction.create(sendEffect, pendingEffect(id, 'invoice_send'));
+      transaction.create(receipt, auditReceipt({
+        orderId:id,
+        event:'order_created',
+        toStatus:order.status,
+      }, fieldValue));
+      return Object.freeze({orderId:id,idempotencyKey:`bk-order-${id}`,duplicate:false});
+    });
   }
 
   return Object.freeze({
@@ -563,6 +686,119 @@ export function createOrderRepository({
       });
     },
 
+    async consumePublicAuthLimits({
+      emailDigest,ipDigest,appId,now = clock(),windowMs,
+      emailLimit,ipLimit,appGlobalLimit,
+    } = {}) {
+      if (!SHA256_DIGEST.test(emailDigest) || !SHA256_DIGEST.test(ipDigest)
+        || typeof appId !== 'string' || !PUBLIC_AUTH_APP_ID.test(appId)
+        || !Number.isInteger(windowMs) || windowMs < 1000 || windowMs > 24 * 60 * 60 * 1000
+        || ![emailLimit,ipLimit,appGlobalLimit].every(limit => (
+          Number.isInteger(limit) && limit >= 1 && limit <= 1000
+        ))) {
+        throw repositoryError('ORDER_INVALID', 'Public auth limit input is invalid');
+      }
+      const at = dateValue(now, 'now');
+      const windowStartedAt = new Date(Math.floor(at.getTime() / windowMs) * windowMs);
+      const windowExpiresAt = new Date(windowStartedAt.getTime() + windowMs);
+      const dimensions = [
+        ['email', emailDigest, emailLimit],
+        ['ip', ipDigest, ipLimit],
+        ['app_global', digestId('public-auth-app-global', appId), appGlobalLimit],
+      ].map(([scope, key, limit]) => Object.freeze({
+        scope,key,limit,reference:publicAuthRateLimits.doc(`public-auth-${scope}-${key}`),
+      }));
+      return db.runTransaction(async transaction => {
+        const snapshots = await Promise.all(dimensions.map(dimension => transaction.get(dimension.reference)));
+        const counts = snapshots.map(snapshot => {
+          const current = snapshot.exists ? snapshot.data() : null;
+          const currentWindow = current?.windowStartedAt
+            ? timestampDate(current.windowStartedAt, 'windowStartedAt')
+            : null;
+          return currentWindow?.getTime() === windowStartedAt.getTime()
+            ? Number(current.count ?? 0)
+            : 0;
+        });
+        if (counts.some((count,index) => !Number.isSafeInteger(count) || count >= dimensions[index].limit)) {
+          return false;
+        }
+        for (const [index, dimension] of dimensions.entries()) {
+          transaction.set(dimension.reference, {
+            publicAuth:true,scope:dimension.scope,count:counts[index] + 1,
+            windowStartedAt:Timestamp.fromDate(windowStartedAt),
+            expiresAt:Timestamp.fromDate(windowExpiresAt),updatedAt:fieldValue.serverTimestamp(),
+          });
+        }
+        return true;
+      });
+    },
+
+    async cleanupExpiredPublicAuthArtifacts(now = clock(), {limit = PUBLIC_AUTH_CLEANUP_LIMIT} = {}) {
+      const at = dateValue(now, 'now');
+      if (!Number.isInteger(limit) || limit < 4 || limit > PUBLIC_AUTH_CLEANUP_LIMIT) {
+        throw repositoryError('ORDER_INVALID', 'Public auth cleanup limit is invalid');
+      }
+      const cutoff = Timestamp.fromDate(at);
+      const collect = async (collection, field, referenceFor, maximum, eligibleField = null) => {
+        let query = collection.where('publicAuth', '==', true);
+        if (eligibleField != null) query = query.where(eligibleField, '==', true);
+        const snapshot = await query
+          .where(field, '<=', cutoff).orderBy(field, 'asc')
+          .limit(maximum).get();
+        const references = [];
+        for (const document of snapshot.docs) {
+          if (!document.id.startsWith('public-auth-')) continue;
+          references.push(referenceFor(document.id));
+          if (references.length >= maximum) return references;
+        }
+        return references;
+      };
+      const rateBudget = Math.ceil(limit / 2);
+      const effectBudget = Math.floor((limit - rateBudget) / 2);
+      const auditBudget = limit - rateBudget - effectBudget;
+      const [rates, publicEffects, publicAudits] = await Promise.all([
+        collect(publicAuthRateLimits, 'expiresAt', id => publicAuthRateLimits.doc(id), rateBudget),
+        collect(effects, 'retentionExpiresAt', id => effects.doc(id), effectBudget, 'cleanupEligible'),
+        collect(audits, 'retentionExpiresAt', id => audits.doc(id), auditBudget, 'cleanupEligible'),
+      ]);
+      const deleteRate = async reference => db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        const current = snapshot.exists ? snapshot.data() : null;
+        if (current?.publicAuth !== true || !current.expiresAt
+          || timestampDate(current.expiresAt, 'expiresAt') > at) return false;
+        transaction.delete(reference);
+        return true;
+      });
+      const deleteEffect = async reference => db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        const current = snapshot.exists ? snapshot.data() : null;
+        const safeState = current?.status === 'completed'
+          || (current?.status === 'pending' && current.dispatchAttemptCount === 0 && current.claim == null);
+        if (current?.publicAuth !== true || current.cleanupEligible !== true
+          || current.effect !== PUBLIC_AUTH_EFFECT || !safeState
+          || !current.retentionExpiresAt
+          || timestampDate(current.retentionExpiresAt, 'retentionExpiresAt') > at) return false;
+        transaction.delete(reference);
+        return true;
+      });
+      const deleteAudit = async reference => db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        const current = snapshot.exists ? snapshot.data() : null;
+        if (current?.publicAuth !== true || current.cleanupEligible !== true
+          || current.event === 'operator_alert' || !current.retentionExpiresAt
+          || timestampDate(current.retentionExpiresAt, 'retentionExpiresAt') > at
+          || typeof current.effectId !== 'string' || !/^public-auth-[a-f0-9]{64}$/.test(current.effectId)) return false;
+        const effectSnapshot = await transaction.get(effects.doc(current.effectId));
+        if (effectSnapshot.exists && effectSnapshot.data()?.status === 'manual_review') return false;
+        transaction.delete(reference);
+        return true;
+      });
+      const outcomes = await Promise.all([
+        ...rates.map(deleteRate), ...publicEffects.map(deleteEffect), ...publicAudits.map(deleteAudit),
+      ]);
+      return Object.freeze({deletedCount:outcomes.filter(Boolean).length});
+    },
+
     async recordOperatorAlert(alert = {}) {
       const errorCode = safeErrorCode(alert.code, 'operation_failed');
       const fields = {event:'operator_alert',errorCode};
@@ -574,60 +810,15 @@ export function createOrderRepository({
       });
     },
 
-    async createReservedDigitalOrder({recipientBinding: rawBinding, orderId, order: rawOrder} = {}) {
-      const binding = recipientBinding(rawBinding);
-      const id = requiredId(orderId, 'orderId');
-      if (!plainObject(rawOrder) || !plainObject(rawOrder.customer)) {
-        throw repositoryError('ORDER_INVALID', 'order is invalid');
-      }
-      const order = normalizeOrder({
-        ...rawOrder,
-        customer:{name:rawOrder.customer.name},
-        authorizedRecipientBinding:binding,
+    async reservePublicDigitalOrder({customerBinding, sku, orderId, order} = {}) {
+      return reserveDigitalOrder({
+        rawBinding:customerBinding,sku,orderId,rawOrder:order,requireExplicitNewPurchase:true,
       });
-      if (!order.customerUid) throw repositoryError('ORDER_INVALID', 'customerUid is required');
-      const reservationId = digestId('pilot-order-reservation', binding, order.sku);
-      const reservation = reservations.doc(reservationId);
-      const reference = orderRef(id);
-      const createEffect = effectRef(id, 'invoice_create');
-      const sendEffect = effectRef(id, 'invoice_send');
-      const receipt = auditRef();
+    },
 
-      return db.runTransaction(async transaction => {
-        const existingReservation = await transaction.get(reservation);
-        if (existingReservation.exists) {
-          const data = existingReservation.data();
-          if (data.customerUid !== order.customerUid || data.sku !== order.sku) {
-            throw repositoryError('ORDER_RESERVATION_CONFLICT', 'Order reservation ownership is inconsistent');
-          }
-          const existingOrder = await transaction.get(orderRef(data.orderId));
-          if (!existingOrder.exists || existingOrder.data().customerUid !== order.customerUid) {
-            throw repositoryError('ORDER_RESERVATION_CONFLICT', 'Order reservation ownership is inconsistent');
-          }
-          return Object.freeze({
-            orderId: data.orderId,
-            idempotencyKey: `bk-order-${data.orderId}`,
-            duplicate: true,
-          });
-        }
-
-        const timestamp = fieldValue.serverTimestamp();
-        transaction.create(reference, orderDocument(order, id));
-        transaction.create(reservation, {
-          orderId: id,
-          customerUid: order.customerUid,
-          sku: order.sku,
-          authorizedRecipientBinding: binding,
-          createdAt: timestamp,
-        });
-        transaction.create(createEffect, pendingEffect(id, 'invoice_create'));
-        transaction.create(sendEffect, pendingEffect(id, 'invoice_send'));
-        transaction.create(receipt, auditReceipt({
-          orderId: id,
-          event: 'order_created',
-          toStatus: order.status,
-        }, fieldValue));
-        return Object.freeze({orderId: id, idempotencyKey: `bk-order-${id}`, duplicate: false});
+    async createReservedDigitalOrder({recipientBinding, orderId, order} = {}) {
+      return reserveDigitalOrder({
+        rawBinding:recipientBinding,sku:order?.sku,orderId,rawOrder:order,
       });
     },
 
@@ -818,6 +1009,184 @@ export function createOrderRepository({
       });
     },
 
+    async createPublicDigitalAuthEmailEffect(identity = {}) {
+      const binding = publicAuthEffectId(identity);
+      const quarantineBinding = publicAuthQuarantineId(identity);
+      const reference = publicAuthEffectReference(binding);
+      const quarantineReference = publicAuthQuarantineRef(quarantineBinding);
+      const receipt = publicAuthAuditRef(binding);
+      const retainedAt = dateValue(clock(), 'clock');
+      return db.runTransaction(async transaction => {
+        const [quarantine,existing] = await Promise.all([
+          transaction.get(quarantineReference),transaction.get(reference),
+        ]);
+        if (quarantine.exists && quarantine.data()?.active === true) return false;
+        const timestamp = fieldValue.serverTimestamp();
+        if (existing.exists) {
+          const effect = existing.data();
+          const issuanceAttemptCount = Number.isInteger(effect.issuanceAttemptCount)
+            ? effect.issuanceAttemptCount
+            : 1;
+          if (effect.effect === PUBLIC_AUTH_EFFECT && effect.status === 'pending'
+            && effect.dispatchAttemptCount === 0) return Object.freeze({binding});
+          if (effect.effect !== PUBLIC_AUTH_EFFECT || effect.status !== 'completed'
+            || issuanceAttemptCount >= PILOT_AUTH_MAX_ISSUANCES) return false;
+          transaction.set(reference, {
+            ...effect,publicAuth:true,cleanupEligible:true,status:'pending',claim:null,dispatchStartedAt:null,dispatchAttemptCount:0,
+            issuanceAttemptCount:issuanceAttemptCount + 1,lastClaimId:null,lastErrorCode:null,
+            nextAttemptAt:Timestamp.fromDate(PUBLIC_AUTH_NO_BACKGROUND_DISPATCH_AT),
+            completedAt:null,retentionExpiresAt:publicAuthRetentionExpiresAt(retainedAt),updatedAt:timestamp,
+          });
+          transaction.set(receipt, publicAuthAuditReceipt(binding,{
+            event:'effect_reissued',effect:PUBLIC_AUTH_EFFECT,
+          },retainedAt));
+          return Object.freeze({binding});
+        }
+        transaction.create(reference, {
+          publicAuth:true,cleanupEligible:true,effect:PUBLIC_AUTH_EFFECT,quarantineBinding,status:'pending',claim:null,dispatchStartedAt:null,
+          dispatchAttemptCount:0,issuanceAttemptCount:1,lastErrorCode:null,
+          nextAttemptAt:Timestamp.fromDate(PUBLIC_AUTH_NO_BACKGROUND_DISPATCH_AT),
+          retentionExpiresAt:publicAuthRetentionExpiresAt(retainedAt),createdAt:timestamp,updatedAt:timestamp,
+        });
+        transaction.set(receipt, publicAuthAuditReceipt(binding,{
+          event:'effect_created',effect:PUBLIC_AUTH_EFFECT,
+        },retainedAt));
+        return Object.freeze({binding});
+      });
+    },
+
+    async claimPublicDigitalAuthEmailEffect(rawBinding, workerId, now = clock()) {
+      const binding = requiredId(rawBinding, 'binding', SHA256_DIGEST);
+      const reference = publicAuthEffectReference(binding);
+      const worker = requiredId(workerId, 'workerId', WORKER_ID);
+      const claimId = requiredId(claimIdFactory(), 'claimId');
+      const claimedAt = dateValue(now, 'now');
+      const claimedTimestamp = Timestamp.fromDate(claimedAt);
+      const expires = Timestamp.fromDate(new Date(claimedAt.getTime() + EFFECT_LEASE_MILLISECONDS));
+      const receipt = publicAuthAuditRef(binding);
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists) return false;
+        const effect = snapshot.data();
+        if (effect.effect !== PUBLIC_AUTH_EFFECT || effect.status !== 'pending'
+          || effect.dispatchAttemptCount !== 0) return false;
+        transaction.set(reference, {
+          ...effect,cleanupEligible:false,status:'claimed',claim:{workerId:worker,claimId,claimedAt:claimedTimestamp,leaseExpiresAt:expires},
+          nextAttemptAt:null,updatedAt:fieldValue.serverTimestamp(),
+        });
+        transaction.set(receipt,publicAuthAuditReceipt(binding,{
+          event:'effect_claimed',effect:PUBLIC_AUTH_EFFECT,workerId:worker,claimId,
+        },claimedAt));
+        return Object.freeze({claimId});
+      });
+    },
+
+    async markPublicDigitalAuthDispatchStarted(rawBinding, workerId, rawClaimId, now = clock()) {
+      const binding = requiredId(rawBinding, 'binding', SHA256_DIGEST);
+      const reference = publicAuthEffectReference(binding);
+      const worker = requiredId(workerId, 'workerId', WORKER_ID);
+      const claimId = requiredId(rawClaimId, 'claimId');
+      const dispatchStartedAt = Timestamp.fromDate(dateValue(now, 'now'));
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists) throw repositoryError('EFFECT_NOT_FOUND', 'Effect was not found');
+        const effect = snapshot.data();
+        if (effect.effect !== PUBLIC_AUTH_EFFECT || !effectClaimMatches(effect,worker,claimId)) {
+          throw repositoryError('EFFECT_CLAIM_LOST', 'Effect claim is no longer held');
+        }
+        if (timestampDate(effect.claim.leaseExpiresAt, 'leaseExpiresAt') <= dateValue(now, 'now')) {
+          throw repositoryError('EFFECT_LEASE_EXPIRED', 'Effect lease has expired');
+        }
+        if (effect.dispatchStartedAt != null || effect.dispatchAttemptCount !== 0) {
+          throw repositoryError('EFFECT_DISPATCH_EXHAUSTED', 'Effect dispatch attempt is exhausted');
+        }
+        transaction.set(reference,{...effect,dispatchStartedAt,dispatchAttemptCount:1,updatedAt:fieldValue.serverTimestamp()});
+        return true;
+      });
+    },
+
+    async completePublicDigitalAuthEmailEffect(rawBinding, workerId, rawClaimId) {
+      const binding = requiredId(rawBinding, 'binding', SHA256_DIGEST);
+      const reference = publicAuthEffectReference(binding);
+      const worker = requiredId(workerId, 'workerId', WORKER_ID);
+      const claimId = requiredId(rawClaimId, 'claimId');
+      const receipt = publicAuthAuditRef(binding);
+      const retainedAt = dateValue(clock(), 'clock');
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists) throw repositoryError('EFFECT_NOT_FOUND', 'Effect was not found');
+        const effect = snapshot.data();
+        if (effect.effect !== PUBLIC_AUTH_EFFECT || !effectClaimMatches(effect,worker,claimId)) {
+          if (effect.effect === PUBLIC_AUTH_EFFECT && effect.status === 'completed' && effect.lastClaimId === claimId) return false;
+          throw repositoryError('EFFECT_CLAIM_LOST', 'Effect claim is no longer held');
+        }
+        if (effect.dispatchStartedAt == null || effect.dispatchAttemptCount !== 1) {
+          throw repositoryError('EFFECT_DISPATCH_REQUIRED', 'Effect dispatch was not started');
+        }
+        transaction.set(reference,{...effect,cleanupEligible:true,status:'completed',claim:null,lastClaimId:claimId,lastErrorCode:null,
+          retentionExpiresAt:publicAuthRetentionExpiresAt(retainedAt),
+          completedAt:fieldValue.serverTimestamp(),updatedAt:fieldValue.serverTimestamp()});
+        transaction.set(receipt,publicAuthAuditReceipt(binding,{
+          event:'effect_completed',effect:PUBLIC_AUTH_EFFECT,workerId:worker,claimId,
+        },retainedAt));
+        return true;
+      });
+    },
+
+    async recordPublicDigitalAuthEmailFailure(rawBinding, workerId, rawClaimId, failure = {}) {
+      const binding = requiredId(rawBinding, 'binding', SHA256_DIGEST);
+      const reference = publicAuthEffectReference(binding);
+      const worker = requiredId(workerId, 'workerId', WORKER_ID);
+      const claimId = requiredId(rawClaimId, 'claimId');
+      const receipt = publicAuthAuditRef(binding);
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists) throw repositoryError('EFFECT_NOT_FOUND', 'Effect was not found');
+        const effect = snapshot.data();
+        if (effect.effect !== PUBLIC_AUTH_EFFECT || !effectClaimMatches(effect,worker,claimId)) {
+          throw repositoryError('EFFECT_CLAIM_LOST', 'Effect claim is no longer held');
+        }
+        const ambiguous = effect.dispatchStartedAt != null;
+        const errorCode = ambiguous ? 'public_digital_auth_email_unknown'
+          : safeErrorCode(failure.code, 'public_digital_auth_link_generation_failed');
+        transaction.set(reference,{...effect,cleanupEligible:false,status:ambiguous ? 'manual_review' : 'claimed',
+          claim:ambiguous ? null : effect.claim,lastClaimId:ambiguous ? claimId : effect.lastClaimId,
+          lastErrorCode:errorCode,updatedAt:fieldValue.serverTimestamp()});
+        if (ambiguous && SHA256_DIGEST.test(effect.quarantineBinding)) {
+          transaction.set(publicAuthQuarantineRef(effect.quarantineBinding),{
+            publicAuth:true,active:true,reasonCode:'public_digital_auth_email_unknown',
+            effectId:`public-auth-${binding}`,createdAt:fieldValue.serverTimestamp(),
+            updatedAt:fieldValue.serverTimestamp(),
+          });
+        }
+        transaction.set(receipt,publicAuthAuditReceipt(binding,{
+          event:ambiguous ? 'operator_alert' : 'effect_failed',
+          effect:PUBLIC_AUTH_EFFECT,workerId:worker,claimId,errorCode,
+        }));
+        return true;
+      });
+    },
+
+    async resolvePublicAuthQuarantine(identity = {}) {
+      const adminUid = requiredId(identity.adminUid, 'adminUid', WORKER_ID);
+      const quarantineBinding = publicAuthQuarantineId(identity);
+      const reference = publicAuthQuarantineRef(quarantineBinding);
+      const receipt = auditRef();
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists || snapshot.data()?.active !== true) return false;
+        transaction.set(reference,{
+          ...snapshot.data(),active:false,resolvedBy:adminUid,
+          resolvedAt:fieldValue.serverTimestamp(),updatedAt:fieldValue.serverTimestamp(),
+        });
+        transaction.create(receipt,auditReceipt({
+          event:'public_auth_quarantine_resolved',actorUid:adminUid,
+          quarantineBinding,
+        },fieldValue));
+        return true;
+      });
+    },
+
     async claimEffect(orderId, rawEffect, workerId, now = clock()) {
       const id = requiredId(orderId, 'orderId');
       const effectName = effectType(rawEffect);
@@ -981,6 +1350,8 @@ export function createOrderRepository({
           throw repositoryError('EFFECT_CLAIM_LOST', 'Effect claim is no longer held');
         }
         const ambiguousSend = effectName === 'invoice_send' && effect.dispatchStartedAt != null;
+        const terminalCreate = effectName === 'invoice_create' && failure.terminal === true;
+        const manualReview = ambiguousSend || terminalCreate;
         const errorCode = ambiguousSend
           ? 'invoice_send_unknown'
           : safeErrorCode(failure.code);
@@ -993,15 +1364,15 @@ export function createOrderRepository({
         const timestamp = fieldValue.serverTimestamp();
         transaction.set(reference, {
           ...effect,
-          status: ambiguousSend ? 'manual_review' : 'pending',
+          status: manualReview ? 'manual_review' : 'pending',
           claim: null,
-          lastClaimId: ambiguousSend ? claimId : effect.lastClaimId,
+          lastClaimId: manualReview ? claimId : effect.lastClaimId,
           lastErrorCode: errorCode,
           attemptCount,
-          nextAttemptAt: ambiguousSend ? null : nextAttemptAt,
+          nextAttemptAt: manualReview ? null : nextAttemptAt,
           updatedAt: timestamp,
         });
-        transaction.set(orderReference, ambiguousSend ? {
+        transaction.set(orderReference, manualReview ? {
           ...order,
           status: 'manual_review',
           terminal: true,
@@ -1018,15 +1389,15 @@ export function createOrderRepository({
         });
         transaction.create(receipt, effectReceipt({
           orderId: id,
-          event: ambiguousSend ? 'effect_manual_review' : 'effect_failed',
+          event: manualReview ? 'effect_manual_review' : 'effect_failed',
           effect: effectName,
           workerId: worker,
           claimId,
           errorCode,
         }, fieldValue));
-        if (ambiguousSend) {
+        if (manualReview) {
           transaction.create(alertReceipt, auditReceipt({
-            orderId:id,event:'operator_alert',errorCode:'invoice_send_unknown',
+            orderId:id,event:'operator_alert',errorCode,
           }, fieldValue));
         }
         return true;
@@ -1155,9 +1526,11 @@ export function createOrderRepository({
       const recovered = {
         recoveredCreateOrderIds: [],
         recoveredPilotAuthBindings: [],
+        recoveredPublicAuthBindings: [],
         recoveredSendOrderIds: [],
         manualReviewOrderIds: [],
         manualReviewPilotAuthBindings: [],
+        manualReviewPublicAuthBindings: [],
       };
       for (const document of snapshot.docs) {
         const reference = effects.doc(document.id);
@@ -1187,6 +1560,31 @@ export function createOrderRepository({
               event:'operator_alert',errorCode:'pilot_auth_email_unknown',
             }, fieldValue));
             return {kind:'manual_auth',id:binding};
+          }
+          if (effect.effect === PUBLIC_AUTH_EFFECT) {
+            const binding = document.id.slice('public-auth-'.length);
+            if (!SHA256_DIGEST.test(binding)) return null;
+            if (effect.dispatchStartedAt == null && effect.dispatchAttemptCount === 0) {
+              transaction.set(reference, {
+                ...effect,cleanupEligible:true,status:'pending',claim:null,
+                nextAttemptAt:Timestamp.fromDate(PUBLIC_AUTH_NO_BACKGROUND_DISPATCH_AT),updatedAt:timestamp,
+              });
+              return {kind:'recovered_public_auth',id:binding};
+            }
+            transaction.set(reference, {
+              ...effect,cleanupEligible:false,status:'manual_review',claim:null,lastClaimId:effect.claim?.claimId,
+              lastErrorCode:'public_digital_auth_email_unknown',nextAttemptAt:null,updatedAt:timestamp,
+            });
+            if (SHA256_DIGEST.test(effect.quarantineBinding)) {
+              transaction.set(publicAuthQuarantineRef(effect.quarantineBinding),{
+                publicAuth:true,active:true,reasonCode:'public_digital_auth_email_unknown',
+                effectId:document.id,createdAt:timestamp,updatedAt:timestamp,
+              });
+            }
+            transaction.set(publicAuthAuditRef(binding),publicAuthAuditReceipt(binding,{
+              event:'operator_alert',errorCode:'public_digital_auth_email_unknown',
+            },now));
+            return {kind:'manual_public_auth',id:binding};
           }
           if (effect.effect === 'invoice_create') {
             transaction.set(reference, {
@@ -1219,6 +1617,8 @@ export function createOrderRepository({
         });
         if (outcome?.kind === 'recovered_auth') recovered.recoveredPilotAuthBindings.push(outcome.id);
         if (outcome?.kind === 'manual_auth') recovered.manualReviewPilotAuthBindings.push(outcome.id);
+        if (outcome?.kind === 'recovered_public_auth') recovered.recoveredPublicAuthBindings.push(outcome.id);
+        if (outcome?.kind === 'manual_public_auth') recovered.manualReviewPublicAuthBindings.push(outcome.id);
         if (outcome?.kind === 'recovered_create') recovered.recoveredCreateOrderIds.push(outcome.id);
         if (outcome?.kind === 'recovered_send') recovered.recoveredSendOrderIds.push(outcome.id);
         if (outcome?.kind === 'manual_send') recovered.manualReviewOrderIds.push(outcome.id);
@@ -1226,9 +1626,11 @@ export function createOrderRepository({
       return Object.freeze({
         recoveredCreateOrderIds: Object.freeze(recovered.recoveredCreateOrderIds),
         recoveredPilotAuthBindings: Object.freeze(recovered.recoveredPilotAuthBindings),
+        recoveredPublicAuthBindings: Object.freeze(recovered.recoveredPublicAuthBindings),
         recoveredSendOrderIds: Object.freeze(recovered.recoveredSendOrderIds),
         manualReviewOrderIds: Object.freeze(recovered.manualReviewOrderIds),
         manualReviewPilotAuthBindings: Object.freeze(recovered.manualReviewPilotAuthBindings),
+        manualReviewPublicAuthBindings: Object.freeze(recovered.manualReviewPublicAuthBindings),
       });
     },
 

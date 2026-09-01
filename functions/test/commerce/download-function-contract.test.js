@@ -8,6 +8,7 @@ const protectedExports=['createDownloadGrant','redeemDownloadGrant'];
 const existingScopedExports=[
   'requestPilotSignInLink','createDigitalOrder','getOrderStatus',
   'getBuyerCommerceCapability','verifyOrderPayment','getCommerceReleaseState',
+  'getQuickBooksCommerceHealth',
   'requestRefundReview','reconcileOrder','reconcileRefund','quickBooksCommerceWebhook',
   'reconcileCommerceOrders','dispatchCommerceEffects','stageInvoiceApprovals','approveInvoice',
   'beginQuickBooksConnection','quickBooksOAuthCallback','beginMicrosoftConnection',
@@ -28,6 +29,8 @@ test('exports both protected endpoints with their required Firebase protections'
   assert.match(source,/typeof request\.auth\?\.uid !== 'string'/);
   assert.match(transport,/verifyIdToken\([^,]+,true\)/);
   assert.match(transport,/getUser\(/);
+  assert.match(transport,/verifyToken\([^,]+,\{consume:true\}\)/);
+  assert.match(transport,/alreadyConsumed/);
   assert.match(source,/expectedUid:request\.auth\?\.uid/);
   assert.match(source,/auth:authoritativeUser/);
 });
@@ -43,10 +46,33 @@ test('binds neither protected endpoint to QuickBooks, Microsoft, nor recipient s
   }
 });
 
-test('scoped deployment inventory contains exactly 20 reviewed exports and excludes legacy booking send', async () => {
+test('keeps the public auth callable behind Firebase App Check transport rejection and generic valid-request results', async () => {
   const source=await readFile(sourceUrl,'utf8');
-  assert.equal(scopedDeploymentInventory.length,20);
-  assert.equal(new Set(scopedDeploymentInventory).size,20);
+  const start=source.indexOf('export const requestPilotSignInLink = ');
+  const next=source.indexOf('\nexport const ',start + 1);
+  const declaration=source.slice(start,next);
+  assert.match(declaration,/enforceAppCheck:true/);
+  assert.match(declaration,/APP_CHECK_TRANSPORT_CONTRACT/);
+  assert.match(declaration,/return \{status:'request_received'\};/);
+});
+
+test('protects QuickBooks commerce health with admin auth, App Check, and redacted read-only wiring', async () => {
+  const source=await readFile(sourceUrl,'utf8');
+  const start=source.indexOf('export const getQuickBooksCommerceHealth = ');
+  const next=source.indexOf('\nexport const ',start + 1);
+  const declaration=source.slice(start,next);
+  assert.notEqual(start,-1);
+  assert.match(declaration,/secrets:QBO_RUNTIME_SECRETS/);
+  assert.match(declaration,/enforceAppCheck:true/);
+  assert.ok(declaration.indexOf('requireAdmin(request.auth)') < declaration.indexOf('runQuickBooksCommerceHealth'));
+  assert.doesNotMatch(declaration,/request\.data/);
+  assert.doesNotMatch(declaration,/createCustomer|createInvoice|sendInvoice|sendMail|sendMessage/);
+});
+
+test('scoped deployment inventory contains exactly 21 reviewed exports and excludes legacy booking send', async () => {
+  const source=await readFile(sourceUrl,'utf8');
+  assert.equal(scopedDeploymentInventory.length,21);
+  assert.equal(new Set(scopedDeploymentInventory).size,21);
   for (const name of scopedDeploymentInventory) {
     assert.match(source,new RegExp(`export const ${name} = `),name);
   }

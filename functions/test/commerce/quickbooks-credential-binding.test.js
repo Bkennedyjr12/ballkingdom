@@ -55,6 +55,43 @@ test('runtime reads only bound exact versions and ignores a later orphan',async(
   assert.deepEqual(reads,[['token','4'],['realm','3'],['token','5']]);
 });
 
+test('health refresh proves the newly published credential binding by exact readback',async()=>{
+  let published={generation:2,refreshTokenVersion:'4',realmVersion:'3'};const reads=[];
+  const credentialStore={async readPublished(){reads.push(['binding',published.generation,published.refreshTokenVersion]);return {...published};},async claimRefresh(){return {status:'claimed'};},async markDispatchStarted(){return true;},async verifyPublishFence(){return true;},async publishRotation(input){published={generation:input.generation+1,refreshTokenVersion:input.refreshTokenVersion,realmVersion:input.realmVersion};return true;},async requireManualReview(){},async failBeforeDispatch(){},async recordAlert(){}};
+  const tokenStore={async readVersion(version){return {value:version==='5'?'rotated':'bound-token',version};},async addVersion(){return {version:'5'};}};
+  const realmStore={async readVersion(version){return {value:'bound-realm',version};}};
+  const coordinator=createBoundQuickBooksCredentialCoordinator({credentialStore,tokenStore,realmStore,refresh:async()=>({accessToken:'access',refreshToken:'rotated',expiresIn:3600}),clock:()=>new Date(10),ownerIdFactory:()=>'owner'});
+  assert.deepEqual(await coordinator.getHealthCredentials(),{
+    accessToken:'access',realmId:'bound-realm',credentialBindingPublished:true,
+    refreshContinuityVerified:true,rotationPersisted:true,realmBound:true,
+  });
+  assert.deepEqual(reads,[['binding',2,'4'],['binding',3,'5']]);
+});
+
+test('health refresh reports continuity without claiming persistence when Intuit keeps the existing token',async()=>{
+  let published={generation:2,refreshTokenVersion:'4',realmVersion:'3'};let adds=0;
+  const credentialStore={async readPublished(){return {...published};},async claimRefresh(){return {status:'claimed'};},async markDispatchStarted(){return true;},async verifyPublishFence(){return true;},async publishRotation(input){published={generation:input.generation+1,refreshTokenVersion:input.refreshTokenVersion,realmVersion:input.realmVersion};return true;},async requireManualReview(){},async failBeforeDispatch(){},async recordAlert(){}};
+  const tokenStore={async readVersion(version){return {value:'bound-token',version};},async addVersion(){adds+=1;return {version:'5'};}};
+  const realmStore={async readVersion(version){return {value:'bound-realm',version};}};
+  const coordinator=createBoundQuickBooksCredentialCoordinator({credentialStore,tokenStore,realmStore,refresh:async()=>({accessToken:'access',refreshToken:'bound-token',expiresIn:3600}),clock:()=>new Date(10),ownerIdFactory:()=>'owner'});
+  assert.deepEqual(await coordinator.getHealthCredentials(),{
+    accessToken:'access',realmId:'bound-realm',credentialBindingPublished:true,
+    refreshContinuityVerified:true,rotationPersisted:false,realmBound:true,
+  });
+  assert.equal(adds,0);
+  assert.equal(published.refreshTokenVersion,'4');
+});
+
+test('health refresh fails closed when the published post-rotation binding cannot be read back',async()=>{
+  let reads=0;const alerts=[];
+  const credentialStore={async readPublished(){reads+=1;return reads===1?{generation:2,refreshTokenVersion:'4',realmVersion:'3'}:{generation:3,refreshTokenVersion:'4',realmVersion:'3'};},async claimRefresh(){return {status:'claimed'};},async markDispatchStarted(){return true;},async verifyPublishFence(){return true;},async publishRotation(){return true;},async requireManualReview(){return false;},async failBeforeDispatch(){},async recordAlert(input){alerts.push(input.reason);}};
+  const tokenStore={async readVersion(version){return {value:version==='5'?'rotated':'bound-token',version};},async addVersion(){return {version:'5'};}};
+  const realmStore={async readVersion(version){return {value:'bound-realm',version};}};
+  const coordinator=createBoundQuickBooksCredentialCoordinator({credentialStore,tokenStore,realmStore,refresh:async()=>({accessToken:'access',refreshToken:'rotated',expiresIn:3600}),clock:()=>new Date(10),ownerIdFactory:()=>'owner'});
+  await assert.rejects(coordinator.getHealthCredentials(),error=>error.code==='QBO_REFRESH_PERSISTENCE_UNKNOWN');
+  assert.deepEqual(alerts,['qbo_refresh_persistence_unknown']);
+});
+
 test('an absent published binding fails closed before any Secret Manager or Intuit call',async()=>{
   const calls=[];const credentialStore={async readPublished(){throw new Error('binding unavailable');},async claimRefresh(){},async markDispatchStarted(){},async verifyPublishFence(){},async publishRotation(){},async requireManualReview(){},async failBeforeDispatch(){},async recordAlert(){}};
   const tokenStore={async readVersion(){calls.push('token-read');},async addVersion(){calls.push('token-add');}};

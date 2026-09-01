@@ -1,6 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {getCommerceItem, getConfiguredCommerceItem, isCommerceItemPurchasable, listPublicCommerceItems, listCommerceCapabilities} from '../../src/commerce/catalog.js';
+import {
+  getCommerceItem,
+  getConfiguredCommerceItem,
+  getConfiguredPaymentsCapability,
+  isCommerceItemPurchasable,
+  isControlledOwnerPilotReady,
+  isPublicCommerceActivationReady,
+  listPublicCommerceItems,
+  listCommerceCapabilities,
+} from '../../src/commerce/catalog.js';
+
+const verifiedPaymentsCapability=Object.freeze({
+  accounting:true,
+  payments:true,
+  mode:'documented-intuit-flow',
+  supportsImmediatePayment:true,
+  supportsCards:true,
+  supportsApplePay:true,
+  supportsPayPal:true,
+  supportsAch:true,
+  supportsWebhooks:true,
+  surchargingEnabled:false,
+  onlineInvoiceDelivery:true,
+});
 
 test('keeps a known digital product unavailable before owner approval', () => {
   assert.throws(() => getCommerceItem('home-inspection-study-guide'), /unavailable/);
@@ -20,9 +43,9 @@ test('records the reviewed owner-pilot price, QuickBooks mapping, tax gate, and 
   assert.equal(item.quickBooks.itemName, 'Home Inspection Study Guide');
   assert.equal(item.quickBooks.itemId, '8');
   assert.equal(item.quickBooks.itemVerified, true);
-  assert.equal(item.tax.classification, 'ca_electronic_only_non_taxable_proposed');
+  assert.equal(item.tax.classification, 'electronic_only_non_taxable_owner_approved');
   assert.equal(item.tax.quickBooksTaxCode, 'NON');
-  assert.equal(item.tax.accountantVerified, false);
+  assert.equal(item.tax.accountantVerified, true);
   assert.equal(item.artifact.objectKey, 'private-commerce/home-inspection-study-guide/guide-v1.pdf');
   assert.equal(item.artifact.contentType, 'application/pdf');
   assert.equal(item.artifact.exactBytes, 71250419);
@@ -33,6 +56,36 @@ test('records the reviewed owner-pilot price, QuickBooks mapping, tax gate, and 
   assert.equal(item.release.deployApproved, false);
   assert.equal(Object.isFrozen(item), true);
   assert.equal(Object.isFrozen(item.artifact), true);
+});
+
+test('keeps the server-owned payment capability unverified for the inactive code deploy', () => {
+  const capability=getConfiguredPaymentsCapability();
+  assert.deepEqual(capability, {
+    accounting:false,
+    payments:false,
+    mode:'documented-intuit-flow',
+    supportsImmediatePayment:false,
+    supportsCards:false,
+    supportsApplePay:false,
+    supportsPayPal:false,
+    supportsAch:false,
+    supportsWebhooks:false,
+    surchargingEnabled:false,
+    onlineInvoiceDelivery:false,
+  });
+  assert.equal(Object.isFrozen(capability), true);
+});
+
+test('records owner-approved nationwide electronic-only NON treatment', () => {
+  const item = getConfiguredCommerceItem('home-inspection-study-guide');
+  assert.equal(item.delivery, 'electronic_only');
+  assert.equal(item.physicalCopyIncluded, false);
+  assert.equal(item.tax.quickBooksTaxCode, 'NON');
+  assert.equal(item.tax.accountantVerified, true);
+  assert.equal(item.tax.geographicRestriction, 'none_owner_approved');
+  assert.equal(item.release.fulfillmentRuntimeVerified, true);
+  assert.equal(item.active, false);
+  assert.equal(item.release.deployApproved, false);
 });
 
 test('stays unavailable at a nonzero price until every server verification gate is true', () => {
@@ -53,7 +106,8 @@ test('activation predicate requires every authoritative verification gate', () =
     artifact:{...configured.artifact,generation:'1785951381246665',objectVerified:true},
     release:{...configured.release,fulfillmentRuntimeVerified:true,deployApproved:true},
   };
-  assert.equal(isCommerceItemPurchasable(ready), true);
+  assert.equal(isCommerceItemPurchasable(ready), false);
+  assert.equal(isCommerceItemPurchasable(ready, verifiedPaymentsCapability), true);
   for (const blocked of [
     {...ready,active:false},
     {...ready,quickBooks:{...ready.quickBooks,itemId:null}},
@@ -69,12 +123,51 @@ test('activation predicate requires every authoritative verification gate', () =
     {...ready,release:{...ready.release,priceApproved:false}},
     {...ready,release:{...ready.release,fulfillmentRuntimeVerified:false}},
     {...ready,release:{...ready.release,deployApproved:false}},
-  ]) assert.equal(isCommerceItemPurchasable(blocked), false);
+  ]) assert.equal(isCommerceItemPurchasable(blocked, verifiedPaymentsCapability), false);
+});
+
+test('public activation requires the exact two public flags, full Payments record, fulfillment, catalog, and release combination', () => {
+  const configured=getConfiguredCommerceItem('home-inspection-study-guide');
+  const item={...configured,active:true,release:{...configured.release,deployApproved:true}};
+  const flags={publicAuthResumeEnabled:true,publicDigitalCheckoutEnabled:true,
+    controlledOwnerPilotEnabled:false,serviceQboSendEnabled:false};
+  const ready={flags,capability:verifiedPaymentsCapability,item,fulfillmentAvailable:true};
+  assert.equal(isPublicCommerceActivationReady(ready),true);
+  for (const [key,value] of Object.entries(flags)) {
+    assert.equal(isPublicCommerceActivationReady({...ready,flags:{...flags,[key]:!value}}),false,key);
+  }
+  for (const key of ['accounting','payments','supportsImmediatePayment','supportsCards','supportsApplePay',
+    'supportsPayPal','supportsAch','supportsWebhooks','onlineInvoiceDelivery']) {
+    assert.equal(isPublicCommerceActivationReady({...ready,capability:{...verifiedPaymentsCapability,[key]:false}}),false,key);
+  }
+  assert.equal(isPublicCommerceActivationReady({...ready,capability:{...verifiedPaymentsCapability,surchargingEnabled:true}}),false);
+  assert.equal(isPublicCommerceActivationReady({...ready,fulfillmentAvailable:false}),false);
+  assert.equal(isPublicCommerceActivationReady({...ready,item:{...item,active:false}}),false);
+  assert.equal(isPublicCommerceActivationReady({...ready,item:{...item,release:{...item.release,deployApproved:false}}}),false);
+});
+
+test('controlled owner pilot is separately gated and requires both public lanes to stay off', () => {
+  const item=getConfiguredCommerceItem('home-inspection-study-guide');
+  assert.equal(isControlledOwnerPilotReady({
+    flags:{controlledOwnerPilotEnabled:true,publicAuthResumeEnabled:false,publicDigitalCheckoutEnabled:false,serviceQboSendEnabled:false},
+    capability:verifiedPaymentsCapability,item,fulfillmentAvailable:true,
+  }),true);
+  assert.equal(isControlledOwnerPilotReady({
+    flags:{controlledOwnerPilotEnabled:false,publicAuthResumeEnabled:false,publicDigitalCheckoutEnabled:false,serviceQboSendEnabled:false},
+    capability:verifiedPaymentsCapability,item,fulfillmentAvailable:true,
+  }),false);
+  for (const publicFlag of ['publicAuthResumeEnabled','publicDigitalCheckoutEnabled']) {
+    assert.equal(isControlledOwnerPilotReady({
+      flags:{controlledOwnerPilotEnabled:true,publicAuthResumeEnabled:false,
+        publicDigitalCheckoutEnabled:false,serviceQboSendEnabled:false,[publicFlag]:true},
+      capability:verifiedPaymentsCapability,item,fulfillmentAvailable:true,
+    }),false,publicFlag);
+  }
 });
 
 test('does not disclose private configuration through buyer capabilities', () => {
   const serialized = JSON.stringify(listCommerceCapabilities());
-  assert.doesNotMatch(serialized, /private-commerce|guide-v1|sha256|md5|generation|71250419|quickbooks/i);
+  assert.doesNotMatch(serialized, /private-commerce|guide-v1|sha256|md5|generation|71250419|itemId|tax/i);
 });
 
 test('rejects unknown or inactive products', () => {
@@ -87,10 +180,16 @@ test('does not publish inactive products', () => {
   assert.equal(Object.isFrozen(items), true);
 });
 
-test('publishes only strict buyer-safe SKU capability fields', () => {
+test('publishes only strict buyer-safe SKU and display capability fields', () => {
   assert.deepEqual(listCommerceCapabilities(), [
-    {sku:'home-inspection-study-guide',active:false},
+    {sku:'home-inspection-study-guide',active:false,display:{
+      name:'Home Inspection Study Guide',amountCents:4900,currency:'USD',
+      invoiceProvider:'quickbooks',paymentMethods:['card','apple_pay','paypal','venmo'],
+      delivery:'protected_electronic_delivery',
+    }},
   ]);
-  assert.deepEqual(Object.keys(listCommerceCapabilities()[0]), ['sku','active']);
+  assert.deepEqual(Object.keys(listCommerceCapabilities()[0]), ['sku','active','display']);
+  assert.deepEqual(Object.keys(listCommerceCapabilities()[0].display), ['name','amountCents','currency','invoiceProvider','paymentMethods','delivery']);
   assert.equal(Object.isFrozen(listCommerceCapabilities()[0]), true);
+  assert.equal(Object.isFrozen(listCommerceCapabilities()[0].display), true);
 });

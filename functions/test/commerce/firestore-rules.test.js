@@ -12,6 +12,7 @@ const COMMERCE_COLLECTIONS = [
   'commerceReservations',
   'commerceWebhookHints',
   'commerceRateLimits',
+  'commercePublicAuthLimits',
   'fulfillmentGrants',
 ];
 
@@ -63,14 +64,39 @@ test('the index manifest supports the bounded due-effect dispatcher', async () =
   const manifest = JSON.parse(await readFile(new URL('firestore.indexes.json', rootUrl), 'utf8'));
   const matchingIndexes = manifest.indexes.filter(index => index.collectionGroup === 'commerceEffects');
 
-  assert.deepEqual(matchingIndexes, [{
-    collectionGroup:'commerceEffects',
-    queryScope:'COLLECTION',
-    fields:[
-      {fieldPath:'status',order:'ASCENDING'},
-      {fieldPath:'nextAttemptAt',order:'ASCENDING'},
-    ],
-  }]);
+  assert.deepEqual(matchingIndexes, [
+    {
+      collectionGroup:'commerceEffects',
+      queryScope:'COLLECTION',
+      fields:[
+        {fieldPath:'status',order:'ASCENDING'},
+        {fieldPath:'nextAttemptAt',order:'ASCENDING'},
+      ],
+    },
+    {
+      collectionGroup:'commerceEffects',
+      queryScope:'COLLECTION',
+      fields:[
+        {fieldPath:'publicAuth',order:'ASCENDING'},
+        {fieldPath:'cleanupEligible',order:'ASCENDING'},
+        {fieldPath:'retentionExpiresAt',order:'ASCENDING'},
+      ],
+    },
+  ]);
+});
+
+test('the index manifest exactly covers every public-auth cleanup query', async () => {
+  const manifest = JSON.parse(await readFile(new URL('firestore.indexes.json', rootUrl), 'utf8'));
+  const source = await readFile(new URL('../../src/commerce/order-repository.js', import.meta.url), 'utf8');
+  const fieldsFor = collectionGroup => manifest.indexes
+    .filter(index => index.collectionGroup === collectionGroup)
+    .map(index => index.fields.map(field => field.fieldPath).join(','));
+
+  assert.match(source,/publicAuth'.*?cleanupEligible'.*?retentionExpiresAt/s);
+  assert.match(source,/publicAuth'.*?expiresAt/s);
+  assert.deepEqual(fieldsFor('commercePublicAuthLimits'), ['publicAuth,expiresAt']);
+  assert.deepEqual(fieldsFor('commerceAudit'), ['publicAuth,cleanupEligible,retentionExpiresAt']);
+  assert.equal(fieldsFor('commerceEffects').includes('publicAuth,cleanupEligible,retentionExpiresAt'), true);
 });
 
 test('mapped root Firestore rules deny commerce clients while preserving retained owner reads', {
@@ -93,6 +119,7 @@ test('mapped root Firestore rules deny commerce clients while preserving retaine
     const contexts = [
       environment.unauthenticatedContext(),
       environment.authenticatedContext('ordinary'),
+      environment.authenticatedContext('public-buyer',{email_verified:true}),
       environment.authenticatedContext('owner-1',{companionOwner:true}),
       environment.authenticatedContext('owner-2',{companionOwner:true}),
       environment.authenticatedContext('admin',{admin:true}),
@@ -112,6 +139,7 @@ test('mapped root Firestore rules deny commerce clients while preserving retaine
     )));
     for (const context of [
       environment.unauthenticatedContext(),environment.authenticatedContext('ordinary'),
+      environment.authenticatedContext('public-buyer',{email_verified:true}),
       environment.authenticatedContext('owner-2',{companionOwner:true}),
       environment.authenticatedContext('admin',{admin:true}),
     ]) {

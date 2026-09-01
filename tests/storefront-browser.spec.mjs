@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  // Remote fonts are presentation-only and can leave local `load` navigation
+  // waiting on an external host. Keep this browser suite focused on storefront
+  // behavior; production retains its font declarations.
+  await page.route(/^https:\/\/fonts\.(?:googleapis|gstatic)\.com\//, route => route.abort());
+});
+
 test('desktop catalog renders three primary offers', async ({ page }) => {
   await page.goto('/products.html');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Practical playbooks');

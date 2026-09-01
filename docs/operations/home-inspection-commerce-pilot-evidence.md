@@ -19,8 +19,8 @@ Reviewed: 2026-08-31
   or sent by these dependency-verification actions.
 
 The catalog records these verified production identifiers, but remains `active: false`.
-The professional tax-verification gate and protected-download runtime wiring remain false,
-so no buyer can create an order.
+The reviewed tax and protected-download runtime gates are true, but activation and deployment
+approval remain false, so no buyer can create an order.
 
 ## 2026-08-31 protected-delivery pre-release verification
 
@@ -32,13 +32,31 @@ provider MD5 matched the frozen catalog definition. A separate local digest of t
 source PDF matched both the recorded SHA-256 and provider MD5.
 
 The runtime is ready to be deployed, but the product remains deliberately unavailable:
-`active`, `tax.accountantVerified`, `release.fulfillmentRuntimeVerified`, and
-`release.deployApproved` are all `false`, and both commerce environment flags are exactly
-`false`. This verification made no customer, invoice, payment, refund, authentication-email,
-invoice-email, or accounting-provider mutation.
+`tax.accountantVerified` and `release.fulfillmentRuntimeVerified` are `true`; `active` and
+`release.deployApproved` remain `false`, and both commerce environment flags are exactly `false`.
+This verification made no customer, invoice, payment, refund, authentication-email, invoice-email,
+or accounting-provider mutation.
 
 The complete non-secret verification record and scoped release/rollback manifests are in
 [`protected-commerce-delivery-verification.md`](protected-commerce-delivery-verification.md).
+
+## 2026-08-31 owner-approved public checkout tax and payment decisions
+
+- Brian reports that a qualified accountant confirmed the California treatment for this
+  electronic-only product. This evidence does not claim professional tax verification outside
+  California.
+- The current [CDTFA Publication 109 — Nontaxable Sales](https://cdtfa.ca.gov/formspubs/pub109/nontaxable-sales.htm)
+  supports the California treatment for electronically transmitted data products when no printed
+  copy or physical storage medium is supplied (accessed 2026-08-30).
+- Applying QuickBooks tax code `NON` nationwide with no geographic restriction is an
+  owner-approved residual risk, not professional verification of other-state treatment. Reassess
+  if nexus, sales volume, product format, or applicable law changes.
+- The sale is electronic-only: no printed copy, flash drive, disc, or other tangible copy or
+  storage media is included.
+- Intuit's requirements recorded for this checkout are to offer Apple Pay through the QuickBooks
+  e-invoice (not a standalone Apple Pay integration), enable QuickBooks card payments and online
+  invoice delivery, and keep invoice surcharging off because Intuit disables Apple Pay on
+  surcharged invoices. Ballers Kingdom does not collect payment credentials.
 
 ## Approved pilot mapping
 
@@ -56,20 +74,19 @@ The complete non-secret verification record and scoped release/rollback manifest
 The size and digest above were independently computed from the reviewed source artifact and
 matched against the private provider object metadata on 2026-08-31.
 
-## Proposed California tax mapping
+## California tax source
 
-The proposed mapping is non-taxable for this exact electronic-only delivery model. The
+The reviewed California mapping is non-taxable for this exact electronic-only delivery model. The
 California Department of Tax and Fee Administration states that electronically transmitted
 data products, including digital books, are generally not taxable when delivered over the
 Internet; providing a printed copy or physical backup medium can make the sale taxable.
 
 Authoritative source: [CDTFA Publication 109 — Nontaxable Sales](https://cdtfa.ca.gov/formspubs/pub109/nontaxable-sales.htm), accessed 2026-08-30 (page revision shown as July 2026).
 
-This is an implementation proposal, not tax advice or a final tax determination. Before the
-product can be activated, an accountant must confirm the treatment and the matching
-QuickBooks tax code. Re-review is required if delivery includes any tangible copy or media,
-or if buyers or operations extend beyond the exact California-only assumption documented
-here.
+Brian reports qualified-accountant confirmation for California. Applying the same `NON` code
+outside California is an owner-approved residual risk, not professional verification of other-
+state treatment. Re-review is required if delivery includes any tangible copy or media, or if
+nexus, sales volume, product format, or applicable law changes.
 
 ## Fail-closed activation gates
 

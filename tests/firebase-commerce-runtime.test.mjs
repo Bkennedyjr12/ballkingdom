@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createFirebaseCommerceRuntime } from '../assets/js/firebase-commerce-runtime.js';
+import { validateCapabilityResponse } from '../assets/js/commerce-client.js';
 
 const verifiedPublicConfig = Object.freeze({
   apiKey: 'verified-public-api-key',
@@ -146,4 +147,31 @@ test('uses direct in-memory Auth persistence with no default Auth or application
   assert.doesNotMatch(sources[0], /\bgetAuth\b|\bsetPersistence\b/);
   assert.equal(sdk.calls.filter(([name]) => name === 'initializeAuth').length, 1);
   assert.equal(sdk.calls.find(([name]) => name === 'initializeAuth')[2].persistence, sdk.inMemoryPersistence);
+});
+
+test('public browser boundary is a compatibility adapter rather than a pilot-labelled client contract', async () => {
+  const client = await readFile(new URL('../assets/js/commerce-client.js', import.meta.url), 'utf8');
+  assert.match(client, /requestPublicSignInLink/);
+  assert.match(client, /realCallable\('requestPilotSignInLink',data\)/);
+  assert.doesNotMatch(client, /requestPilotSignInLink\(request\)/);
+});
+
+test('client accepts only the authoritative public display contract from buyer capability', () => {
+  const capability = validateCapabilityResponse({products:[{
+    sku:'home-inspection-study-guide',active:true,
+    display:{
+      name:'Home Inspection Study Guide',amountCents:4900,currency:'USD',
+      invoiceProvider:'quickbooks',paymentMethods:['card','apple_pay','paypal','venmo'],
+      delivery:'protected_electronic_delivery',
+    },
+  }]});
+  assert.equal(capability.products[0].display.amountCents, 4900);
+  assert.throws(() => validateCapabilityResponse({products:[{
+    sku:'home-inspection-study-guide',active:true,
+    display:{
+      name:'Home Inspection Study Guide',amountCents:4900,currency:'USD',
+      invoiceProvider:'quickbooks',paymentMethods:['card','browser-supplied-method'],
+      delivery:'protected_electronic_delivery',
+    },
+  }]}), /Invalid capability response/);
 });

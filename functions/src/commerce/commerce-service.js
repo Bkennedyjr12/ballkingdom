@@ -1,8 +1,16 @@
 import {createHash, timingSafeEqual, randomUUID} from 'node:crypto';
-import {getCommerceItem as getCatalogItem, listCommerceCapabilities as getCatalogCapabilities} from './catalog.js';
+import {
+  getCommerceItem as getCatalogItem,
+  getConfiguredCommerceItem as getCatalogConfiguredItem,
+  getConfiguredPaymentsCapability as getCatalogPaymentsCapability,
+  listCommerceCapabilities as getCatalogCapabilities,
+  isControlledOwnerPilotReady,
+  isPublicCommerceActivationReady,
+} from './catalog.js';
 import {isReconciliationTerminalStatus, newOrder} from './order-state.js';
 import {verifyQuickBooksPaymentEvidence} from './quickbooks-payment-verifier.js';
 import {readCommerceFeatureFlags} from './feature-flags.js';
+import {assertPaymentsCapability} from '../providers/quickbooks-payments-capability.js';
 
 const GENERIC_AUTH_RESULT = Object.freeze({status:'request_received'});
 const SAFE_ORDER_RESULT_MESSAGE = 'QuickBooks sent payment instructions to your email.';
@@ -16,6 +24,10 @@ const DEFAULT_ACTION_CODE_SETTINGS = Object.freeze({
 const RECONCILIATION_LIMIT = 50;
 const RECONCILIATION_HINT_TTL_MS = 24 * 60 * 60 * 1000;
 const REFUND_REASON_MAXIMUM = 500;
+const PUBLIC_AUTH_WINDOW_MS = 10 * 60 * 1000;
+const SHA256_DIGEST = /^[a-f0-9]{64}$/;
+const PUBLIC_APP_ID = /^[A-Za-z0-9._:-]{1,200}$/;
+const PUBLIC_PAYMENT_METHODS = new Set(['card','apple_pay','paypal','venmo']);
 
 function commerceError(code, message) {
   const error = new Error(message);
@@ -25,6 +37,19 @@ function commerceError(code, message) {
 
 function record(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function buyerDisplay(value) {
+  const display = value?.display;
+  const keys = ['name','amountCents','currency','invoiceProvider','paymentMethods','delivery'];
+  if (!record(display) || Object.keys(display).length !== keys.length || keys.some(key => !Object.hasOwn(display,key))
+    || typeof display.name !== 'string' || display.name.trim().length < 1 || display.name.length > 160
+    || !Number.isSafeInteger(display.amountCents) || display.amountCents < 1 || display.amountCents > 100000000
+    || display.currency !== 'USD' || display.invoiceProvider !== 'quickbooks' || display.delivery !== 'protected_electronic_delivery'
+    || !Array.isArray(display.paymentMethods) || display.paymentMethods.length < 1 || display.paymentMethods.length > 4
+    || new Set(display.paymentMethods).size !== display.paymentMethods.length
+    || display.paymentMethods.some(method => !PUBLIC_PAYMENT_METHODS.has(method))) return null;
+  return Object.freeze({...display,paymentMethods:Object.freeze([...display.paymentMethods])});
 }
 
 export function buildPilotActionCodeSettings(orderHandle = null, base = DEFAULT_ACTION_CODE_SETTINGS) {
@@ -60,6 +85,23 @@ function recipientBinding(email) {
 
 function rateLimitKey(value) {
   return createHash('sha256').update(`rate\0${value}`).digest('hex');
+}
+
+function publicAuthEmailDigest(email) {
+  return createHash('sha256').update(`public-auth-email\0${email}`).digest('hex');
+}
+
+function publicAuthContext(context) {
+  const appId = context?.app?.appId;
+  const ipDigest = context?.ipDigest;
+  if (typeof appId !== 'string' || !PUBLIC_APP_ID.test(appId)
+    || typeof ipDigest !== 'string' || !SHA256_DIGEST.test(ipDigest)) return null;
+  return Object.freeze({appId,ipDigest});
+}
+
+function controlledOwnerFlagEnabled(flags) {
+  return flags?.controlledOwnerPilotEnabled === true
+    || flags?.digitalInvoicePilotEnabled === true;
 }
 
 function requireAdminContext(authContext) {
@@ -190,7 +232,8 @@ async function authoritativeIdentity(authContext, getCurrentUser) {
     || authTime * 1000 < validAfter) {
     throw commerceError('AUTH_SESSION_INVALID', 'Authentication is no longer valid');
   }
-  return Object.freeze({...identity,authorizedRecipientBinding:recipientBinding(currentEmail)});
+  return Object.freeze({...identity,authorizedRecipientBinding:recipientBinding(currentEmail),
+    companionOwner:user?.customClaims?.companionOwner === true});
 }
 
 function safeOrderStatus(status) {
@@ -227,7 +270,7 @@ function customerStatus(order) {
 
 function isExactlyUnpaid(evidence, order) {
   const invoice = evidence?.invoice;
-  return evidence?.realmId === order.providerRefs.realmId
+  const exactBase = evidence?.realmId === order.providerRefs.realmId
     && invoice?.invoiceId === order.providerRefs.invoiceId
     && invoice?.providerOrderRef === order.providerRefs.providerOrderRef
     && invoice?.totalAmountCents === order.amountCents
@@ -237,6 +280,15 @@ function isExactlyUnpaid(evidence, order) {
     && invoice?.paymentState === 'unpaid'
     && Array.isArray(evidence?.payments)
     && evidence.payments.length === 0;
+  if (!exactBase) return false;
+  if (order.orderType === 'service') return true;
+  return order.orderType === 'digital_product'
+    && invoice?.customerId === order.providerRefs.customerId
+    && invoice?.itemId === order.accountingSnapshot?.itemId
+    && invoice?.taxCode === order.accountingSnapshot?.taxCode
+    && invoice?.quantity === 1
+    && invoice?.lineAmountCents === order.amountCents
+    && invoice?.unitPriceCents === order.amountCents;
 }
 
 function isExactBoundInvoice(evidence, order) {
@@ -245,9 +297,33 @@ function isExactBoundInvoice(evidence, order) {
     && invoice?.invoiceId === order.providerRefs.invoiceId
     && invoice?.providerOrderRef === `bk-order-${order.id}`
     && invoice?.providerOrderRef === order.providerRefs.providerOrderRef
+    && invoice?.customerId === order.providerRefs.customerId
+    && invoice?.itemId === order.accountingSnapshot?.itemId
+    && invoice?.taxCode === order.accountingSnapshot?.taxCode
+    && invoice?.quantity === 1
+    && invoice?.lineAmountCents === order.amountCents
+    && invoice?.unitPriceCents === order.amountCents
     && invoice?.totalAmountCents === order.amountCents
     && invoice?.currency === order.currency
     && invoice?.entityState === 'present';
+}
+
+function paymentExpectation(order) {
+  const expected = {
+    realmId:order.providerRefs.realmId,
+    invoiceId:order.providerRefs.invoiceId,
+    providerOrderRef:order.providerRefs.providerOrderRef,
+    amountCents:order.amountCents,
+    currency:order.currency,
+  };
+  if (order.orderType === 'digital_product') {
+    Object.assign(expected, {
+      customerId:order.providerRefs.customerId,
+      itemId:order.accountingSnapshot?.itemId,
+      taxCode:order.accountingSnapshot?.taxCode,
+    });
+  }
+  return expected;
 }
 
 function retryAt(order, now) {
@@ -275,6 +351,8 @@ export function createCommerceService({
   graph,
   auth,
   getCommerceItem = getCatalogItem,
+  getConfiguredCommerceItem = getCatalogConfiguredItem,
+  getPaymentsCapability = getCatalogPaymentsCapability,
   listCommerceCapabilities = getCatalogCapabilities,
   isDigitalFulfillmentAvailable = () => false,
   readFeatureFlags: readFlags = readCommerceFeatureFlags,
@@ -283,6 +361,7 @@ export function createCommerceService({
   fulfillDigitalOrder = async () => ({fulfilled:true}),
   alertOperator = async () => {},
   authRequestLimiter = async () => true,
+  publicAuthLimiter = null,
   statusRequestLimiter = async () => true,
   idFactory = randomUUID,
   workerIdFactory = purpose => `${purpose}-${randomUUID()}`,
@@ -291,7 +370,9 @@ export function createCommerceService({
   actionCodeSettings = DEFAULT_ACTION_CODE_SETTINGS,
 } = {}) {
   if (!repository || typeof readFlags !== 'function' || typeof getApprovedPilotEmail !== 'function'
-    || typeof getCommerceItem !== 'function' || typeof listCommerceCapabilities !== 'function'
+    || typeof getCommerceItem !== 'function' || typeof getConfiguredCommerceItem !== 'function'
+    || typeof getPaymentsCapability !== 'function'
+    || typeof listCommerceCapabilities !== 'function'
     || typeof isDigitalFulfillmentAvailable !== 'function' || typeof idFactory !== 'function'
     || typeof workerIdFactory !== 'function' || typeof clock !== 'function') {
     throw new TypeError('Commerce service dependencies are required');
@@ -305,6 +386,28 @@ export function createCommerceService({
       await sleep();
     }
     return repository.getEffect(orderId, effectName);
+  }
+
+  function verifiedPaymentsCapability() {
+    try {
+      return assertPaymentsCapability(getPaymentsCapability());
+    } catch {
+      return null;
+    }
+  }
+
+  function publicActivationReady(flags,item) {
+    return isPublicCommerceActivationReady({
+      flags,capability:getPaymentsCapability(),item,
+      fulfillmentAvailable:isDigitalFulfillmentAvailable(),
+    });
+  }
+
+  function controlledOwnerPilotReady(flags,item) {
+    return isControlledOwnerPilotReady({
+      flags,capability:getPaymentsCapability(),item,
+      fulfillmentAvailable:isDigitalFulfillmentAvailable(),
+    });
   }
 
   async function dispatchPilotAuthEmail(approvedEmail, binding, settings = actionCodeSettings) {
@@ -335,6 +438,35 @@ export function createCommerceService({
       return false;
     }
     await repository.completePilotAuthEmailEffect(binding, workerId, claim.claimId);
+    return true;
+  }
+
+  async function dispatchPublicDigitalAuthEmail(email, binding, settings = actionCodeSettings) {
+    if (!auth?.generateSignInWithEmailLink || !graph?.sendPilotAuthLink) {
+      throw commerceError('COMMERCE_CONFIGURATION_INVALID', 'Commerce is unavailable');
+    }
+    const workerId = workerIdFactory('public-digital-auth-email');
+    const claim = await repository.claimPublicDigitalAuthEmailEffect(binding, workerId, clock());
+    if (!claim) return false;
+    let link;
+    try {
+      link = await auth.generateSignInWithEmailLink(email, settings);
+    } catch {
+      await repository.recordPublicDigitalAuthEmailFailure(
+        binding, workerId, claim.claimId, {code:'public_digital_auth_link_generation_failed'}
+      );
+      return false;
+    }
+    await repository.markPublicDigitalAuthDispatchStarted(binding, workerId, claim.claimId, clock());
+    try {
+      await graph.sendPilotAuthLink({to:email,link});
+    } catch {
+      await repository.recordPublicDigitalAuthEmailFailure(
+        binding, workerId, claim.claimId, {code:'public_digital_auth_email_unknown'}
+      );
+      return false;
+    }
+    await repository.completePublicDigitalAuthEmailEffect(binding, workerId, claim.claimId);
     return true;
   }
 
@@ -378,6 +510,12 @@ export function createCommerceService({
           readback = await quickbooks.getInvoice(created.invoiceId);
           if (readback?.invoice?.invoiceId !== created.invoiceId
             || readback.invoice.providerOrderRef !== `bk-order-${orderId}`
+            || readback.invoice.customerId !== created.customerId
+            || readback.invoice.itemId !== order.accountingSnapshot?.itemId
+            || readback.invoice.taxCode !== order.accountingSnapshot?.taxCode
+            || readback.invoice.quantity !== 1
+            || readback.invoice.lineAmountCents !== order.amountCents
+            || readback.invoice.unitPriceCents !== order.amountCents
             || readback.invoice.totalAmountCents !== order.amountCents
             || readback.invoice.currency !== order.currency
             || readback.invoice.entityState !== 'present'
@@ -389,11 +527,19 @@ export function createCommerceService({
           }
         }
       } catch (error) {
+        const customerAmbiguous = error?.code === 'QBO_CUSTOMER_AMBIGUOUS';
+        const invoiceAmbiguous = error?.code === 'QBO_INVOICE_AMBIGUOUS';
         if (error?.code !== 'PROVIDER_TIMEOUT') {
           await repository.recordEffectFailure(
             orderId, 'invoice_create', createWorker, createClaim.claimId,
-            {code:'invoice_create_failed'}, clock()
+            customerAmbiguous || invoiceAmbiguous
+              ? {code:customerAmbiguous ? 'customer_accounting_ambiguous' : 'invoice_accounting_ambiguous',terminal:true}
+              : {code:'invoice_create_failed'},
+            clock()
           );
+        }
+        if (customerAmbiguous || invoiceAmbiguous) {
+          throw commerceError('ORDER_MANUAL_REVIEW', 'Order requires administrator review');
         }
         throw commerceError('ORDER_PROCESSING_PENDING', 'Order processing is pending');
       }
@@ -408,6 +554,9 @@ export function createCommerceService({
       );
     } else {
       const effect = await waitForEffect(orderId, 'invoice_create');
+      if (effect?.status === 'manual_review') {
+        throw commerceError('ORDER_MANUAL_REVIEW', 'Order requires administrator review');
+      }
       if (effect && effect.status !== 'completed') {
         throw commerceError('ORDER_PROCESSING_PENDING', 'Order processing is pending');
       }
@@ -457,9 +606,18 @@ export function createCommerceService({
 
   async function dispatchPendingEffectsInternal(at) {
     const recovered = await repository.recoverExpiredEffects(at);
+    let cleanupFailed = false;
+    if (typeof repository.cleanupExpiredPublicAuthArtifacts === 'function') {
+      try {
+        await repository.cleanupExpiredPublicAuthArtifacts(at, {limit:500});
+      } catch {
+        cleanupFailed = true;
+        await alertOperator({code:'public_auth_cleanup_unavailable'});
+      }
+    }
     const flags = readFlags();
     const dueEffects = await repository.listDueEffects(at, {limit:RECONCILIATION_LIMIT});
-    if (flags.digitalInvoicePilotEnabled === true) {
+    if (controlledOwnerFlagEnabled(flags)) {
       let approved;
       const loadApproved = () => {
         approved ??= requireApprovedEmail(getApprovedPilotEmail);
@@ -508,8 +666,64 @@ export function createCommerceService({
           }
         }
       }
+    } else if (publicActivationReady(flags,getConfiguredCommerceItem(PILOT_SKU))) {
+      for (const effect of dueEffects) {
+        if (!['invoice_create','invoice_send'].includes(effect.effect)) continue;
+        const order=await repository.getOrder(effect.orderId);
+        if (!order) {
+          await repository.recordPendingEffectFailure(effect,{
+            code:'commerce_effect_order_missing',terminal:true,
+          },at);
+          continue;
+        }
+        if (order.status === 'manual_review') {
+          await repository.recordPendingEffectFailure(effect,{
+            code:'commerce_effect_order_manual_review',terminal:true,
+          },at);
+          continue;
+        }
+        if (effect.effect === 'invoice_send') {
+          await repository.recordPendingEffectFailure(effect,{
+            code:'public_invoice_email_unavailable',terminal:true,
+          },at);
+          continue;
+        }
+        const refs=order.providerRefs;
+        if (typeof refs?.realmId !== 'string' || refs.realmId.length < 1
+          || typeof refs?.invoiceId !== 'string' || refs.invoiceId.length < 1
+          || typeof refs?.customerId !== 'string' || refs.customerId.length < 1
+          || refs?.providerOrderRef !== `bk-order-${effect.orderId}`) {
+          await repository.recordPendingEffectFailure(effect,{
+            code:'public_invoice_create_evidence_unavailable',terminal:true,
+          },at);
+          continue;
+        }
+        const workerId=workerIdFactory('public-invoice-create-recovery');
+        const claim=await repository.claimEffect(effect.orderId,'invoice_create',workerId,at);
+        if (!claim) continue;
+        let evidence;
+        try {
+          evidence=await quickbooks.getInvoice(refs.invoiceId);
+        } catch {
+          await repository.recordEffectFailure(
+            effect.orderId,'invoice_create',workerId,claim.claimId,
+            {code:'public_invoice_evidence_unavailable'},at
+          );
+          continue;
+        }
+        if (!isExactBoundInvoice(evidence,order)) {
+          await repository.recordEffectFailure(
+            effect.orderId,'invoice_create',workerId,claim.claimId,
+            {code:'public_invoice_evidence_ambiguous',terminal:true},at
+          );
+          continue;
+        }
+        await repository.completeEffect(
+          effect.orderId,'invoice_create',workerId,claim.claimId,{providerRefs:refs}
+        );
+      }
     }
-    return recovered;
+    return Object.freeze({...recovered,cleanupFailed});
   }
 
   async function verifyOrderPaymentInternal({orderId, source} = {}) {
@@ -550,13 +764,7 @@ export function createCommerceService({
     }
 
     try {
-      const verified = verifyQuickBooksPaymentEvidence(evidence, {
-        realmId:order.providerRefs.realmId,
-        invoiceId:order.providerRefs.invoiceId,
-        providerOrderRef:order.providerRefs.providerOrderRef,
-        amountCents:order.amountCents,
-        currency:order.currency,
-      });
+      const verified = verifyQuickBooksPaymentEvidence(evidence, paymentExpectation(order));
       const completeVerified = order.orderType === 'service'
         ? repository.completeVerifiedServiceOrder.bind(repository)
         : repository.completeVerifiedDigitalOrder.bind(repository);
@@ -628,9 +836,18 @@ export function createCommerceService({
         }
         await repository.completeEffect(appointmentId,'invoice_create',createWorker,createClaim.claimId,{providerRefs});
       } catch (error) {
-        if (error?.code !== 'PROVIDER_TIMEOUT') await repository.recordEffectFailure(
-          appointmentId,'invoice_create',createWorker,createClaim.claimId,{code:'invoice_create_failed'},clock()
+        const ambiguousCreate=['PROVIDER_TIMEOUT','QBO_CUSTOMER_AMBIGUOUS','QBO_INVOICE_AMBIGUOUS']
+          .includes(error?.code);
+        await repository.recordEffectFailure(
+          appointmentId,'invoice_create',createWorker,createClaim.claimId,
+          ambiguousCreate
+            ? {code:'service_invoice_accounting_ambiguous',terminal:true}
+            : {code:'invoice_create_failed'},
+          clock()
         );
+        if (ambiguousCreate) {
+          throw commerceError('ORDER_MANUAL_REVIEW','Order requires administrator review');
+        }
         throw commerceError('ORDER_PROCESSING_PENDING','Order processing is pending');
       }
     } else {
@@ -677,6 +894,43 @@ export function createCommerceService({
     },
 
     approveServiceInvoice: approveServiceInvoiceInternal,
+    async requestPublicSignInLink(input, context) {
+      if (!record(input) || Object.keys(input).some(key => !['email','orderHandle'].includes(key))
+        || !Object.hasOwn(input,'email')) return GENERIC_AUTH_RESULT;
+      const candidate = normalizedEmail(input.email);
+      const metadata = publicAuthContext(context);
+      if (!candidate || !metadata || !publicAuthLimiter?.consume) return GENERIC_AUTH_RESULT;
+      const hasOrderHandle = Object.hasOwn(input, 'orderHandle');
+      if (hasOrderHandle && (typeof input.orderHandle !== 'string'
+        || !SAFE_IDEMPOTENCY_KEY.test(input.orderHandle))) return GENERIC_AUTH_RESULT;
+      let allowed;
+      try {
+        allowed = await publicAuthLimiter.consume({
+          emailDigest:publicAuthEmailDigest(candidate),ipDigest:metadata.ipDigest,appId:metadata.appId,
+        });
+      } catch {
+        return GENERIC_AUTH_RESULT;
+      }
+      if (allowed !== true || readFlags().publicAuthResumeEnabled !== true) return GENERIC_AUTH_RESULT;
+      let settings = buildPilotActionCodeSettings(null, actionCodeSettings);
+      if (hasOrderHandle) {
+        const order = await repository.getOrder(input.orderHandle);
+        if (!order || order.authorizedRecipientBinding !== recipientBinding(candidate)
+          || order.sku !== PILOT_SKU || order.orderType !== 'digital_product'
+          || typeof order.customerUid !== 'string' || order.customerUid.length < 1) {
+          return GENERIC_AUTH_RESULT;
+        }
+        settings = buildPilotActionCodeSettings(input.orderHandle, actionCodeSettings);
+      }
+      const effect = await repository.createPublicDigitalAuthEmailEffect({
+        email:candidate,sku:PILOT_SKU,purpose:'sign_in',
+        issuanceBucket:Math.floor(clock().getTime() / PUBLIC_AUTH_WINDOW_MS),
+      });
+      if (!effect) return GENERIC_AUTH_RESULT;
+      await dispatchPublicDigitalAuthEmail(candidate, effect.binding, settings);
+      return GENERIC_AUTH_RESULT;
+    },
+
     async requestPilotSignInLink(input, appCheckContext) {
       if (!appCheckContext?.app) throw commerceError('APP_CHECK_REQUIRED', 'App Check is required');
       if (!record(input) || Object.keys(input).some(key => !['email','orderHandle'].includes(key))
@@ -690,7 +944,7 @@ export function createCommerceService({
       if (!approvedRecipient(candidate, approved)) return GENERIC_AUTH_RESULT;
       if (!(await authRequestLimiter(rateLimitKey('pilot-auth-approved')))) return GENERIC_AUTH_RESULT;
       const flags = readFlags();
-      if (flags.digitalInvoicePilotEnabled !== true) {
+      if (!controlledOwnerFlagEnabled(flags)) {
         await repository.recordPilotAuthRequestAllowedDisabled();
         return GENERIC_AUTH_RESULT;
       }
@@ -712,17 +966,14 @@ export function createCommerceService({
 
     async createDigitalOrder(input, authContext) {
       const flags = readFlags();
-      if (flags.digitalInvoicePilotEnabled !== true) {
+      const configuredItem = getConfiguredCommerceItem(input?.sku);
+      if (flags.publicAuthResumeEnabled !== true || flags.publicDigitalCheckoutEnabled !== true) {
         throw commerceError('COMMERCE_DISABLED', 'Digital ordering is unavailable');
       }
+      if (!publicActivationReady(flags,configuredItem)) {
+        throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable');
+      }
       const identity = await authoritativeIdentity(authContext, getCurrentUser);
-      const approved = requireApprovedEmail(getApprovedPilotEmail);
-      if (!approvedRecipient(identity.email, approved)) {
-        throw commerceError('PILOT_RECIPIENT_REQUIRED', 'Digital ordering is unavailable');
-      }
-      if (identity.authorizedRecipientBinding !== recipientBinding(approved)) {
-        throw commerceError('AUTH_SESSION_INVALID', 'Authentication is no longer valid');
-      }
       if (!validOrderInput(input)) throw commerceError('ORDER_INVALID', 'Order input is invalid');
       const item = getCommerceItem(input.sku);
       if (item.orderType !== 'digital_product') {
@@ -733,20 +984,51 @@ export function createCommerceService({
         customerUid:identity.uid,
         authorizedRecipientBinding:identity.authorizedRecipientBinding,
       };
-      const reservation = await repository.createReservedDigitalOrder({
-        recipientBinding:recipientBinding(approved),
+      const reservation = await repository.reservePublicDigitalOrder({
+        customerBinding:identity.authorizedRecipientBinding,
+        sku:item.sku,
         orderId:idFactory(),
         order,
       });
-      await resumeDigitalInvoice(reservation.orderId, approved);
+      await resumeDigitalInvoice(reservation.orderId, identity.email);
       const stored = await repository.getOrder(reservation.orderId);
+      const storedStatus = reservation.duplicate ? customerStatus(stored) : null;
       return Object.freeze({
         orderHandle:reservation.orderId,
         amountCents:stored.amountCents,
         currency:stored.currency,
-        status:'payment_verification_pending',
-        message:SAFE_ORDER_RESULT_MESSAGE,
+        status:storedStatus?.status ?? 'payment_verification_pending',
+        message:storedStatus?.message ?? SAFE_ORDER_RESULT_MESSAGE,
       });
+    },
+
+    async createControlledOwnerPilotOrder(input, authContext) {
+      const flags=readFlags();
+      const item=getConfiguredCommerceItem(input?.sku);
+      if (!controlledOwnerPilotReady(flags,item)) {
+        throw commerceError('COMMERCE_DISABLED','Controlled owner ordering is unavailable');
+      }
+      const identity=await authoritativeIdentity(authContext,getCurrentUser);
+      const approved=requireApprovedEmail(getApprovedPilotEmail);
+      if (identity.companionOwner !== true || authContext?.token?.companionOwner !== true
+        || !approvedRecipient(identity.email,approved)) {
+        throw commerceError('PILOT_RECIPIENT_REQUIRED','Controlled owner identity is required');
+      }
+      if (!validOrderInput(input)) throw commerceError('ORDER_INVALID','Order input is invalid');
+      if (item?.orderType !== 'digital_product') {
+        throw commerceError('DIGITAL_PRODUCT_REQUIRED','Digital product ordering is required');
+      }
+      const order={...newOrder({item,customer:{name:input.customerName.trim()}}),
+        customerUid:identity.uid,authorizedRecipientBinding:identity.authorizedRecipientBinding};
+      const reservation=await repository.createReservedDigitalOrder({
+        recipientBinding:identity.authorizedRecipientBinding,orderId:idFactory(),order,
+      });
+      await resumeDigitalInvoice(reservation.orderId,identity.email);
+      const stored=await repository.getOrder(reservation.orderId);
+      const storedStatus=reservation.duplicate ? customerStatus(stored) : null;
+      return Object.freeze({orderHandle:reservation.orderId,amountCents:stored.amountCents,
+        currency:stored.currency,status:storedStatus?.status ?? 'payment_verification_pending',
+        message:storedStatus?.message ?? SAFE_ORDER_RESULT_MESSAGE});
     },
 
     async getOrderStatus(input = {}, authContext) {
@@ -773,12 +1055,14 @@ export function createCommerceService({
     async getBuyerCommerceCapability(appCheckContext) {
       if (!appCheckContext?.app) throw commerceError('APP_CHECK_REQUIRED', 'App Check is required');
       const flags = readFlags();
-      const releaseReady = flags.digitalInvoicePilotEnabled === true
-        && isDigitalFulfillmentAvailable() === true;
-      const products = listCommerceCapabilities().map(item => Object.freeze({
-        sku:item.sku,
-        active:releaseReady && item.active === true,
-      }));
+      const configuredItem=getConfiguredCommerceItem(PILOT_SKU);
+      const products = listCommerceCapabilities().map(item => {
+        const display = buyerDisplay(item);
+        if (!display || typeof item?.sku !== 'string' || item.sku.length < 1 || item.sku.length > 128
+          || typeof item.active !== 'boolean') throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable');
+        return Object.freeze({sku:item.sku,active:publicActivationReady(flags,configuredItem)
+          && item.active === true,display});
+      });
       return Object.freeze({products:Object.freeze(products)});
     },
 
@@ -900,7 +1184,8 @@ export function createCommerceService({
       return Object.freeze({
         recoveredCreateCount:recovered.recoveredCreateOrderIds.length,
         manualReviewCount:recovered.manualReviewOrderIds.length
-          + recovered.manualReviewPilotAuthBindings.length,
+          + recovered.manualReviewPilotAuthBindings.length
+          + (recovered.manualReviewPublicAuthBindings?.length ?? 0),
         reconciliationCandidateCount:prioritized.size,
         verifiedCount:verified,
       });
@@ -914,7 +1199,9 @@ export function createCommerceService({
         recoveredCreateCount:recovered.recoveredCreateOrderIds.length,
         recoveredSendCount:recovered.recoveredSendOrderIds.length,
         manualReviewCount:recovered.manualReviewOrderIds.length
-          + recovered.manualReviewPilotAuthBindings.length,
+          + recovered.manualReviewPilotAuthBindings.length
+          + (recovered.manualReviewPublicAuthBindings?.length ?? 0),
+        ...(recovered.cleanupFailed === true ? {cleanupFailed:true} : {}),
       });
     },
 
@@ -934,13 +1221,7 @@ export function createCommerceService({
       let refundEvidence;
       try {
         paymentEvidence = await quickbooks?.getInvoice?.(order.providerRefs.invoiceId);
-        verifyQuickBooksPaymentEvidence(paymentEvidence, {
-          realmId:order.providerRefs.realmId,
-          invoiceId:order.providerRefs.invoiceId,
-          providerOrderRef:order.providerRefs.providerOrderRef,
-          amountCents:order.amountCents,
-          currency:order.currency,
-        });
+        verifyQuickBooksPaymentEvidence(paymentEvidence, paymentExpectation(order));
         refundEvidence = await quickbooks.getRefundEvidence(order.providerRefs.invoiceId);
       } catch {
         throw commerceError('REFUND_EVIDENCE_UNAVAILABLE', 'Refund amount cannot be verified');
@@ -987,13 +1268,7 @@ export function createCommerceService({
       }
       try {
         const evidence = await quickbooks?.getInvoice?.(order.providerRefs.invoiceId);
-        verifyQuickBooksPaymentEvidence(evidence, {
-          realmId:order.providerRefs.realmId,
-          invoiceId:order.providerRefs.invoiceId,
-          providerOrderRef:order.providerRefs.providerOrderRef,
-          amountCents:order.amountCents,
-          currency:order.currency,
-        });
+        verifyQuickBooksPaymentEvidence(evidence, paymentExpectation(order));
       } catch {
         throw commerceError('PAYMENT_EVIDENCE_UNAVAILABLE', 'Accounting evidence is unavailable');
       }
@@ -1018,13 +1293,7 @@ export function createCommerceService({
       let refundEvidence;
       try {
         paymentEvidence = await quickbooks?.getInvoice?.(order.providerRefs.invoiceId);
-        verifyQuickBooksPaymentEvidence(paymentEvidence, {
-          realmId:order.providerRefs.realmId,
-          invoiceId:order.providerRefs.invoiceId,
-          providerOrderRef:order.providerRefs.providerOrderRef,
-          amountCents:order.amountCents,
-          currency:order.currency,
-        });
+        verifyQuickBooksPaymentEvidence(paymentEvidence, paymentExpectation(order));
         if (quickbooks?.refundEvidenceCapability !== true
           || typeof quickbooks?.getRefundEvidence !== 'function') {
           return preserveForManualReview('refund_evidence_unsupported');
@@ -1085,9 +1354,26 @@ export function createCommerceService({
       }
       const flags = readFlags();
       return Object.freeze({
-        digitalInvoicePilotEnabled:flags.digitalInvoicePilotEnabled,
+        publicAuthResumeEnabled:flags.publicAuthResumeEnabled,
+        publicDigitalCheckoutEnabled:flags.publicDigitalCheckoutEnabled,
+        controlledOwnerPilotEnabled:flags.controlledOwnerPilotEnabled,
         serviceQboSendEnabled:flags.serviceQboSendEnabled,
       });
+    },
+
+    async resolvePublicAuthEmailQuarantine(input, authContext) {
+      const adminUid=requireAdminContext(authContext);
+      if (!record(input) || Object.keys(input).length !== 1 || !Object.hasOwn(input,'email')) {
+        throw commerceError('ORDER_INVALID','Quarantine resolution input is invalid');
+      }
+      const email=normalizedEmail(input.email);
+      if (!email || typeof repository.resolvePublicAuthQuarantine !== 'function') {
+        throw commerceError('ORDER_INVALID','Quarantine resolution input is invalid');
+      }
+      const resolved=await repository.resolvePublicAuthQuarantine({
+        email,sku:PILOT_SKU,purpose:'sign_in',adminUid,
+      });
+      return Object.freeze({resolved:resolved === true});
     },
   });
 }

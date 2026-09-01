@@ -1,3 +1,5 @@
+import {assertPaymentsCapability} from '../providers/quickbooks-payments-capability.js';
+
 function deepFreeze(value) {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
     for (const nested of Object.values(value)) deepFreeze(nested);
@@ -5,6 +7,22 @@ function deepFreeze(value) {
   }
   return value;
 }
+
+const PAYMENTS_CAPABILITY = deepFreeze({
+  accounting:false,
+  payments:false,
+  mode:'documented-intuit-flow',
+  supportsImmediatePayment:false,
+  supportsCards:false,
+  supportsApplePay:false,
+  supportsPayPal:false,
+  supportsAch:false,
+  supportsWebhooks:false,
+  surchargingEnabled:false,
+  onlineInvoiceDelivery:false,
+});
+
+const INVOICE_PAYMENT_METHODS = Object.freeze(['card','apple_pay','paypal','venmo']);
 
 const ITEMS = deepFreeze({
   'home-inspection-study-guide': {
@@ -23,11 +41,12 @@ const ITEMS = deepFreeze({
       itemVerified: true,
     },
     tax: {
-      classification: 'ca_electronic_only_non_taxable_proposed',
+      classification: 'electronic_only_non_taxable_owner_approved',
       quickBooksTaxCode: 'NON',
       classificationApproved: true,
-      accountantVerified: false,
-      scope: 'California electronic-only delivery with no tangible copy or storage media',
+      accountantVerified: true,
+      geographicRestriction: 'none_owner_approved',
+      scope: 'Nationwide electronic-only delivery with no tangible copy or storage media',
     },
     artifact: {
       objectKey: 'private-commerce/home-inspection-study-guide/guide-v1.pdf',
@@ -41,7 +60,7 @@ const ITEMS = deepFreeze({
     release: {
       ownerPilotApproved: true,
       priceApproved: true,
-      fulfillmentRuntimeVerified: false,
+      fulfillmentRuntimeVerified: true,
       deployApproved: false,
     },
     sourceEvidence: {
@@ -56,8 +75,24 @@ const ITEMS = deepFreeze({
   }
 });
 
-export function isCommerceItemPurchasable(item) {
-  return item?.active === true
+function paymentsCapabilityVerified(capability) {
+  try {
+    assertPaymentsCapability(capability);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function isCommerceItemPurchasable(item, capability = PAYMENTS_CAPABILITY) {
+  return paymentsCapabilityVerified(capability)
+    && commerceItemVerified(item)
+    && item?.active === true
+    && item.release?.deployApproved === true;
+}
+
+function commerceItemVerified(item) {
+  return item != null
     && Number.isInteger(item.amountCents)
     && item.amountCents > 0
     && item.quickBooks?.itemVerified === true
@@ -80,8 +115,36 @@ export function isCommerceItemPurchasable(item) {
     && item.artifact?.objectVerified === true
     && item.release?.ownerPilotApproved === true
     && item.release?.priceApproved === true
-    && item.release?.fulfillmentRuntimeVerified === true
-    && item.release?.deployApproved === true;
+    && item.release?.fulfillmentRuntimeVerified === true;
+}
+
+function exactReviewedPaymentsCapability(capability) {
+  return capability?.mode === 'documented-intuit-flow' && paymentsCapabilityVerified(capability);
+}
+
+export function isControlledOwnerPilotReady({flags,capability,item,fulfillmentAvailable} = {}) {
+  return flags?.controlledOwnerPilotEnabled === true
+    && flags?.publicAuthResumeEnabled === false
+    && flags?.publicDigitalCheckoutEnabled === false
+    && flags?.serviceQboSendEnabled === false
+    && fulfillmentAvailable === true
+    && exactReviewedPaymentsCapability(capability)
+    && commerceItemVerified(item)
+    && item.release?.ownerPilotApproved === true;
+}
+
+export function isPublicCommerceActivationReady({flags,capability,item,fulfillmentAvailable} = {}) {
+  return flags?.publicAuthResumeEnabled === true
+    && flags?.publicDigitalCheckoutEnabled === true
+    && flags?.controlledOwnerPilotEnabled === false
+    && flags?.serviceQboSendEnabled === false
+    && fulfillmentAvailable === true
+    && exactReviewedPaymentsCapability(capability)
+    && isCommerceItemPurchasable(item,capability);
+}
+
+export function getConfiguredPaymentsCapability() {
+  return PAYMENTS_CAPABILITY;
 }
 
 export function getConfiguredCommerceItem(sku) {
@@ -99,12 +162,20 @@ export function getCommerceItem(sku) {
 }
 
 export function listPublicCommerceItems() {
-  return Object.freeze(Object.values(ITEMS).filter(isCommerceItemPurchasable));
+  return Object.freeze(Object.values(ITEMS).filter(item => isCommerceItemPurchasable(item)));
 }
 
 export function listCommerceCapabilities() {
   return Object.freeze(Object.values(ITEMS).map(item => Object.freeze({
     sku:item.sku,
     active:isCommerceItemPurchasable(item),
+    display:Object.freeze({
+      name:item.name,
+      amountCents:item.amountCents,
+      currency:item.currency,
+      invoiceProvider:'quickbooks',
+      paymentMethods:INVOICE_PAYMENT_METHODS,
+      delivery:'protected_electronic_delivery',
+    }),
   })));
 }

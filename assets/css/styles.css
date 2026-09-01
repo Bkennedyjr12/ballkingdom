@@ -977,6 +977,10 @@ body.theme-training .training-hero::before {
 .commerce-summary dd { margin: 0; }
 .commerce-summary a { color: var(--gold); }
 .commerce-fine-print { color: #a7aab0; font-size: .8rem; }
+.commerce-payment-note { margin: 1.5rem 0; padding: 1.15rem 0; border-block: 1px solid #343434; }
+.commerce-payment-note h3 { margin-bottom: .65rem; font-size: 1rem; color: #fff; }
+.commerce-payment-note p { margin: 0 0 .75rem; color: #c1c3c7; font-size: .87rem; }
+.commerce-payment-note p:last-child { margin-bottom: 0; color: #f0d18b; }
 .commerce-action { padding: clamp(1.75rem,5vw,4rem); background: #f5f2ea; color: #171717; }
 .commerce-action h2 { color: #111; font-size: clamp(2rem,4vw,3.4rem); }
 .commerce-stage { color: #6a5a32; font-family: var(--font-display); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }

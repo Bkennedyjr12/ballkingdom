@@ -49,6 +49,7 @@ test('mapped root Storage rules deny paid artifacts while preserving retained ow
     const contexts = [
       environment.unauthenticatedContext(),
       environment.authenticatedContext('ordinary'),
+      environment.authenticatedContext('public-buyer',{email_verified:true}),
       environment.authenticatedContext('owner-1',{companionOwner:true}),
       environment.authenticatedContext('owner-2',{companionOwner:true}),
       environment.authenticatedContext('admin',{admin:true}),
@@ -69,6 +70,7 @@ test('mapped root Storage rules deny paid artifacts while preserving retained ow
       new Uint8Array([7]),{contentType:'application/pdf'}));
     for (const context of [
       environment.unauthenticatedContext(),environment.authenticatedContext('ordinary'),
+      environment.authenticatedContext('public-buyer',{email_verified:true}),
       environment.authenticatedContext('owner-2',{companionOwner:true}),
       environment.authenticatedContext('admin',{admin:true}),
     ]) {

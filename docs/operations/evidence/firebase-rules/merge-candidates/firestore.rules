@@ -249,6 +249,9 @@ service cloud.firestore {
     match /commerceRateLimits/{document=**} {
       allow read, write: if false;
     }
+    match /commercePublicAuthLimits/{document=**} {
+      allow read, write: if false;
+    }
     match /fulfillmentGrants/{document=**} {
       allow read, write: if false;
     }

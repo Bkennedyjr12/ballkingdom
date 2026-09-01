@@ -82,6 +82,10 @@ function commerceInvoiceReadback(overrides = {}) {
     Id:'invoice-30',
     DocNumber:'1001',
     CustomerRef:{value:'customer-9'},
+    BillEmail:{Address:'ada@example.com'},
+    AllowOnlinePayment:true,
+    AllowOnlineCreditCardPayment:true,
+    AllowOnlineACHPayment:true,
     PrivateNote:'bk-order-order-1',
     TotalAmt:49,
     Balance:49,
@@ -109,7 +113,9 @@ function commerceOrder(overrides = {}) {
 function minimalCommerceCreateFetch({docNumber = '1001', readback = commerceInvoiceReadback()} = {}) {
   return scriptedFetch([
     tokenStep(),
-    () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
+    () => json({QueryResponse:{Customer:[{
+      Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+    }]}}),
     () => json({Item:{Id:'item-4',Name:'Championship Week',Active:true}}),
     () => json({Invoice:{Id:'invoice-30',DocNumber:docNumber},time:'2026-08-30T10:00:00-07:00'}),
     call => {
@@ -145,6 +151,24 @@ test('QuickBooks Accounting OAuth uses only the accounting scope', () => {
   assert.equal(url.searchParams.get('scope')?.includes('payments'), false);
 });
 
+test('reads exact CompanyInfo through the production Accounting realm without exposing raw provider data', async () => {
+  const fetchImpl=scriptedFetch([tokenStep(),call=>{
+    const url=new URL(call.url);
+    assert.equal(`${url.origin}${url.pathname}`,`${PROD_ROOT}/companyinfo/realm-7`);
+    assert.equal(url.searchParams.get('minorversion'),'75');
+    assertAccountingHeaders(call);
+    return json({CompanyInfo:{CompanyName:'The Ballers Kingdom',Id:'realm-7'},time:'provider-time'});
+  }]);
+  const result=await createQuickBooksClient(clientConfig(),fetchImpl).getCompanyInfo();
+  assert.deepEqual(result,{companyName:'The Ballers Kingdom'});
+  assertNoProviderPayloadKeys(result);
+});
+
+test('rejects malformed CompanyInfo instead of returning provider material', async () => {
+  const fetchImpl=scriptedFetch([tokenStep(),()=>json({CompanyInfo:{CompanyName:'',Id:'realm-7'}})]);
+  await assert.rejects(createQuickBooksClient(clientConfig(),fetchImpl).getCompanyInfo(),/CompanyInfo/);
+});
+
 test('creates a commerce Invoice on the production Accounting host with a stable order reference and deterministic requestid', async () => {
   let persistedRefreshToken;
   const fetchImpl = scriptedFetch([
@@ -153,9 +177,11 @@ test('creates a commerce Invoice on the production Accounting host with a stable
       const url = new URL(call.url);
       assert.equal(`${url.origin}${url.pathname}`, `${PROD_ROOT}/query`);
       assert.equal(url.searchParams.get('minorversion'), '75');
-      assert.equal(url.searchParams.get('query'), "select * from Customer where PrimaryEmailAddr = 'ada@example.com' maxresults 1");
+      assert.equal(url.searchParams.get('query'), "select * from Customer where PrimaryEmailAddr = 'ada@example.com' maxresults 2");
       assertAccountingHeaders(call);
-      return json({QueryResponse:{Customer:[{Id:'customer-9'}]}});
+      return json({QueryResponse:{Customer:[{
+        Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }]}});
     },
     call => {
       const url = new URL(call.url);
@@ -175,6 +201,9 @@ test('creates a commerce Invoice on the production Accounting host with a stable
       assert.equal(body.CustomerRef.value, 'customer-9');
       assert.equal(body.CurrencyRef.value, 'USD');
       assert.equal(body.PrivateNote, 'bk-order-order-1');
+      assert.equal(body.AllowOnlinePayment, true);
+      assert.equal(body.AllowOnlineCreditCardPayment, true);
+      assert.equal(body.AllowOnlineACHPayment, true);
       assert.equal(body.Line.length, 1);
       assert.equal(body.Line[0].Amount, 49);
       assert.equal(body.Line[0].SalesItemLineDetail.UnitPrice, 49);
@@ -206,6 +235,198 @@ test('creates a commerce Invoice on the production Accounting host with a stable
   fetchImpl.assertDone();
 });
 
+test('creates the exact public $49 Invoice for online delivery without browser payment options', async () => {
+  const itemName = 'Home Inspection Study Guide';
+  const accountingSnapshot={provider:'quickbooks',itemId:'8',itemName,taxCode:'NON'};
+  accountingSnapshot.fingerprint=createHash('sha256')
+    .update(['quickbooks','8',itemName,'NON'].join('\0')).digest('hex');
+  const order=commerceOrder({
+    name:itemName,
+    customer:{name:'Public Buyer',email:'verified-buyer@example.test'},
+    amountCents:4900,
+    currency:'USD',
+    accountingSnapshot,
+    provider:'browser-provider',
+    paymentOptions:{supportsCards:false,supportsApplePay:false,surchargingEnabled:true},
+  });
+  let invoiceBody;
+  const fetchImpl=scriptedFetch([
+    tokenStep(),
+    call => {
+      const url=new URL(call.url);
+      assert.equal(
+        url.searchParams.get('query'),
+        "select * from Customer where PrimaryEmailAddr = 'verified-buyer@example.test' maxresults 2"
+      );
+      return json({QueryResponse:{Customer:[{
+        Id:'customer-public',PrimaryEmailAddr:{Address:'verified-buyer@example.test'},
+      }]}});
+    },
+    call => {
+      assert.equal(new URL(call.url).pathname, '/v3/company/realm-7/item/8');
+      return json({Item:{Id:'8',Name:itemName,Active:true}});
+    },
+    call => {
+      const url=new URL(call.url);
+      assert.equal(url.pathname, '/v3/company/realm-7/invoice');
+      assert.equal(url.searchParams.get('requestid'), 'bk-order-order-1');
+      invoiceBody=JSON.parse(call.init.body);
+      return json({Invoice:{Id:'invoice-30',DocNumber:'1001'}});
+    },
+    () => json({Invoice:commerceInvoiceReadback({
+      CustomerRef:{value:'customer-public'},
+      BillEmail:{Address:'verified-buyer@example.test'},
+      Line:[{
+        DetailType:'SalesItemLineDetail',Amount:49,
+        SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'NON'},Qty:1,UnitPrice:49},
+      }],
+    })}),
+  ]);
+  const client=createQuickBooksClient(clientConfig(),fetchImpl);
+
+  assert.deepEqual(await client.createCommerceInvoice(order), {
+    customerId:'customer-public',invoiceId:'invoice-30',documentNumber:'1001',
+  });
+  assert.deepEqual(invoiceBody.BillEmail, {Address:'verified-buyer@example.test'});
+  assert.equal(invoiceBody.AllowOnlinePayment, true);
+  assert.equal(invoiceBody.AllowOnlineCreditCardPayment, true);
+  assert.equal(invoiceBody.AllowOnlineACHPayment, true);
+  assert.equal(invoiceBody.CurrencyRef.value, 'USD');
+  assert.equal(invoiceBody.Line.length, 1);
+  assert.equal(invoiceBody.Line[0].Amount, 49);
+  assert.equal(invoiceBody.Line[0].SalesItemLineDetail.UnitPrice, 49);
+  assert.equal(invoiceBody.Line[0].SalesItemLineDetail.Qty, 1);
+  assert.equal(invoiceBody.Line[0].SalesItemLineDetail.ItemRef.value, '8');
+  assert.equal(invoiceBody.Line[0].SalesItemLineDetail.TaxCodeRef.value, 'NON');
+  for (const key of [
+    'provider','paymentOptions','supportsCards','supportsApplePay','surchargingEnabled',
+  ]) assert.equal(Object.hasOwn(invoiceBody,key), false, `browser/provider key escaped: ${key}`);
+  fetchImpl.assertDone();
+});
+
+test('creates a Customer only when the bounded email lookup returns zero matches', async () => {
+  let customerCreateBody;
+  const fetchImpl=scriptedFetch([
+    tokenStep(),
+    call => {
+      const url=new URL(call.url);
+      assert.equal(
+        url.searchParams.get('query'),
+        "select * from Customer where PrimaryEmailAddr = 'ada@example.com' maxresults 2"
+      );
+      return json({QueryResponse:{}});
+    },
+    call => {
+      assert.equal(new URL(call.url).pathname, '/v3/company/realm-7/customer');
+      assert.equal(call.init.method, 'POST');
+      customerCreateBody=JSON.parse(call.init.body);
+      return json({Customer:{
+        Id:'customer-created',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }});
+    },
+    () => json({Item:{Id:'item-4',Name:'Championship Week',Active:true}}),
+    () => json({Invoice:{Id:'invoice-30',DocNumber:'1001'}}),
+    () => json({Invoice:commerceInvoiceReadback({CustomerRef:{value:'customer-created'}})}),
+  ]);
+  const client=createQuickBooksClient(clientConfig(),fetchImpl);
+
+  assert.deepEqual(await client.createCommerceInvoice(commerceOrder()), {
+    customerId:'customer-created',invoiceId:'invoice-30',documentNumber:'1001',
+  });
+  assert.deepEqual(customerCreateBody, {
+    DisplayName:'Ada Lovelace',PrimaryEmailAddr:{Address:'ada@example.com'},
+  });
+  fetchImpl.assertDone();
+});
+
+test('recovers a timed-out Customer create only from one exact email readback', async () => {
+  const timeout=Object.assign(new Error('provider body must stay redacted'),{name:'TimeoutError'});
+  const fetchImpl=scriptedFetch([
+    tokenStep(),
+    () => json({QueryResponse:{}}),
+    () => { throw timeout; },
+    call => {
+      assert.equal(
+        new URL(call.url).searchParams.get('query'),
+        "select * from Customer where PrimaryEmailAddr = 'ada@example.com' maxresults 2"
+      );
+      return json({QueryResponse:{Customer:[{
+        Id:'customer-recovered',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }]}});
+    },
+    () => json({Item:{Id:'item-4',Name:'Championship Week',Active:true}}),
+    () => json({Invoice:{Id:'invoice-30',DocNumber:'1001'}}),
+    () => json({Invoice:commerceInvoiceReadback({CustomerRef:{value:'customer-recovered'}})}),
+  ]);
+  const client=createQuickBooksClient(clientConfig(),fetchImpl);
+
+  assert.deepEqual(await client.createCommerceInvoice(commerceOrder()),{
+    customerId:'customer-recovered',invoiceId:'invoice-30',documentNumber:'1001',
+  });
+  fetchImpl.assertDone();
+});
+
+test('recovers a timed-out Invoice create only from one exact private-note readback', async () => {
+  const timeout=Object.assign(new Error('provider body must stay redacted'),{name:'AbortError'});
+  const recovered=commerceInvoiceReadback();
+  const fetchImpl=scriptedFetch([
+    tokenStep(),
+    () => json({QueryResponse:{Customer:[{
+      Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+    }]}}),
+    () => json({Item:{Id:'item-4',Name:'Championship Week',Active:true}}),
+    () => { throw timeout; },
+    call => {
+      assert.equal(
+        new URL(call.url).searchParams.get('query'),
+        "select * from Invoice where PrivateNote = 'bk-order-order-1' maxresults 2"
+      );
+      return json({QueryResponse:{Invoice:[recovered]}});
+    },
+    () => json({Invoice:recovered}),
+  ]);
+  const client=createQuickBooksClient(clientConfig(),fetchImpl);
+
+  assert.deepEqual(await client.createCommerceInvoice(commerceOrder()),{
+    customerId:'customer-9',invoiceId:'invoice-30',documentNumber:'1001',
+  });
+  fetchImpl.assertDone();
+});
+
+test('quarantines mismatched or multiple Customer email results before Invoice create', async t => {
+  const cases = [
+    ['one mismatched result', [{
+      Id:'customer-wrong',PrimaryEmailAddr:{Address:'other@example.test'},
+    }]],
+    ['multiple exact results', [
+      {Id:'customer-a',PrimaryEmailAddr:{Address:'ada@example.com'}},
+      {Id:'customer-b',PrimaryEmailAddr:{Address:'ada@example.com'}},
+    ]],
+  ];
+  for (const [name, customers] of cases) {
+    await t.test(name, async () => {
+      const fetchImpl=scriptedFetch([
+        tokenStep(),
+        call => {
+          const query=new URL(call.url).searchParams.get('query');
+          assert.equal(query, "select * from Customer where PrimaryEmailAddr = 'ada@example.com' maxresults 2");
+          return json({QueryResponse:{Customer:customers}});
+        },
+      ]);
+      const client=createQuickBooksClient(clientConfig(),fetchImpl);
+
+      await assert.rejects(client.createCommerceInvoice(commerceOrder()), error => {
+        assert.equal(error.code, 'QBO_CUSTOMER_AMBIGUOUS');
+        assert.equal(error.message, 'QuickBooks Customer lookup requires manual review');
+        assert.doesNotMatch(error.message, /ada@|other@|customer-a|customer-wrong/);
+        return true;
+      });
+      assert.equal(fetchImpl.calls.length, 2, 'no Customer or Invoice POST follows ambiguity');
+      fetchImpl.assertDone();
+    });
+  }
+});
+
 test('accepts the documented null DocNumber when CustomTxnNumber is enabled', async () => {
   const fetchImpl = minimalCommerceCreateFetch({
     docNumber:null,
@@ -222,6 +443,10 @@ test('accepts the documented null DocNumber when CustomTxnNumber is enabled', as
 test('fails closed when authoritative Invoice readback does not exactly match the commerce create contract', async t => {
   const cases = [
     ['customer reference', {CustomerRef:{value:'customer-old'}}],
+    ['billing email', {BillEmail:{Address:'other@example.test'}}],
+    ['online payment disabled', {AllowOnlinePayment:false}],
+    ['online card payment disabled', {AllowOnlineCreditCardPayment:false}],
+    ['online ACH payment disabled', {AllowOnlineACHPayment:false}],
     ['order reference', {PrivateNote:'bk-order-order-old'}],
     ['provider-calculated tax total', {TotalAmt:53.05,Balance:53.05}],
     ['unexpected non-full balance', {Balance:0,LinkedTxn:[{TxnId:'payment-old',TxnType:'Payment'}]}],
@@ -325,12 +550,16 @@ test('malformed Customer query and Item read responses fail with redacted operat
     ['invalid Customer query envelope', [tokenStep(), () => json({Wrong:{Customer:[]}})], 'Customer query'],
     ['invalid Item read JSON', [
       tokenStep(),
-      () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
+      () => json({QueryResponse:{Customer:[{
+        Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }]}}),
       () => new Response('item-body-secret', {status:200}),
     ], 'Item read'],
     ['invalid Item read envelope', [
       tokenStep(),
-      () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
+      () => json({QueryResponse:{Customer:[{
+        Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }]}}),
       () => json({Wrong:{Item:[]}}),
     ], 'Item read'],
   ];
@@ -364,7 +593,9 @@ test('reads the configured Item by immutable ID and rejects wrong name or inacti
   ]) {
     const fetchImpl=scriptedFetch([
       tokenStep(),
-      () => json({QueryResponse:{Customer:[{Id:'customer-9'}]}}),
+      () => json({QueryResponse:{Customer:[{
+        Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }]}}),
       () => json({Item}),
     ]);
     const client=createQuickBooksClient(clientConfig(),fetchImpl);
@@ -412,10 +643,15 @@ test('reads an Invoice and its linked Payment and returns only integer-cent norm
       return json({
         Invoice:{
           Id:'invoice-30',
+          CustomerRef:{value:'customer-9'},
           PrivateNote:'bk-order-order-1',
           TotalAmt:49,
           Balance:0,
           CurrencyRef:{value:'USD'},
+          Line:[{
+            DetailType:'SalesItemLineDetail',Amount:49,
+            SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'NON'},Qty:1,UnitPrice:49},
+          }],
           LinkedTxn:[{TxnId:'payment-42',TxnType:'Payment'}],
         },
         time:'2026-08-30T10:02:00-07:00',
@@ -447,6 +683,12 @@ test('reads an Invoice and its linked Payment and returns only integer-cent norm
     invoice:{
       invoiceId:'invoice-30',
       providerOrderRef:'bk-order-order-1',
+      customerId:'customer-9',
+      itemId:'8',
+      taxCode:'NON',
+      quantity:1,
+      lineAmountCents:4900,
+      unitPriceCents:4900,
       totalAmountCents:4900,
       balanceCents:0,
       currency:'USD',
@@ -463,6 +705,50 @@ test('reads an Invoice and its linked Payment and returns only integer-cent norm
   });
   assertNoProviderPayloadKeys(evidence);
   fetchImpl.assertDone();
+});
+
+test('normalizes authoritative customer and sales-line identity for downstream payment verification', async t => {
+  const cases=[
+    ['customer reference',{CustomerRef:{value:'customer-other'}},
+      {customerId:'customer-other',itemId:'8',taxCode:'NON',quantity:1,lineAmountCents:4900,unitPriceCents:4900}],
+    ['item reference',{Line:[{DetailType:'SalesItemLineDetail',Amount:49,
+      SalesItemLineDetail:{ItemRef:{value:'item-other'},TaxCodeRef:{value:'NON'},Qty:1,UnitPrice:49}}]},
+      {customerId:'customer-9',itemId:'item-other',taxCode:'NON',quantity:1,lineAmountCents:4900,unitPriceCents:4900}],
+    ['tax code',{Line:[{DetailType:'SalesItemLineDetail',Amount:49,
+      SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'TAX'},Qty:1,UnitPrice:49}}]},
+      {customerId:'customer-9',itemId:'8',taxCode:'TAX',quantity:1,lineAmountCents:4900,unitPriceCents:4900}],
+    ['quantity',{Line:[{DetailType:'SalesItemLineDetail',Amount:49,
+      SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'NON'},Qty:2,UnitPrice:24.5}}]},
+      {customerId:'customer-9',itemId:'8',taxCode:'NON',quantity:2,lineAmountCents:4900,unitPriceCents:2450}],
+    ['line amount',{Line:[{DetailType:'SalesItemLineDetail',Amount:48,
+      SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'NON'},Qty:1,UnitPrice:49}}]},
+      {customerId:'customer-9',itemId:'8',taxCode:'NON',quantity:1,lineAmountCents:4800,unitPriceCents:4900}],
+  ];
+  for (const [name,overrides,expected] of cases) {
+    await t.test(name, async () => {
+      const providerInvoice={
+        Id:'invoice-30',CustomerRef:{value:'customer-9'},PrivateNote:'bk-order-order-1',
+        TotalAmt:49,Balance:0,CurrencyRef:{value:'USD'},
+        Line:[{DetailType:'SalesItemLineDetail',Amount:49,
+          SalesItemLineDetail:{ItemRef:{value:'8'},TaxCodeRef:{value:'NON'},Qty:1,UnitPrice:49}}],
+        LinkedTxn:[{TxnId:'payment-42',TxnType:'Payment'}],
+        ...overrides,
+      };
+      const fetchImpl=scriptedFetch([
+        tokenStep(),
+        () => json({Invoice:providerInvoice}),
+        () => json({Payment:{Id:'payment-42',TotalAmt:49,UnappliedAmt:0,
+          Line:[{Amount:49,LinkedTxn:[{TxnId:'invoice-30',TxnType:'Invoice'}]}]}}),
+      ]);
+      const evidence=await createQuickBooksClient(clientConfig(),fetchImpl).getInvoice('invoice-30');
+      assert.deepEqual({
+        customerId:evidence.invoice.customerId,itemId:evidence.invoice.itemId,
+        taxCode:evidence.invoice.taxCode,quantity:evidence.invoice.quantity,
+        lineAmountCents:evidence.invoice.lineAmountCents,unitPriceCents:evidence.invoice.unitPriceCents,
+      },expected);
+      fetchImpl.assertDone();
+    });
+  }
 });
 
 test('reads and normalizes one exact Payment on the sandbox Accounting host', async () => {
