@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Apparel — The Ballers Kingdom</title>
-  <meta name="description" content="The Ballers Kingdom first drop: hoodies, training kit, polos, tee, and snapback. Stencil wordmark. Coming soon." />
+  <meta name="description" content="The Ballers Kingdom first drop: hoodies, training kit, polos, tee, and snapback. Stencil wordmark. Preview — checkout is not live." />
   <link rel="canonical" href="https://ballkingdom.com/shop.html" />
   <meta property="og:title" content="Apparel — The Ballers Kingdom" />
   <meta property="og:description" content="Wear the kingdom. First drop preview — hoodies, kit, polos, and the snapback." />
@@ -18,12 +18,109 @@
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
   <style>
-    .shop-hero { background: linear-gradient(180deg, #050505 0%, #121212 100%); color: var(--white); padding: 88px 0 56px; text-align: center; }
-    .shop-hero .lockup { width: min(520px, 88vw); margin: 22px auto 18px; }
-    .shop-hero h1 { color: var(--white); font-size: clamp(2.4rem, 6vw, 4.6rem); line-height: 0.98; margin: 8px 0 16px; }
-    .shop-hero h1 .accent { color: var(--gray-400); }
-    .shop-hero .lead { color: var(--gray-600); max-width: 56ch; margin: 0 auto 28px; }
-    .tagline { display: block; width: min(420px, 80vw); margin: 0 auto 8px; opacity: 0.85; }
+    .drop-hero {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      min-height: calc(100vh - 72px);
+      background: #050505;
+      color: #fff;
+    }
+    .drop-hero-visual {
+      min-height: 640px;
+      overflow: hidden;
+      background: #0d0d0d;
+    }
+    .drop-hero-visual img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 12%;
+      display: block;
+    }
+    .drop-hero-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 64px 48px;
+      max-width: 540px;
+    }
+    .drop-hero-copy .pos-pill { width: fit-content; }
+    .drop-hero-copy .lockup {
+      width: min(420px, 88%);
+      margin: 22px 0 8px;
+    }
+    .drop-hero-copy h1 {
+      color: #fff;
+      font-size: clamp(2.7rem, 5.4vw, 4.6rem);
+      line-height: 0.94;
+      margin: 10px 0 18px;
+    }
+    .drop-hero-copy .lead {
+      color: #9a9a9a;
+      max-width: 36ch;
+      margin: 0 0 14px;
+    }
+    .drop-hero-copy .quiet {
+      color: #6b6b6b;
+      font-size: 0.92rem;
+      max-width: 40ch;
+      margin: 0 0 28px;
+    }
+    .drop-collection {
+      background: #0a0a0a;
+      padding: 72px 0 80px;
+    }
+    .drop-collection .section-header h2 { color: #fff; }
+    .drop-collection .section-header .lead { color: #8a8a8a; }
+    .drop-collection .kicker { color: #b0b0b0; }
+    .drop-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 14px;
+    }
+    .drop-grid .product-card {
+      grid-column: span 2;
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 0;
+    }
+    .drop-grid .product-card.featured { grid-column: span 3; }
+    .drop-grid .product-card img {
+      aspect-ratio: 3 / 4;
+      object-fit: cover;
+      object-position: center 16%;
+      background: #141414;
+    }
+    .drop-grid .product-meta { color: #cfcfcf; padding: 16px 16px 20px; }
+    .drop-grid .product-meta h3 { color: #fff; margin: 6px 0 0; font-size: 1.02rem; }
+    .drop-grid .edition {
+      font-family: var(--font-display);
+      letter-spacing: 0.18em;
+      font-size: 0.68rem;
+      color: #8a8a8a;
+      text-transform: uppercase;
+    }
+    .shop-note {
+      background: #111;
+      border: 1px solid #2a2a2a;
+      color: #ddd;
+    }
+    .shop-note h2 { color: #fff; }
+    .shop-note p { color: #9a9a9a; }
+    .drop-notify { background: #0a0a0a; padding: 0 0 88px; }
+    @media (max-width: 980px) {
+      .drop-grid { grid-template-columns: repeat(2, 1fr); }
+      .drop-grid .product-card,
+      .drop-grid .product-card.featured { grid-column: span 1; }
+    }
+    @media (max-width: 900px) {
+      .drop-hero { grid-template-columns: 1fr; min-height: auto; }
+      .drop-hero-visual { min-height: 78vw; max-height: 640px; }
+      .drop-hero-copy { padding: 36px 22px 48px; }
+    }
+    @media (max-width: 620px) {
+      .drop-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -49,41 +146,43 @@
   </div>
 </nav>
 
-<header class="shop-hero">
-  <div class="container">
+<header class="drop-hero">
+  <div class="drop-hero-visual">
+    <img src="assets/img/apparel-hoodie-black.jpg" alt="The Ballers Kingdom black heavyweight hoodie, stencil wordmark" width="864" height="1152" />
+  </div>
+  <div class="drop-hero-copy">
     <span class="pos-pill">First drop · Preview</span>
-    <img src="assets/img/logo-wordmark-white.png" alt="The Ballers Kingdom — dedicated to training and development at the highest level" class="lockup" width="520" height="67" />
-    <h1>Wear the kingdom.<br /><span class="accent">Coming soon.</span></h1>
-    <p class="lead">Hoodies, training kit, polos, tee, and snapback. Full stencil wordmark. Nothing is for sale until the shop launches. Drops will fund scholarships and impact programs.</p>
-    <div class="hero-ctas" style="justify-content:center;">
-      <a href="products.html" class="btn btn-primary">Explore Digital Products →</a>
-      <a href="soccer.html" class="btn btn-ghost">Explore Training</a>
+    <img src="assets/img/logo-wordmark-white.png" alt="The Ballers Kingdom" class="lockup" width="420" height="54" />
+    <h1>Wear the kingdom.</h1>
+    <p class="lead">Black, grey, white. One stencil. Hoodies, training kit, polos, tee, snapback.</p>
+    <p class="quiet">Nothing is for sale yet. When it opens, drops fund scholarships and impact programs.</p>
+    <div class="hero-ctas">
+      <a href="#collection" class="btn btn-primary">See the collection</a>
+      <a href="mailto:info@ballkingdom.com?subject=Shop%20launch%20list" class="btn btn-ghost">Get first word</a>
     </div>
   </div>
 </header>
 
-<section>
+<section class="drop-collection" id="collection">
   <div class="container">
     <div class="section-header">
-      <div class="kicker">First drop</div>
-      <h2>The opening collection.</h2>
-      <p class="lead">Black, grey, and white. One stencil mark. Preview only — checkout is not live.</p>
+      <div class="kicker">The collection</div>
+      <h2>Eight pieces. One mark.</h2>
+      <p class="lead">Stacked stencil wordmark. Built for training, the office, and the street.</p>
     </div>
-    <div class="shop-grid">
-      <article class="product-card" data-reveal>
+    <div class="drop-grid">
+      <article class="product-card featured" data-reveal>
         <img src="assets/img/apparel-hoodie-black.jpg" alt="The Ballers Kingdom black heavyweight hoodie with stencil wordmark" width="864" height="1152" />
         <div class="product-meta">
           <div class="edition">Athleisure · Black</div>
           <h3>Heavyweight Hoodie</h3>
-          <span class="product-soon">Preview · Coming soon</span>
         </div>
       </article>
-      <article class="product-card" data-reveal>
+      <article class="product-card featured" data-reveal>
         <img src="assets/img/apparel-hoodie-grey.jpg" alt="The Ballers Kingdom grey heavyweight hoodie with tonal stencil wordmark" width="864" height="1152" />
         <div class="product-meta">
           <div class="edition">Athleisure · Grey</div>
           <h3>Heavyweight Hoodie</h3>
-          <span class="product-soon">Preview · Coming soon</span>
         </div>
       </article>
       <article class="product-card" data-reveal>
@@ -91,7 +190,6 @@
         <div class="product-meta">
           <div class="edition">Athleisure · Women's</div>
           <h3>Heavyweight Hoodie</h3>
-          <span class="product-soon">Preview · Coming soon</span>
         </div>
       </article>
       <article class="product-card" data-reveal>
@@ -99,7 +197,6 @@
         <div class="product-meta">
           <div class="edition">Athleisure · Black</div>
           <h3>Heavy Tee</h3>
-          <span class="product-soon">Preview · Coming soon</span>
         </div>
       </article>
       <article class="product-card" data-reveal>
@@ -107,7 +204,6 @@
         <div class="product-meta">
           <div class="edition">Training · Black</div>
           <h3>Training Kit</h3>
-          <span class="product-soon">Preview · Coming soon</span>
         </div>
       </article>
       <article class="product-card" data-reveal>
@@ -115,7 +211,6 @@
         <div class="product-meta">
           <div class="edition">Headwear · Black</div>
           <h3>Snapback</h3>
-          <span class="product-soon">Preview · Coming soon</span>
         </div>
       </article>
       <article class="product-card" data-reveal>
@@ -123,7 +218,6 @@
         <div class="product-meta">
           <div class="edition">Office · Black</div>
           <h3>Polo</h3>
-          <span class="product-soon">Preview · Coming soon</span>
         </div>
       </article>
       <article class="product-card" data-reveal>
@@ -131,19 +225,18 @@
         <div class="product-meta">
           <div class="edition">Office · White</div>
           <h3>Polo</h3>
-          <span class="product-soon">Preview · Coming soon</span>
         </div>
       </article>
     </div>
   </div>
 </section>
 
-<section class="section-stone">
+<section class="drop-notify">
   <div class="container">
     <div class="shop-note" data-reveal>
-      <h2>What's coming</h2>
-      <p>This first drop is the look. Checkout is not live yet. Built for Ballers, parents, and the Inland Empire.</p>
-      <p>Want first word when it opens? Email <a href="mailto:info@ballkingdom.com?subject=Shop%20launch%20list">info@ballkingdom.com</a> or book a call — we'll add you to the list.</p>
+      <h2>First word when it opens</h2>
+      <p>This is the look. Checkout is not live. Built for Ballers, parents, and the Inland Empire.</p>
+      <p>Email <a href="mailto:info@ballkingdom.com?subject=Shop%20launch%20list">info@ballkingdom.com</a> and we’ll add you to the list.</p>
       <a href="mailto:info@ballkingdom.com?subject=Shop%20launch%20list" class="btn btn-ghost">Email the Kingdom</a>
     </div>
   </div>
