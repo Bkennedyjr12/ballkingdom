@@ -189,7 +189,7 @@
   function renderProgress(profile) {
     var log = load(DAILY_KEY, []).slice().sort(function (a, b) { return a.date.localeCompare(b.date); });
     var allThree = log.filter(function (e) { return e.spiritual && e.physical && e.relational; }).length;
-    var moves = log.filter(function (e) { return e.moveDone; }).length;
+    var moves = log.filter(function (e) { return e.moveDone || (e.move && String(e.move).trim()); }).length;
     var returns = 0;
     for (var i = 1; i < log.length; i++) if (daysBetween(log[i - 1].date, log[i].date) > 1) returns++;
     var recent = log.slice(-7).reverse();
@@ -197,7 +197,7 @@
       '<div class="yg-stat-grid"><article><strong>' + log.length + '</strong><span>Days engaged</span></article><article><strong>' + allThree + '</strong><span>All three honored</span></article><article><strong>' + moves + '</strong><span>Purpose moves</span></article><article><strong>' + returns + '</strong><span>Times you returned</span></article></div>' +
       '<article class="yg-week"><header><span>Recent days</span><button type="button" data-share="week">Share weekly review</button></header>' + (recent.length ? recent.map(function (e) {
         var count = [e.spiritual, e.physical, e.relational].filter(Boolean).length;
-        return '<div><time>' + prettyDate(e.date) + '</time><span>' + count + '/3 commitments</span><span>' + (e.moveDone ? 'Purpose move made' : 'Still in play') + '</span></div>';
+        return '<div><time>' + prettyDate(e.date) + '</time><span>' + count + '/3 commitments</span><span>' + ((e.moveDone || (e.move && String(e.move).trim())) ? 'Purpose move made' : 'Still in play') + '</span></div>';
       }).join('') : '<p class="yg-empty">Your first saved Daily Game will appear here.</p>') + '</article>' +
       '<article class="yg-progress-truth"><span>Proverbs 24:16</span><p>The righteous may fall repeatedly and still rise again. The important count is not flawless performance—it is faithful return.</p></article>' +
     '</section>';
@@ -246,7 +246,7 @@
     }); });
     app.querySelectorAll('[data-share]').forEach(function (button) { button.addEventListener('click', function () { share(button.dataset.share); }); });
     var name = app.querySelector('#yg-name'); if (name) name.addEventListener('input', function () { state.context.name = name.value; });
-    var form = app.querySelector('#yg-daily-form'); if (form) form.addEventListener('submit', function (event) { event.preventDefault(); saveDaily(form); });
+    var form = app.querySelector('#yg-daily-form'); if (form) form.addEventListener('submit', function (event) { event.preventDefault(); saveDaily(form); render(); });
     app.querySelectorAll('[data-action]').forEach(function (button) { button.addEventListener('click', function () { action(button.dataset.action); }); });
   }
 
