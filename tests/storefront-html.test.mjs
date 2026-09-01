@@ -134,6 +134,47 @@ test('public checkout release inventories the exact reviewed Function surface', 
   assert.doesNotMatch(release, /functions:confirmAcceptedBooking(?:,|\s)/);
 });
 
+test('public checkout release gates every customer effect on authoritative QuickBooks health', async () => {
+  const release = await read('docs/operations/public-quickbooks-checkout-release.md');
+  for (const value of [
+    'published credential binding',
+    'bounded refresh',
+    'rotation persistence',
+    'CompanyInfo',
+    "CompanyName='The Ballers Kingdom'",
+    'before any authentication email, order, Customer, or Invoice',
+  ]) assert.match(release, new RegExp(escapeRegExp(value), 'i'));
+});
+
+test('public checkout rollback preserves paid-customer access and avoids full pre-feature redeploy', async () => {
+  const release = await read('docs/operations/public-quickbooks-checkout-release.md');
+  assert.match(release, /customer-preserving selective rollback/i);
+  for (const name of ['requestPilotSignInLink', 'getOrderStatus', 'createDownloadGrant', 'redeemDownloadGrant']) {
+    assert.match(release, new RegExp(`retain[^.]*${name}|${name}[^.]*retain`, 'i'), name);
+  }
+  assert.doesNotMatch(release, /git worktree add --detach/);
+});
+
+test('Apple Pay release evidence cites Intuit and requires controlled invoice visibility', async () => {
+  const evidence = await read('docs/operations/quickbooks-commerce-capability-evidence.md');
+  for (const path of [
+    'frequently-asked-questions-apple-pay-quickbooks/L1yOQUp7l_US_en_US',
+    'add-surcharge-customer-invoice-payments-quickbooks/L6Sg9UWf9_US_en_US',
+  ]) assert.match(evidence, new RegExp(escapeRegExp(path)));
+  assert.match(evidence, /controlled owner invoice[^.]*Apple Pay/i);
+  assert.match(evidence, /representative[^.]*not global proof/i);
+});
+
+test('operative public capability evidence contains no retired pilot-only release controls', async () => {
+  const evidence = await read('docs/operations/quickbooks-commerce-capability-evidence.md');
+  for (const retired of [
+    'COMMERCE_PILOT_RECIPIENT_EMAIL',
+    'COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED',
+    'rotating_token_persistence_runtime_fix_unreviewed_undeployed',
+    'artifact absent',
+  ]) assert.doesNotMatch(evidence, new RegExp(escapeRegExp(retired), 'i'), retired);
+});
+
 test('Firebase Hosting revalidates mutable CSS and JavaScript assets', async () => {
   const config = JSON.parse(await read('firebase.json'));
   const publicTarget = config.hosting.find((entry) => entry.target === 'public');

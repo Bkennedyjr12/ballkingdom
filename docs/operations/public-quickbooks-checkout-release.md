@@ -42,10 +42,11 @@ An authorized read-only review of the signed-in production company on 2026-09-01
 - online invoice email delivery to a customer's saved email address;
 - item ID `8`, `Home Inspection Study Guide`, `$49.00`, income account `Services`, and UI tax
   category `Nontaxable`, corresponding to the reviewed Accounting invoice code `NON`;
-- no surcharge control or surcharge state on the representative invoice-payment path. Apple Pay
-  is therefore conditionally presented by QuickBooks through the enabled card option when the
-  customer uses Safari on an eligible Apple device with an eligible card. It is not a separate
-  website integration and is never guaranteed for every device.
+- no surcharge control or enabled surcharge state was observed on the representative
+  invoice-payment path. This is not global proof. Intuit says surcharging disables Apple Pay, so
+  Apple Pay must be visibly confirmed on the controlled owner invoice before activation. When
+  available, it is conditionally presented through the card option for Safari on an eligible Apple
+  device with an eligible card; it is not a separate website integration or device guarantee.
 
 No setting was edited, no invoice was created or sent, and no provider write occurred.
 
@@ -84,7 +85,23 @@ firebase deploy --only functions:requestPilotSignInLink,functions:createDigitalO
 This manifest excludes Firestore Rules, Storage Rules, indexes, the redirect site, and
 `confirmAcceptedBooking`. Actual deployment requires explicit action-time approval.
 
-## Emergency disable and rollback
+## Post-inactive-deploy QuickBooks health gate
+
+Before any authentication email, order, Customer, or Invoice, the operator must complete all of the
+following without exposing credential values:
+
+1. Read the deployed coordinator's published credential binding and highest enabled Secret Manager
+   version metadata for the expected QuickBooks realm.
+2. Run one bounded refresh through the deployed credential coordinator.
+3. Prove rotation persistence by re-reading the published credential binding/version metadata and
+   confirming the deployed runtime now points to the newly persisted enabled version.
+4. Use that rotated credential for a bounded Accounting read of the exact realm and require
+   `CompanyInfo.CompanyName='The Ballers Kingdom'`.
+
+Missing metadata, refresh failure, ambiguous persistence, realm mismatch, or company-name mismatch
+fails closed. Do not send an auth email and do not create an order, QuickBooks Customer, or Invoice.
+
+## Emergency disable and customer-preserving selective rollback
 
 Emergency response starts by disabling public ordering, not by deleting Functions:
 
@@ -96,23 +113,20 @@ Emergency response starts by disabling public ordering, not by deleting Function
 4. Reconcile any already-created order using authoritative QuickBooks Invoice/Payment evidence;
    do not resend an ambiguous email or invoice effect.
 
-If code rollback is required, build a clean detached worktree at the pre-feature merge commit and
-verify it before deploying the pre-feature surface:
+Do not redeploy the full pre-feature Function surface: that would strand customers who already paid.
+Retain `requestPilotSignInLink` for returning-customer authentication, retain `getOrderStatus`, retain
+`createDownloadGrant`, and retain `redeemDownloadGrant`. Also retain authoritative reconciliation and
+payment-verification Functions until every in-flight paid order is resolved.
 
-```bash
-git worktree add --detach /private/tmp/ballkingdom-public-checkout-rollback \
-  ec03ffeebdf5307d0dafb619f1645ffe93446af7
-cd /private/tmp/ballkingdom-public-checkout-rollback
-PATH="/opt/homebrew/opt/node@22/bin:$PATH" npm ci
-PATH="/opt/homebrew/opt/node@22/bin:$PATH" npm --prefix functions ci
+If a code regression requires rollback, create a reviewed recovery commit from the last deployed
+public-commerce commit, keep the public flag false, revert only the defective mutation or Hosting
+change, and deploy only those reviewed affected targets. Verify existing authenticated owners can
+read status and redeem a fresh single-use grant before considering any Function deletion. Preserve
+orders, reservations, effect receipts, payment evidence, and grant-consumption records.
 
-firebase deploy --only functions:requestPilotSignInLink,functions:createDigitalOrder,functions:getOrderStatus,functions:createDownloadGrant,functions:redeemDownloadGrant,functions:getBuyerCommerceCapability,functions:verifyOrderPayment,functions:getCommerceReleaseState,functions:requestRefundReview,functions:reconcileOrder,functions:reconcileRefund,functions:quickBooksCommerceWebhook,functions:reconcileCommerceOrders,functions:dispatchCommerceEffects,functions:stageInvoiceApprovals,functions:approveInvoice,functions:beginQuickBooksConnection,functions:quickBooksOAuthCallback,functions:beginMicrosoftConnection,functions:microsoftOAuthCallback,hosting:public \
-  --project the-ballers-kingdom --account lilpelejr12@gmail.com
-```
-
-If the pre-feature source does not export a feature Function, removing that deployed Function is a
-separate destructive action. `firebase functions:delete` is intentionally omitted from the automatic
-rollback sequence and requires exact-name, exact-region action-time approval.
+Function deletion is not an automatic rollback step. It is a separate destructive action requiring
+exact-name, exact-region action-time approval, and it cannot occur while an existing customer's
+authentication, status, reconciliation, or protected-download recovery depends on that Function.
 
 ## Verification record
 
@@ -156,9 +170,10 @@ above came from the separate signed-in QuickBooks views.
 - **Ruling:** QuickBooks UI label `Nontaxable` plus the reviewed invoice contract's exact
   `TaxCodeRef.value='NON'` is sufficient release evidence for item 8. **Cost if wrong:** a future QBO
   UI/API mapping change could require a fresh Accounting read before activation.
-- **Ruling:** Apple Pay is a conditional consequence of QuickBooks card-enabled e-invoices with no
-  surcharge, not a separately enabled website method. **Cost if wrong:** a customer may not see Apple
-  Pay on an ineligible device, browser, or card; the storefront explicitly discloses this condition.
+- **Ruling:** Apple Pay is a conditional QuickBooks e-invoice method, not a separately enabled
+  website method. Absence of a surcharge control in the observed representative path is not global
+  proof; controlled-owner invoice visibility is the activation proof. **Cost if wrong:** activation
+  stops if Apple Pay is missing, while customers may still differ by device, browser, or card.
 - No tax-professional conclusion is made outside the owner's accepted nationwide residual-risk
   decision. California accountant confirmation and the electronic-only/no-tangible-copy constraint
   remain the recorded basis.

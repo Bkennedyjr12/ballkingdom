@@ -27,16 +27,17 @@ price `$49.00`. Its detail view shows income account `Services`; its read-only e
 tax category `Nontaxable`, corresponding to the exact reviewed Accounting invoice mapping
 `TaxCodeRef.value='NON'`.
 
-Apple Pay is not a browser-selected provider field. Intuit conditionally presents it through the
-enabled e-invoice card option when the customer uses Safari on an eligible Apple device with an
-eligible card. The representative invoice settings expose no surcharge option or enabled surcharge
-state. PayPal/Venmo remains directly visible as enabled merchant evidence. No settings were changed,
-no invoice was created or sent, and no provider write occurred during this refresh.
-
-The earlier single-recipient pilot authorization prose below is historical design evidence. The
-current public implementation accepts bounded, rate-limited public email recipients after App Check
-and later binds orders to an authoritative verified Firebase user email. The retained callable export
-name `requestPilotSignInLink` is a compatibility interface, not a public-recipient allowlist.
+Apple Pay is not a browser-selected provider field. Intuit's official
+[Apple Pay FAQ](https://quickbooks.intuit.com/learn-support/en-us/help-article/receive-payments/frequently-asked-questions-apple-pay-quickbooks/L1yOQUp7l_US_en_US)
+says an emailed invoice with Credit card selected can expose Apple Pay when the customer uses Safari
+on an eligible Apple device with an eligible card. Intuit's official
+[invoice surcharge article](https://quickbooks.intuit.com/learn-support/en-us/help-article/process-credit-card-payments/add-surcharge-customer-invoice-payments-quickbooks/L6Sg9UWf9_US_en_US)
+says surcharging disables Apple Pay. The 2026-09-01 read-only view observed no surcharge control or
+enabled surcharge state on the representative invoice-payment path; this is representative-path
+evidence, not global proof that no QuickBooks surface can enable surcharging. The separately
+approved controlled owner invoice must visibly show Apple Pay before public activation.
+PayPal/Venmo remains directly visible as enabled merchant evidence. No settings were changed, no
+invoice was created or sent, and no provider write occurred during this refresh.
 
 ## Merchant and app evidence
 
@@ -50,10 +51,9 @@ name `requestPilotSignInLink` is a compatibility interface, not a public-recipie
 | Existing production Accounting app visibility | Confirmed | The signed-in workspace `The Ballers Kingdom` shows app `TBK Q.B A.I` marked `IN PRODUCTION`. This establishes current dashboard visibility, not current Accounting OAuth health or permission to rotate credentials. | Authorized read-only Intuit Developer dashboard, 2026-08-30 |
 | Webhook configuration | Confirmed unconfigured | The production webhook endpoint field is empty (length 0) and Save is disabled. No verifier token, key, or credential was viewed and no change was made. Webhook configuration remains a separate approval; scheduled reconciliation remains mandatory and supports the no-webhook pilot design after all other gates pass. | Authorized read-only Intuit Developer dashboard, 2026-08-30; [Intuit QuickBooks Online webhooks](https://developer.intuit.com/app/developer/qbo/docs/develop/webhooks) |
 | Accounting OAuth scope | Confirmed from repository | `com.intuit.quickbooks.accounting` is the only configured QuickBooks scope. This is sufficient for the planned Accounting Invoice/Payment reads and writes; no Payments API scope is assumed. | [`functions/src/providers/oauth.js`](../../functions/src/providers/oauth.js), [`functions/README.md`](../../functions/README.md) |
-| Production Accounting OAuth health | Historical success; currently blocked | At `2026-08-30T23:30:50Z`, OAuth refresh and CompanyInfo returned HTTP `200` and exact CompanyName `The Ballers Kingdom`, but the test intentionally did not persist the rotated refresh credential. The deployment-pinned credential subsequently failed. An approved reconnect completed and added enabled version 3 metadata for the refresh-token and realm secrets, but no fresh health read followed. Current blocker: `rotating_token_persistence_runtime_fix_unreviewed_undeployed`. | [`qbo-production-accounting-health-observation.json`](evidence/qbo-production-accounting-health-observation.json) |
+| Production Accounting OAuth health | Required post-deploy gate; not yet executed | After the inactive deployment, the operator must read the published credential binding and enabled version metadata, run a bounded refresh through the deployed coordinator, prove rotation persistence by reading the newly published binding/version metadata, then read the exact configured realm and `CompanyInfo.CompanyName='The Ballers Kingdom'`. Failure stops before any authentication email, order, QuickBooks Customer, or Invoice mutation. | [`qbo-production-accounting-health-observation.json`](evidence/qbo-production-accounting-health-observation.json); [`quickbooks-token-rotation-local-evidence.md`](quickbooks-token-rotation-local-evidence.md) |
 | Existing Accounting adapter | Confirmed from repository | The current client creates/fetches customers and items, creates invoices with stable request IDs, sends invoices, reads exact Invoice/Payment evidence, and normalizes CDC hints. These are local implementation facts distinct from the dated production health observation. | [`functions/src/providers/quickbooks.js`](../../functions/src/providers/quickbooks.js), commerce provider tests |
-| Authoritative Firestore Rules source | Recovered; reviewed derivative mapped locally and undeployed | The retained live source hashes to `0d700ff3…94a5`. Root `firestore.rules` now hashes to accepted candidate `78138d8c…f122`, preserves the recovered policy plus narrow commerce denies, is explicitly mapped, and passed the local Rules emulator matrix. It has not been deployed. | [`firebase-commerce-rules-source-evidence.md`](firebase-commerce-rules-source-evidence.md), authorized read-only Firebase Rules API and local emulator evidence, 2026-08-30 |
-| Authoritative Storage Rules source | Recovered; reviewed derivative mapped locally; artifact absent | The retained live source hashes to `fb998765…86ef`. Root `storage.rules` now hashes to accepted candidate `5d5bc015…3de8`, is explicitly mapped, and passed the local emulator matrix. The verified bucket still contains no paid pilot artifact or approved per-SKU placement; no Rules deployment occurred. | [`firebase-commerce-rules-source-evidence.md`](firebase-commerce-rules-source-evidence.md), authorized read-only Firebase Rules/Storage APIs and local emulator evidence, 2026-08-30 |
+| Protected artifact and Rules evidence | Confirmed by the current release artifacts | The catalog pins the verified private PDF generation, byte length, SHA-256, MD5, and MIME type. Direct Storage access remains denied and the full Firestore/Storage emulator matrix passes. Deployment state must be re-read independently during the release. | [`protected-commerce-delivery-verification.md`](protected-commerce-delivery-verification.md); [`firebase-commerce-rules-source-evidence.md`](firebase-commerce-rules-source-evidence.md) |
 
 ## Supported Accounting boundary
 
@@ -77,17 +77,29 @@ The approved normalized verifier accepts Accounting evidence only after all of t
 
 Partial, split, multi-invoice, unapplied, over-, under-, deleted, voided, reversed, unknown-status, wrong-realm, wrong-invoice, wrong-reference, or wrong-currency evidence remains locked for manual review. A later decision may deliberately support split payments, but this revision does not silently broaden the verified contract established by completed Tasks 1–4. These fields and entity-operation semantics must be pinned to the current official [Invoice](https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/invoice), [Payment](https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/payment), and [Intuit-maintained Accounting collection](https://www.postman.com/intuit-developer/intuit-developer-quickbooks-online-accounting-api/overview) before implementation.
 
-## Customer authorization and rollout boundary
+## Public customer authorization and rollout boundary
 
-The first digital pilot uses Firebase email-link authentication, not an order handle or App Check alone, as the customer authorization contract. The browser cannot send authentication mail directly. It may submit an address only to the App Check-enforced `requestPilotSignInLink` callable, which constant-time compares fixed-length digests against the `defineSecret`-declared `COMMERCE_PILOT_RECIPIENT_EMAIL` and returns the same generic response for allowed and mismatched addresses. A mismatch produces no Firebase Admin generation, Graph call, or mail effect. The approved address may create only one transactional `pilot_auth_email` effect. Firebase Admin generates the link in memory with the documented `getAuth().generateSignInWithEmailLink(email, actionCodeSettings)`, and the existing injected Microsoft Graph adapter sends a dedicated authentication message from `info@ballkingdom.com`. See Firebase's current [Admin action-link guide](https://firebase.google.com/docs/auth/admin/email-action-links) and [`BaseAuth.generateSignInWithEmailLink` reference](https://firebase.google.com/docs/reference/admin/node/firebase-admin.auth.baseauth#baseauthgeneratesigninwithemaillink).
+Firebase email-link authentication, not an order handle or App Check alone, is the public customer
+authorization contract. The App Check-enforced compatibility callable `requestPilotSignInLink`
+accepts any syntactically valid normalized public email only after bounded abuse controls and always
+returns one generic result. The browser never sends mail directly. A transactional authentication
+effect has a unique claim, bounded lease, capped reissue behavior, and ambiguous-send quarantine; it
+never blindly resends after dispatch ambiguity.
 
-The authentication effect has a unique claim, five-minute lease, and a maximum of one confirmed or ambiguous dispatch. A known pre-dispatch failure may recover; after `dispatchStartedAt`, a timeout/crash becomes `manual_review`/`pilot_auth_email_unknown` and can never resend. Its redacted receipt is separate from the later `invoice_send` receipt. Enabling the Firebase provider, creating the exact-recipient Secret Manager version, sending one Graph authentication email, and later sending one QuickBooks invoice email are four separate approval gates. Public Hosting activation authorizes none of them and cannot make arbitrary addresses send.
+After sign-in, `createDigitalOrder` requires App Check and an authoritative Firebase user whose
+email is verified. The service derives customer UID and email from that record, ignores browser
+identity/provider fields, and atomically reserves one customer/SKU order before QuickBooks work.
+Duplicate or parallel calls recover the same owned order or fail closed. Status, grant creation, and
+download redemption require the same UID. Download grants are short-lived, single-use, digest-only,
+and bound to one paid order/customer/SKU. Direct Storage reads remain denied.
 
-After sign-in, `createDigitalOrder` requires App Check and a Firebase ID token with `email_verified:true`, constant-time compares the token email to the same secret allowlist, derives the immutable `customerUid` and email from the token, and atomically creates both a unique approved-recipient/SKU reservation and the order before invoice creation. Duplicate or parallel calls recover the same owned order or fail closed; they cannot create a second pilot order or invoice. Status, grant creation, and download redemption require the same UID. A 256-bit download nonce is stored only as a SHA-256 digest, bound to one order/customer/SKU, expires in ten minutes, and is atomically consumed once by an authenticated streaming Function; wrong-user, expired, concurrent, and replay attempts fail closed. Direct Storage reads remain denied.
-
-Two deployment-time flags are independent and default false: `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED` and `COMMERCE_SERVICE_QBO_SEND_ENABLED`. Their only production source is the committed, non-secret `functions/.env.the-ballers-kingdom`, narrowly unignored in `functions/.gitignore`; its initial reviewed values are both `false`. Firebase's current [parameterized configuration guide](https://firebase.google.com/docs/functions/config-env) says the CLI loads parameter values from `.env.<project_ID>` and that the file may be version-controlled, while the current [`defineBoolean` reference](https://firebase.google.com/docs/reference/functions/2nd-gen/node/firebase-functions.params#defineboolean) confirms Boolean parameters are read from those files. The first pilot changes the committed digital value to `true` in a reviewed configuration commit while the service value remains `false`. An unexpected deployment prompt for either flag aborts the release. Post-deploy verification uses an admin/App Check-protected runtime Boolean readback plus behavioral smoke tests; ignored dotenv state, memory, or an unrecorded prompt response is not release evidence.
-
-The release order is fail-closed: deploy and read back the non-secret false/false state; separately approve and create the exact recipient secret version; redeploy the bound Functions still false/false; prove allowed and mismatched callable behavior with zero sends; deploy Hosting while still disabled; activate digital true/service false; prove an arbitrary address still causes no send; separately approve and execute one Graph authentication-email dispatch; authenticate; and only then separately approve and execute one QuickBooks invoice email. Firebase documents that secret parameters check Secret Manager during deployment and that bound Functions must be redeployed after a new secret value: [Firebase secret parameters](https://firebase.google.com/docs/functions/config-env#secret_parameters).
+The committed deployment flags are `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false` and
+`COMMERCE_SERVICE_QBO_SEND_ENABLED=false`. The inactive release must read back false/false before
+any customer effect. Before activation, the post-deploy Accounting health gate must prove the
+published credential binding and version metadata, bounded refresh, persisted rotation, exact realm,
+and `CompanyInfo.CompanyName='The Ballers Kingdom'`. Any failure stops before an authentication
+email, order, QuickBooks Customer, or Invoice. Only a separately reviewed activation commit may set
+the public flag true; the service flag remains false.
 
 ## Send and webhook safety boundary
 
@@ -99,14 +111,13 @@ Webhooks are optional acceleration. The production app is visible, but its webho
 
 - Keep production webhook configuration separate and unapproved. Before any future webhook change, verify the app/realm mapping, endpoint, and verifier-token secret boundary, review the exact change, and obtain Brian's approval.
 - Preserve the recovered production Firestore source, merge the narrow commerce denies, install/verify Java and rules-unit-testing, and run the full signed-out/ordinary/admin emulator suite before any Rules mapping or release.
-- Preserve the recovered production Storage source and verified bucket, approve and place the exact paid artifact under a reviewed private per-SKU object key, merge the direct-read denial, and pass signed-out/wrong-user/owner/admin emulator proof before any Storage mapping or release.
+- Preserve the verified private per-SKU artifact identity, direct-read denial, and signed-out/wrong-user/owner/admin emulator proof before release.
 - Only after recovering and merging the authoritative Firestore source, add `"rules":"firestore.rules"` alongside the existing indexes mapping in `firebase.json`; only after the equivalent Storage recovery, add `"storage":{"rules":"storage.rules"}`. A missing or mismatched mapping blocks its dry run and release.
-- Confirm Firebase email-link authentication is already enabled or obtain separate approval for that account configuration; prove verified-email UID binding, same-owner status, expired/replayed link denial, and single-use download-grant behavior before the pilot. Separately approve one Graph-delivered Firebase authentication email and its exact recipient; provider configuration and recipient-secret creation do not authorize it.
-- Declare `COMMERCE_PILOT_RECIPIENT_EMAIL` with `defineSecret`, bind it only to the link request/dispatcher and digital-order Functions, and keep its value out of source, dotenv files, Firestore, logs, responses, evidence, and Hosting. Under its own approval, create the exact secret version while both flags are false, redeploy the bound Functions still false/false, and prove allowed/mismatched requests create no send while disabled.
-- Test identical generic mismatch/approved results, mismatch/no-send, exactly one approved Graph send, duplicate/parallel suppression, ambiguous dispatch to manual review with no resend, verified-token allowlisting, exactly one recipient/SKU order/invoice, and separate authentication/invoice-email effect receipts before release.
-- Keep both commerce feature flags false by default in the committed project parameter file. The pilot may change only `COMMERCE_DIGITAL_INVOICE_PILOT_ENABLED`; `COMMERCE_SERVICE_QBO_SEND_ENABLED` remains false until a separate service release. Record the reviewed config commit, deploy log showing the exact project file was loaded without prompting, and protected runtime readback.
+- Confirm Firebase email-link authentication, verified-email UID binding, same-owner status, expired/replayed link denial, capped public abuse controls, and single-use download-grant behavior.
+- Keep both commerce feature flags false in the inactive project parameter file. Activation may change only `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED`; `COMMERCE_SERVICE_QBO_SEND_ENABLED` remains false. Record the reviewed config commit, deploy log, and protected runtime readback.
+- Pass the post-inactive-deploy QuickBooks health gate before the first authentication email or any order/Customer/Invoice mutation.
 - Confirm the current Invoice send request/response against official documentation in tests; do not invent a path, field, delivery receipt, or pay URL.
-- Approve the exact SKU, price, QuickBooks item, tax treatment, scoped deploys, exact-recipient secret version, one Graph-delivered Firebase authentication email and its exact recipient, one later QuickBooks invoice send and its exact customer email recipient, one owner-controlled payment, and any refund as separate production actions.
+- Approve the exact SKU, price, QuickBooks item, tax treatment, scoped deploys, one controlled owner authentication email, one later QuickBooks invoice send, the owner payment, and any refund as separate production actions. Confirm Apple Pay is visible on that controlled invoice before public activation.
 - Keep fulfillment locked until Accounting Invoice and Payment evidence passes the exact normalized verifier.
 
 ## Official documentation consulted
@@ -116,6 +127,8 @@ Webhooks are optional acceleration. The production app is visible, but its webho
 - [QuickBooks Online webhooks](https://developer.intuit.com/app/developer/qbo/docs/develop/webhooks)
 - [QuickBooks Online webhook best practices](https://developer.intuit.com/app/developer/qbo/docs/develop/webhooks/best-practices)
 - [QuickBooks Online OAuth 2.0](https://developer.intuit.com/app/developer/qbo/docs/develop/authentication-and-authorization/oauth-2.0)
+- [Intuit: Frequently asked questions about Apple Pay and QuickBooks](https://quickbooks.intuit.com/learn-support/en-us/help-article/receive-payments/frequently-asked-questions-apple-pay-quickbooks/L1yOQUp7l_US_en_US)
+- [Intuit: Add a surcharge to customer invoice payments](https://quickbooks.intuit.com/learn-support/en-us/help-article/process-credit-card-payments/add-surcharge-customer-invoice-payments-quickbooks/L6Sg9UWf9_US_en_US)
 - [Official Intuit Developer QuickBooks Online Accounting API collection](https://www.postman.com/intuit-developer/intuit-developer-quickbooks-online-accounting-api/overview)
 - [Official Intuit Developer Accounting change-data-capture collection](https://www.postman.com/intuit-developer/intuit-developer-quickbooks-online-accounting-api/folder/4884662-1a02fcdc-856f-42ee-92da-0513e0b6eca4)
 - [Firebase: Configure the Cloud Functions environment](https://firebase.google.com/docs/functions/config-env)
