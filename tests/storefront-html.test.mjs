@@ -180,6 +180,9 @@ test('public checkout release gates every customer effect on authoritative Quick
     "CompanyName='The Ballers Kingdom'",
     'before any authentication email, order, Customer, or Invoice',
   ]) assert.match(release, new RegExp(escapeRegExp(value), 'i'));
+  assert.match(release,/exact refresh-token and realm versions pinned by the published (?:credential )?binding/i);
+  assert.match(release,/post-refresh[^.]*binding[^.]*readback/i);
+  assert.doesNotMatch(release,/highest enabled Secret Manager version/i);
 });
 
 test('public checkout rollback preserves paid-customer access and avoids full pre-feature redeploy', async () => {

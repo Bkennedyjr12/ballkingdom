@@ -94,10 +94,10 @@ the `admin:true` claim and valid App Check must invoke the deployed read-only Ac
 `getQuickBooksCommerceHealth`. The callable must complete all of the following without exposing
 credential values:
 
-1. Read the deployed coordinator's published credential binding and highest enabled Secret Manager
-   version metadata for the expected QuickBooks realm.
+1. Read the exact refresh-token and realm versions pinned by the published credential binding; ignore later
+   unreferenced or orphan Secret Manager versions.
 2. Run one bounded refresh through the deployed credential coordinator.
-3. Prove refresh continuity by re-reading the published credential binding/version metadata. If
+3. Prove refresh continuity with post-refresh binding and exact-version readback. If
    Intuit returns the unchanged token, report `rotationPersisted=false`; if Intuit returns a
    replacement, exact-write and read back its enabled version and publish that version before
    reporting `rotationPersisted=true`.
