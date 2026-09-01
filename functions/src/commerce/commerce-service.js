@@ -261,15 +261,9 @@ function customerStatus(order) {
 
 function isExactlyUnpaid(evidence, order) {
   const invoice = evidence?.invoice;
-  return evidence?.realmId === order.providerRefs.realmId
+  const exactBase = evidence?.realmId === order.providerRefs.realmId
     && invoice?.invoiceId === order.providerRefs.invoiceId
     && invoice?.providerOrderRef === order.providerRefs.providerOrderRef
-    && invoice?.customerId === order.providerRefs.customerId
-    && invoice?.itemId === order.accountingSnapshot?.itemId
-    && invoice?.taxCode === order.accountingSnapshot?.taxCode
-    && invoice?.quantity === 1
-    && invoice?.lineAmountCents === order.amountCents
-    && invoice?.unitPriceCents === order.amountCents
     && invoice?.totalAmountCents === order.amountCents
     && invoice?.balanceCents === order.amountCents
     && invoice?.currency === order.currency
@@ -277,6 +271,15 @@ function isExactlyUnpaid(evidence, order) {
     && invoice?.paymentState === 'unpaid'
     && Array.isArray(evidence?.payments)
     && evidence.payments.length === 0;
+  if (!exactBase) return false;
+  if (order.orderType === 'service') return true;
+  return order.orderType === 'digital_product'
+    && invoice?.customerId === order.providerRefs.customerId
+    && invoice?.itemId === order.accountingSnapshot?.itemId
+    && invoice?.taxCode === order.accountingSnapshot?.taxCode
+    && invoice?.quantity === 1
+    && invoice?.lineAmountCents === order.amountCents
+    && invoice?.unitPriceCents === order.amountCents;
 }
 
 function isExactBoundInvoice(evidence, order) {
