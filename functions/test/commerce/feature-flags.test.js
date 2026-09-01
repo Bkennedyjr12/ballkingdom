@@ -5,20 +5,23 @@ import {spawnSync} from 'node:child_process';
 import {
   COMMERCE_PUBLIC_AUTH_RESUME_ENABLED,
   COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED,
+  COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED,
   COMMERCE_SERVICE_QBO_SEND_ENABLED,
   readCommerceFeatureFlags,
 } from '../../src/commerce/feature-flags.js';
 
 const functionsUrl = new URL('../../', import.meta.url);
 
-test('all three commerce feature parameters default to Boolean false in code', () => {
+test('all four commerce feature parameters default to Boolean false in code', () => {
   assert.deepEqual(readCommerceFeatureFlags(), {
     publicAuthResumeEnabled: false,
     publicDigitalCheckoutEnabled: false,
+    controlledOwnerPilotEnabled: false,
     serviceQboSendEnabled: false,
   });
   assert.equal(COMMERCE_PUBLIC_AUTH_RESUME_ENABLED.value(), false);
   assert.equal(COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED.value(), false);
+  assert.equal(COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED.value(), false);
   assert.equal(COMMERCE_SERVICE_QBO_SEND_ENABLED.value(), false);
 });
 
@@ -26,11 +29,13 @@ test('public digital checkout flag defaults false independently', () => {
   const flags = readCommerceFeatureFlags({
     publicAuthResumeParam: {value: () => false},
     publicDigitalCheckoutParam: {value: () => false},
+    controlledOwnerPilotParam: {value: () => false},
     serviceQboSendParam: {value: () => false},
   });
   assert.deepEqual(flags, {
     publicAuthResumeEnabled: false,
     publicDigitalCheckoutEnabled: false,
+    controlledOwnerPilotEnabled: false,
     serviceQboSendEnabled: false,
   });
 });
@@ -39,10 +44,12 @@ test('does not treat non-Boolean parameter values as enabled', () => {
   assert.deepEqual(readCommerceFeatureFlags({
     publicAuthResumeParam: {value: () => 'true'},
     publicDigitalCheckoutParam: {value: () => 'false'},
+    controlledOwnerPilotParam: {value: () => 'true'},
     serviceQboSendParam: {value: () => 'true'},
   }), {
     publicAuthResumeEnabled: false,
     publicDigitalCheckoutEnabled: false,
+    controlledOwnerPilotEnabled: false,
     serviceQboSendEnabled: false,
   });
 });
@@ -50,12 +57,13 @@ test('does not treat non-Boolean parameter values as enabled', () => {
 test('committed project parameter file pins only reviewed flags and OAuth callback URLs', async () => {
   const source = await readFile(new URL('.env.the-ballers-kingdom', functionsUrl), 'utf8');
   const entries = source.trimEnd().split('\n');
-  assert.equal(entries.length, 5);
+  assert.equal(entries.length, 6);
   assert.equal(entries[0], 'COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=false');
   assert.equal(entries[1], 'COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false');
-  assert.equal(entries[2], 'COMMERCE_SERVICE_QBO_SEND_ENABLED=false');
-  assert.equal(entries[3], 'QBO_REDIRECT_URI=https://us-west1-the-ballers-kingdom.cloudfunctions.net/quickBooksOAuthCallback');
-  assert.equal(entries[4], 'MS_REDIRECT_URI=https://us-west1-the-ballers-kingdom.cloudfunctions.net/microsoftOAuthCallback');
+  assert.equal(entries[2], 'COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=false');
+  assert.equal(entries[3], 'COMMERCE_SERVICE_QBO_SEND_ENABLED=false');
+  assert.equal(entries[4], 'QBO_REDIRECT_URI=https://us-west1-the-ballers-kingdom.cloudfunctions.net/quickBooksOAuthCallback');
+  assert.equal(entries[5], 'MS_REDIRECT_URI=https://us-west1-the-ballers-kingdom.cloudfunctions.net/microsoftOAuthCallback');
   assert.doesNotMatch(source, /EMAIL|RECIPIENT|SECRET|TOKEN|CUSTOMER/i);
 
   const ignored = spawnSync('git', ['check-ignore', '-q', 'functions/.env.the-ballers-kingdom'], {

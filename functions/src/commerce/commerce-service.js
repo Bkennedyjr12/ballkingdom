@@ -1,8 +1,11 @@
 import {createHash, timingSafeEqual, randomUUID} from 'node:crypto';
 import {
   getCommerceItem as getCatalogItem,
+  getConfiguredCommerceItem as getCatalogConfiguredItem,
   getConfiguredPaymentsCapability as getCatalogPaymentsCapability,
   listCommerceCapabilities as getCatalogCapabilities,
+  isControlledOwnerPilotReady,
+  isPublicCommerceActivationReady,
 } from './catalog.js';
 import {isReconciliationTerminalStatus, newOrder} from './order-state.js';
 import {verifyQuickBooksPaymentEvidence} from './quickbooks-payment-verifier.js';
@@ -94,6 +97,11 @@ function publicAuthContext(context) {
   if (typeof appId !== 'string' || !PUBLIC_APP_ID.test(appId)
     || typeof ipDigest !== 'string' || !SHA256_DIGEST.test(ipDigest)) return null;
   return Object.freeze({appId,ipDigest});
+}
+
+function controlledOwnerFlagEnabled(flags) {
+  return flags?.controlledOwnerPilotEnabled === true
+    || flags?.digitalInvoicePilotEnabled === true;
 }
 
 function requireAdminContext(authContext) {
@@ -224,7 +232,8 @@ async function authoritativeIdentity(authContext, getCurrentUser) {
     || authTime * 1000 < validAfter) {
     throw commerceError('AUTH_SESSION_INVALID', 'Authentication is no longer valid');
   }
-  return Object.freeze({...identity,authorizedRecipientBinding:recipientBinding(currentEmail)});
+  return Object.freeze({...identity,authorizedRecipientBinding:recipientBinding(currentEmail),
+    companionOwner:user?.customClaims?.companionOwner === true});
 }
 
 function safeOrderStatus(status) {
@@ -342,6 +351,7 @@ export function createCommerceService({
   graph,
   auth,
   getCommerceItem = getCatalogItem,
+  getConfiguredCommerceItem = getCatalogConfiguredItem,
   getPaymentsCapability = getCatalogPaymentsCapability,
   listCommerceCapabilities = getCatalogCapabilities,
   isDigitalFulfillmentAvailable = () => false,
@@ -360,7 +370,8 @@ export function createCommerceService({
   actionCodeSettings = DEFAULT_ACTION_CODE_SETTINGS,
 } = {}) {
   if (!repository || typeof readFlags !== 'function' || typeof getApprovedPilotEmail !== 'function'
-    || typeof getCommerceItem !== 'function' || typeof getPaymentsCapability !== 'function'
+    || typeof getCommerceItem !== 'function' || typeof getConfiguredCommerceItem !== 'function'
+    || typeof getPaymentsCapability !== 'function'
     || typeof listCommerceCapabilities !== 'function'
     || typeof isDigitalFulfillmentAvailable !== 'function' || typeof idFactory !== 'function'
     || typeof workerIdFactory !== 'function' || typeof clock !== 'function') {
@@ -383,6 +394,20 @@ export function createCommerceService({
     } catch {
       return null;
     }
+  }
+
+  function publicActivationReady(flags,item) {
+    return isPublicCommerceActivationReady({
+      flags,capability:getPaymentsCapability(),item,
+      fulfillmentAvailable:isDigitalFulfillmentAvailable(),
+    });
+  }
+
+  function controlledOwnerPilotReady(flags,item) {
+    return isControlledOwnerPilotReady({
+      flags,capability:getPaymentsCapability(),item,
+      fulfillmentAvailable:isDigitalFulfillmentAvailable(),
+    });
   }
 
   async function dispatchPilotAuthEmail(approvedEmail, binding, settings = actionCodeSettings) {
@@ -503,16 +528,17 @@ export function createCommerceService({
         }
       } catch (error) {
         const customerAmbiguous = error?.code === 'QBO_CUSTOMER_AMBIGUOUS';
+        const invoiceAmbiguous = error?.code === 'QBO_INVOICE_AMBIGUOUS';
         if (error?.code !== 'PROVIDER_TIMEOUT') {
           await repository.recordEffectFailure(
             orderId, 'invoice_create', createWorker, createClaim.claimId,
-            customerAmbiguous
-              ? {code:'customer_accounting_ambiguous',terminal:true}
+            customerAmbiguous || invoiceAmbiguous
+              ? {code:customerAmbiguous ? 'customer_accounting_ambiguous' : 'invoice_accounting_ambiguous',terminal:true}
               : {code:'invoice_create_failed'},
             clock()
           );
         }
-        if (customerAmbiguous) {
+        if (customerAmbiguous || invoiceAmbiguous) {
           throw commerceError('ORDER_MANUAL_REVIEW', 'Order requires administrator review');
         }
         throw commerceError('ORDER_PROCESSING_PENDING', 'Order processing is pending');
@@ -580,12 +606,18 @@ export function createCommerceService({
 
   async function dispatchPendingEffectsInternal(at) {
     const recovered = await repository.recoverExpiredEffects(at);
+    let cleanupFailed = false;
     if (typeof repository.cleanupExpiredPublicAuthArtifacts === 'function') {
-      await repository.cleanupExpiredPublicAuthArtifacts(at, {limit:500});
+      try {
+        await repository.cleanupExpiredPublicAuthArtifacts(at, {limit:500});
+      } catch {
+        cleanupFailed = true;
+        await alertOperator({code:'public_auth_cleanup_unavailable'});
+      }
     }
     const flags = readFlags();
     const dueEffects = await repository.listDueEffects(at, {limit:RECONCILIATION_LIMIT});
-    if (flags.digitalInvoicePilotEnabled === true) {
+    if (controlledOwnerFlagEnabled(flags)) {
       let approved;
       const loadApproved = () => {
         approved ??= requireApprovedEmail(getApprovedPilotEmail);
@@ -635,7 +667,7 @@ export function createCommerceService({
         }
       }
     }
-    return recovered;
+    return Object.freeze({...recovered,cleanupFailed});
   }
 
   async function verifyOrderPaymentInternal({orderId, source} = {}) {
@@ -847,7 +879,7 @@ export function createCommerceService({
       if (!approvedRecipient(candidate, approved)) return GENERIC_AUTH_RESULT;
       if (!(await authRequestLimiter(rateLimitKey('pilot-auth-approved')))) return GENERIC_AUTH_RESULT;
       const flags = readFlags();
-      if (flags.digitalInvoicePilotEnabled !== true) {
+      if (!controlledOwnerFlagEnabled(flags)) {
         await repository.recordPilotAuthRequestAllowedDisabled();
         return GENERIC_AUTH_RESULT;
       }
@@ -869,11 +901,12 @@ export function createCommerceService({
 
     async createDigitalOrder(input, authContext) {
       const flags = readFlags();
-      if (flags.publicDigitalCheckoutEnabled !== true) {
+      const configuredItem = getConfiguredCommerceItem(input?.sku);
+      if (flags.publicAuthResumeEnabled !== true || flags.publicDigitalCheckoutEnabled !== true) {
         throw commerceError('COMMERCE_DISABLED', 'Digital ordering is unavailable');
       }
-      if (!verifiedPaymentsCapability()) {
-        throw commerceError('COMMERCE_CONFIGURATION_INVALID', 'Commerce is unavailable');
+      if (!publicActivationReady(flags,configuredItem)) {
+        throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable');
       }
       const identity = await authoritativeIdentity(authContext, getCurrentUser);
       if (!validOrderInput(input)) throw commerceError('ORDER_INVALID', 'Order input is invalid');
@@ -904,6 +937,35 @@ export function createCommerceService({
       });
     },
 
+    async createControlledOwnerPilotOrder(input, authContext) {
+      const flags=readFlags();
+      const item=getConfiguredCommerceItem(input?.sku);
+      if (!controlledOwnerPilotReady(flags,item)) {
+        throw commerceError('COMMERCE_DISABLED','Controlled owner ordering is unavailable');
+      }
+      const identity=await authoritativeIdentity(authContext,getCurrentUser);
+      const approved=requireApprovedEmail(getApprovedPilotEmail);
+      if (identity.companionOwner !== true || authContext?.token?.companionOwner !== true
+        || !approvedRecipient(identity.email,approved)) {
+        throw commerceError('PILOT_RECIPIENT_REQUIRED','Controlled owner identity is required');
+      }
+      if (!validOrderInput(input)) throw commerceError('ORDER_INVALID','Order input is invalid');
+      if (item?.orderType !== 'digital_product') {
+        throw commerceError('DIGITAL_PRODUCT_REQUIRED','Digital product ordering is required');
+      }
+      const order={...newOrder({item,customer:{name:input.customerName.trim()}}),
+        customerUid:identity.uid,authorizedRecipientBinding:identity.authorizedRecipientBinding};
+      const reservation=await repository.createReservedDigitalOrder({
+        recipientBinding:identity.authorizedRecipientBinding,orderId:idFactory(),order,
+      });
+      await resumeDigitalInvoice(reservation.orderId,identity.email);
+      const stored=await repository.getOrder(reservation.orderId);
+      const storedStatus=reservation.duplicate ? customerStatus(stored) : null;
+      return Object.freeze({orderHandle:reservation.orderId,amountCents:stored.amountCents,
+        currency:stored.currency,status:storedStatus?.status ?? 'payment_verification_pending',
+        message:storedStatus?.message ?? SAFE_ORDER_RESULT_MESSAGE});
+    },
+
     async getOrderStatus(input = {}, authContext) {
       const tokenIdentity = authIdentity(authContext);
       if (!(await statusRequestLimiter(rateLimitKey(tokenIdentity.uid)))) {
@@ -928,14 +990,13 @@ export function createCommerceService({
     async getBuyerCommerceCapability(appCheckContext) {
       if (!appCheckContext?.app) throw commerceError('APP_CHECK_REQUIRED', 'App Check is required');
       const flags = readFlags();
-      const releaseReady = flags.publicDigitalCheckoutEnabled === true
-        && isDigitalFulfillmentAvailable() === true
-        && verifiedPaymentsCapability() !== null;
+      const configuredItem=getConfiguredCommerceItem(PILOT_SKU);
       const products = listCommerceCapabilities().map(item => {
         const display = buyerDisplay(item);
         if (!display || typeof item?.sku !== 'string' || item.sku.length < 1 || item.sku.length > 128
           || typeof item.active !== 'boolean') throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable');
-        return Object.freeze({sku:item.sku,active:releaseReady && item.active === true,display});
+        return Object.freeze({sku:item.sku,active:publicActivationReady(flags,configuredItem)
+          && item.active === true,display});
       });
       return Object.freeze({products:Object.freeze(products)});
     },
@@ -1075,6 +1136,7 @@ export function createCommerceService({
         manualReviewCount:recovered.manualReviewOrderIds.length
           + recovered.manualReviewPilotAuthBindings.length
           + (recovered.manualReviewPublicAuthBindings?.length ?? 0),
+        ...(recovered.cleanupFailed === true ? {cleanupFailed:true} : {}),
       });
     },
 
@@ -1229,8 +1291,24 @@ export function createCommerceService({
       return Object.freeze({
         publicAuthResumeEnabled:flags.publicAuthResumeEnabled,
         publicDigitalCheckoutEnabled:flags.publicDigitalCheckoutEnabled,
+        controlledOwnerPilotEnabled:flags.controlledOwnerPilotEnabled,
         serviceQboSendEnabled:flags.serviceQboSendEnabled,
       });
+    },
+
+    async resolvePublicAuthEmailQuarantine(input, authContext) {
+      const adminUid=requireAdminContext(authContext);
+      if (!record(input) || Object.keys(input).length !== 1 || !Object.hasOwn(input,'email')) {
+        throw commerceError('ORDER_INVALID','Quarantine resolution input is invalid');
+      }
+      const email=normalizedEmail(input.email);
+      if (!email || typeof repository.resolvePublicAuthQuarantine !== 'function') {
+        throw commerceError('ORDER_INVALID','Quarantine resolution input is invalid');
+      }
+      const resolved=await repository.resolvePublicAuthQuarantine({
+        email,sku:PILOT_SKU,purpose:'sign_in',adminUid,
+      });
+      return Object.freeze({resolved:resolved === true});
     },
   });
 }

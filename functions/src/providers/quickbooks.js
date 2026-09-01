@@ -24,10 +24,26 @@ function invalidResponse(operation) {
   return new Error(`QuickBooks ${operation} response was invalid`);
 }
 
-function ambiguousCustomer() {
-  const error = new Error('QuickBooks Customer lookup requires manual review');
+function ambiguousCustomer(message = 'QuickBooks Customer lookup requires manual review') {
+  const error = new Error(message);
   error.code = 'QBO_CUSTOMER_AMBIGUOUS';
   return error;
+}
+
+function ambiguousInvoice() {
+  const error = new Error('QuickBooks Invoice create readback was invalid');
+  error.code = 'QBO_INVOICE_AMBIGUOUS';
+  return error;
+}
+
+function providerTimeout() {
+  const error = new Error('QuickBooks provider request timed out');
+  error.code = 'PROVIDER_TIMEOUT';
+  return error;
+}
+
+function isAbortFailure(error) {
+  return error?.name === 'AbortError' || error?.name === 'TimeoutError';
 }
 
 async function expectJson(response, operation) {
@@ -333,6 +349,10 @@ export async function refreshQuickBooksAccessToken({clientId,clientSecret,refres
 export function createQuickBooksClient(config, fetchImpl = fetch) {
   const root = config.sandbox ? SANDBOX_ROOT : PROD_ROOT;
   let cachedAccessToken = null;
+  const requestTimeoutMs = Number.isInteger(config.requestTimeoutMs)
+    && config.requestTimeoutMs > 0 && config.requestTimeoutMs <= 120_000
+    ? config.requestTimeoutMs
+    : 20_000;
 
   async function accessToken() {
     if (config.accessTokenProvider?.getAccessToken) {
@@ -361,10 +381,11 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
         method,
         headers:{authorization:`Bearer ${token}`,accept,'content-type':contentType},
         body:body == null ? undefined : contentType === 'application/json' ? JSON.stringify(body) : body,
-        signal:AbortSignal.timeout(20_000),
+        signal:AbortSignal.timeout(requestTimeoutMs),
       });
     } catch (cause) {
-      throw new Error(cause?.name === 'AbortError' ? 'QuickBooks request timed out' : 'QuickBooks request failed');
+      if (isAbortFailure(cause)) throw providerTimeout();
+      throw new Error('QuickBooks request failed');
     }
     if (!response.ok) throw new Error(`QuickBooks request failed with provider status ${response.status}`);
     return response;
@@ -420,13 +441,29 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
       }
       return matches[0];
     }
-    const data = await requestJson(
-      `/customer?minorversion=${MINOR_VERSION}`,
-      {method:'POST',body:{DisplayName:customerName,PrimaryEmailAddr:{Address:customerEmail}}},
-      'Customer create',
-    );
+    let data;
+    try {
+      data = await requestJson(
+        `/customer?minorversion=${MINOR_VERSION}`,
+        {method:'POST',body:{DisplayName:customerName,PrimaryEmailAddr:{Address:customerEmail}}},
+        'Customer create',
+      );
+    } catch (error) {
+      if (error?.code !== 'PROVIDER_TIMEOUT') throw error;
+      try {
+        const recovered=await queryMatches('Customer','PrimaryEmailAddr',customerEmail,2);
+        if (recovered.length === 1 && recovered[0]?.PrimaryEmailAddr?.Address === customerEmail
+          && isNonEmptyString(recovered[0]?.Id)) return recovered[0];
+      } catch {}
+      throw ambiguousCustomer('QuickBooks Customer create response was invalid');
+    }
     if (!data?.Customer || typeof data.Customer !== 'object' || Array.isArray(data.Customer)) {
-      throw invalidResponse('Customer create');
+      try {
+        const recovered=await queryMatches('Customer','PrimaryEmailAddr',customerEmail,2);
+        if (recovered.length === 1 && recovered[0]?.PrimaryEmailAddr?.Address === customerEmail
+          && isNonEmptyString(recovered[0]?.Id)) return recovered[0];
+      } catch {}
+      throw ambiguousCustomer('QuickBooks Customer create response was invalid');
     }
     if (!isNonEmptyString(data.Customer.Id)
       || data.Customer.PrimaryEmailAddr?.Address !== customerEmail) {
@@ -467,6 +504,18 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
     );
     const normalized = normalizeInvoiceEntity(data?.Invoice, invoiceId);
     return {providerInvoice:data.Invoice,...normalized};
+  }
+
+  async function recoverExactCommerceInvoice(providerOrderRef) {
+    try {
+      const matches=await queryMatches('Invoice','PrivateNote',providerOrderRef,2);
+      if (matches.length !== 1 || matches[0]?.PrivateNote !== providerOrderRef
+        || !isNonEmptyString(matches[0]?.Id)) throw ambiguousInvoice();
+      return matches[0];
+    } catch (error) {
+      if (error?.code === 'QBO_INVOICE_AMBIGUOUS') throw error;
+      throw ambiguousInvoice();
+    }
   }
 
   return {
@@ -539,17 +588,34 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
         }],
       };
       const requestId = encodeURIComponent(deterministicRequestId(providerOrderRef));
-      const data = await requestJson(
-        `/invoice?minorversion=${MINOR_VERSION}&requestid=${requestId}`,
-        {method:'POST',body:payload},
-        'Invoice create',
-      );
-      if (!data?.Invoice || !isNonEmptyString(data.Invoice.Id)) {
-        throw invalidResponse('Invoice create');
-      }
-      const documentNumber = normalizeDocumentNumber(data.Invoice.DocNumber);
+      let providerInvoice;
       try {
-        const readback = await readInvoiceEntity(data.Invoice.Id);
+        const data = await requestJson(
+          `/invoice?minorversion=${MINOR_VERSION}&requestid=${requestId}`,
+          {method:'POST',body:payload},
+          'Invoice create',
+        );
+        providerInvoice=data?.Invoice;
+        if (!providerInvoice || !isNonEmptyString(providerInvoice.Id)) {
+          providerInvoice=await recoverExactCommerceInvoice(providerOrderRef);
+        }
+      } catch (error) {
+        if (error?.code !== 'PROVIDER_TIMEOUT') throw error;
+        providerInvoice=await recoverExactCommerceInvoice(providerOrderRef);
+      }
+      const documentNumber = normalizeDocumentNumber(providerInvoice.DocNumber);
+      let readback;
+      try {
+        readback = await readInvoiceEntity(providerInvoice.Id);
+      } catch {
+        const recovered=await recoverExactCommerceInvoice(providerOrderRef);
+        try {
+          readback={providerInvoice:recovered,...normalizeInvoiceEntity(recovered,recovered.Id)};
+        } catch {
+          throw ambiguousInvoice();
+        }
+      }
+      try {
         assertCommerceInvoiceReadback(readback.providerInvoice, readback.invoice, {
           customerId:customer.Id,
           customerEmail:normalizedOrder.customerEmail,
@@ -560,11 +626,11 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
           currency:normalizedOrder.currency,
         });
       } catch {
-        throw new Error('QuickBooks Invoice create readback was invalid');
+        throw ambiguousInvoice();
       }
       return {
         customerId:customer.Id,
-        invoiceId:data.Invoice.Id,
+        invoiceId:providerInvoice.Id,
         documentNumber,
       };
     },

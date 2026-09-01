@@ -208,16 +208,22 @@ function digestId(domain, ...parts) {
   return hash.digest('hex');
 }
 
-function publicAuthEffectId({email, sku, purpose, issuanceBucket} = {}) {
+function publicAuthQuarantineId({email, sku, purpose} = {}) {
   const normalizedEmail = requiredText(email, 'email', 254);
   const product = requiredText(sku, 'sku', 128);
   const effectPurpose = requiredText(purpose, 'purpose', 64);
+  return createHash('sha256').update(
+    `public-auth-quarantine\0${normalizedEmail}\0${product}\0${effectPurpose}`
+  ).digest('hex');
+}
+
+function publicAuthEffectId(identity = {}) {
+  const quarantineBinding = publicAuthQuarantineId(identity);
+  const {issuanceBucket} = identity;
   if (!Number.isSafeInteger(issuanceBucket) || issuanceBucket < 0) {
     throw repositoryError('ORDER_INVALID', 'issuanceBucket is invalid');
   }
-  return createHash('sha256').update(
-    `${normalizedEmail}\0${product}\0${effectPurpose}\0${issuanceBucket}`
-  ).digest('hex');
+  return createHash('sha256').update(`${quarantineBinding}\0${issuanceBucket}`).digest('hex');
 }
 
 function effectType(value) {
@@ -255,6 +261,8 @@ function auditReceipt(fields, fieldValue) {
     'publicAuth',
     'cleanupEligible',
     'retentionExpiresAt',
+    'actorUid',
+    'quarantineBinding',
   ];
   return Object.fromEntries([
     ...allowed.filter(key => fields[key] != null).map(key => [key, fields[key]]),
@@ -285,11 +293,15 @@ export function createOrderRepository({
   const fulfillmentGrants = db.collection('fulfillmentGrants');
   const rateLimits = db.collection('commerceRateLimits');
   const publicAuthRateLimits = db.collection('commercePublicAuthLimits');
+  const publicAuthQuarantines = db.collection('commercePublicAuthQuarantines');
   const orderRef = orderId => orders.doc(requiredId(orderId, 'orderId'));
   const auditRef = () => audits.doc();
   const effectRef = (orderId, effect) => effects.doc(`${requiredId(orderId, 'orderId')}-${effectType(effect)}`);
   const pilotAuthRef = binding => effects.doc(`pilot-auth-${recipientBinding(binding)}`);
   const publicAuthEffectReference = binding => effects.doc(`public-auth-${requiredId(binding, 'binding', SHA256_DIGEST)}`);
+  const publicAuthQuarantineRef = binding => publicAuthQuarantines.doc(
+    `public-auth-${requiredId(binding, 'quarantineBinding', SHA256_DIGEST)}`
+  );
   // One mutable audit receipt per opaque effect bounds audit cardinality across reissues.
   const publicAuthAuditRef = binding => audits.doc(
     `public-auth-${requiredId(binding, 'binding', SHA256_DIGEST)}`
@@ -676,12 +688,12 @@ export function createOrderRepository({
 
     async consumePublicAuthLimits({
       emailDigest,ipDigest,appId,now = clock(),windowMs,
-      emailLimit,ipLimit,appLimit,globalLimit,
+      emailLimit,ipLimit,appGlobalLimit,
     } = {}) {
       if (!SHA256_DIGEST.test(emailDigest) || !SHA256_DIGEST.test(ipDigest)
         || typeof appId !== 'string' || !PUBLIC_AUTH_APP_ID.test(appId)
         || !Number.isInteger(windowMs) || windowMs < 1000 || windowMs > 24 * 60 * 60 * 1000
-        || ![emailLimit,ipLimit,appLimit,globalLimit].every(limit => (
+        || ![emailLimit,ipLimit,appGlobalLimit].every(limit => (
           Number.isInteger(limit) && limit >= 1 && limit <= 1000
         ))) {
         throw repositoryError('ORDER_INVALID', 'Public auth limit input is invalid');
@@ -692,8 +704,7 @@ export function createOrderRepository({
       const dimensions = [
         ['email', emailDigest, emailLimit],
         ['ip', ipDigest, ipLimit],
-        ['app', digestId('public-auth-app', appId), appLimit],
-        ['global', digestId('public-auth-global'), globalLimit],
+        ['app_global', digestId('public-auth-app-global', appId), appGlobalLimit],
       ].map(([scope, key, limit]) => Object.freeze({
         scope,key,limit,reference:publicAuthRateLimits.doc(`public-auth-${scope}-${key}`),
       }));
@@ -1000,11 +1011,16 @@ export function createOrderRepository({
 
     async createPublicDigitalAuthEmailEffect(identity = {}) {
       const binding = publicAuthEffectId(identity);
+      const quarantineBinding = publicAuthQuarantineId(identity);
       const reference = publicAuthEffectReference(binding);
+      const quarantineReference = publicAuthQuarantineRef(quarantineBinding);
       const receipt = publicAuthAuditRef(binding);
       const retainedAt = dateValue(clock(), 'clock');
       return db.runTransaction(async transaction => {
-        const existing = await transaction.get(reference);
+        const [quarantine,existing] = await Promise.all([
+          transaction.get(quarantineReference),transaction.get(reference),
+        ]);
+        if (quarantine.exists && quarantine.data()?.active === true) return false;
         const timestamp = fieldValue.serverTimestamp();
         if (existing.exists) {
           const effect = existing.data();
@@ -1027,7 +1043,7 @@ export function createOrderRepository({
           return Object.freeze({binding});
         }
         transaction.create(reference, {
-          publicAuth:true,cleanupEligible:true,effect:PUBLIC_AUTH_EFFECT,status:'pending',claim:null,dispatchStartedAt:null,
+          publicAuth:true,cleanupEligible:true,effect:PUBLIC_AUTH_EFFECT,quarantineBinding,status:'pending',claim:null,dispatchStartedAt:null,
           dispatchAttemptCount:0,issuanceAttemptCount:1,lastErrorCode:null,
           nextAttemptAt:Timestamp.fromDate(PUBLIC_AUTH_NO_BACKGROUND_DISPATCH_AT),
           retentionExpiresAt:publicAuthRetentionExpiresAt(retainedAt),createdAt:timestamp,updatedAt:timestamp,
@@ -1136,10 +1152,37 @@ export function createOrderRepository({
         transaction.set(reference,{...effect,cleanupEligible:false,status:ambiguous ? 'manual_review' : 'claimed',
           claim:ambiguous ? null : effect.claim,lastClaimId:ambiguous ? claimId : effect.lastClaimId,
           lastErrorCode:errorCode,updatedAt:fieldValue.serverTimestamp()});
+        if (ambiguous && SHA256_DIGEST.test(effect.quarantineBinding)) {
+          transaction.set(publicAuthQuarantineRef(effect.quarantineBinding),{
+            publicAuth:true,active:true,reasonCode:'public_digital_auth_email_unknown',
+            effectId:`public-auth-${binding}`,createdAt:fieldValue.serverTimestamp(),
+            updatedAt:fieldValue.serverTimestamp(),
+          });
+        }
         transaction.set(receipt,publicAuthAuditReceipt(binding,{
           event:ambiguous ? 'operator_alert' : 'effect_failed',
           effect:PUBLIC_AUTH_EFFECT,workerId:worker,claimId,errorCode,
         }));
+        return true;
+      });
+    },
+
+    async resolvePublicAuthQuarantine(identity = {}) {
+      const adminUid = requiredId(identity.adminUid, 'adminUid', WORKER_ID);
+      const quarantineBinding = publicAuthQuarantineId(identity);
+      const reference = publicAuthQuarantineRef(quarantineBinding);
+      const receipt = auditRef();
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists || snapshot.data()?.active !== true) return false;
+        transaction.set(reference,{
+          ...snapshot.data(),active:false,resolvedBy:adminUid,
+          resolvedAt:fieldValue.serverTimestamp(),updatedAt:fieldValue.serverTimestamp(),
+        });
+        transaction.create(receipt,auditReceipt({
+          event:'public_auth_quarantine_resolved',actorUid:adminUid,
+          quarantineBinding,
+        },fieldValue));
         return true;
       });
     },
@@ -1532,6 +1575,12 @@ export function createOrderRepository({
               ...effect,cleanupEligible:false,status:'manual_review',claim:null,lastClaimId:effect.claim?.claimId,
               lastErrorCode:'public_digital_auth_email_unknown',nextAttemptAt:null,updatedAt:timestamp,
             });
+            if (SHA256_DIGEST.test(effect.quarantineBinding)) {
+              transaction.set(publicAuthQuarantineRef(effect.quarantineBinding),{
+                publicAuth:true,active:true,reasonCode:'public_digital_auth_email_unknown',
+                effectId:document.id,createdAt:timestamp,updatedAt:timestamp,
+              });
+            }
             transaction.set(publicAuthAuditRef(binding),publicAuthAuditReceipt(binding,{
               event:'operator_alert',errorCode:'public_digital_auth_email_unknown',
             },now));

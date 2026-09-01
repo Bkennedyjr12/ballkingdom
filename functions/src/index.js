@@ -437,6 +437,7 @@ function runtimeCommerceService({withPilotEmail = false, withQuickBooks = false,
       'pilot_auth',key,new Date(),{limit:5,windowMs:10 * 60 * 1000}
     ),
     publicAuthLimiter:createPublicAuthLimiter({repository}),
+    isDigitalFulfillmentAvailable:() => true,
     statusRequestLimiter:key => repository.consumeRateLimit(
       'order_status',key,new Date(),{limit:60,windowMs:10 * 60 * 1000}
     ),
@@ -481,6 +482,19 @@ export const requestPilotSignInLink = onCall({
   }
 });
 
+export const requestOwnerPilotSignInLink = onCall({
+  region:REGION,
+  secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...MS_SECRETS],
+  enforceAppCheck:true,
+}, async request => {
+  try {
+    const service=runtimeCommerceService({withPilotEmail:true,withGraph:true});
+    return await service.requestPilotSignInLink(request.data,{app:request.app});
+  } catch {
+    return {status:'request_received'};
+  }
+});
+
 export const createDigitalOrder = onCall({
   region:REGION,
   secrets:QBO_RUNTIME_SECRETS,
@@ -489,6 +503,19 @@ export const createDigitalOrder = onCall({
   try {
     const service = runtimeCommerceService({withQuickBooks:true});
     return await service.createDigitalOrder(request.data, request.auth);
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
+export const createControlledOwnerPilotOrder = onCall({
+  region:REGION,
+  secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_RUNTIME_SECRETS],
+  enforceAppCheck:true,
+}, async request => {
+  try {
+    const service=runtimeCommerceService({withPilotEmail:true,withQuickBooks:true});
+    return await service.createControlledOwnerPilotOrder(request.data,request.auth);
   } catch (error) {
     throw commerceHttpsError(error);
   }
@@ -568,6 +595,15 @@ export const getCommerceReleaseState = onCall({region:REGION,enforceAppCheck:tru
       token:request.auth?.token,
       app:request.app,
     });
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
+export const resolvePublicAuthEmailQuarantine = onCall({region:REGION,enforceAppCheck:true}, async request => {
+  try {
+    const service=runtimeCommerceService();
+    return await service.resolvePublicAuthEmailQuarantine(request.data,adminCommerceContext(request));
   } catch (error) {
     throw commerceHttpsError(error);
   }

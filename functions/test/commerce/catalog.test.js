@@ -5,6 +5,8 @@ import {
   getConfiguredCommerceItem,
   getConfiguredPaymentsCapability,
   isCommerceItemPurchasable,
+  isControlledOwnerPilotReady,
+  isPublicCommerceActivationReady,
   listPublicCommerceItems,
   listCommerceCapabilities,
 } from '../../src/commerce/catalog.js';
@@ -122,6 +124,45 @@ test('activation predicate requires every authoritative verification gate', () =
     {...ready,release:{...ready.release,fulfillmentRuntimeVerified:false}},
     {...ready,release:{...ready.release,deployApproved:false}},
   ]) assert.equal(isCommerceItemPurchasable(blocked, verifiedPaymentsCapability), false);
+});
+
+test('public activation requires the exact two public flags, full Payments record, fulfillment, catalog, and release combination', () => {
+  const configured=getConfiguredCommerceItem('home-inspection-study-guide');
+  const item={...configured,active:true,release:{...configured.release,deployApproved:true}};
+  const flags={publicAuthResumeEnabled:true,publicDigitalCheckoutEnabled:true,
+    controlledOwnerPilotEnabled:false,serviceQboSendEnabled:false};
+  const ready={flags,capability:verifiedPaymentsCapability,item,fulfillmentAvailable:true};
+  assert.equal(isPublicCommerceActivationReady(ready),true);
+  for (const [key,value] of Object.entries(flags)) {
+    assert.equal(isPublicCommerceActivationReady({...ready,flags:{...flags,[key]:!value}}),false,key);
+  }
+  for (const key of ['accounting','payments','supportsImmediatePayment','supportsCards','supportsApplePay',
+    'supportsPayPal','supportsAch','supportsWebhooks','onlineInvoiceDelivery']) {
+    assert.equal(isPublicCommerceActivationReady({...ready,capability:{...verifiedPaymentsCapability,[key]:false}}),false,key);
+  }
+  assert.equal(isPublicCommerceActivationReady({...ready,capability:{...verifiedPaymentsCapability,surchargingEnabled:true}}),false);
+  assert.equal(isPublicCommerceActivationReady({...ready,fulfillmentAvailable:false}),false);
+  assert.equal(isPublicCommerceActivationReady({...ready,item:{...item,active:false}}),false);
+  assert.equal(isPublicCommerceActivationReady({...ready,item:{...item,release:{...item.release,deployApproved:false}}}),false);
+});
+
+test('controlled owner pilot is separately gated and requires both public lanes to stay off', () => {
+  const item=getConfiguredCommerceItem('home-inspection-study-guide');
+  assert.equal(isControlledOwnerPilotReady({
+    flags:{controlledOwnerPilotEnabled:true,publicAuthResumeEnabled:false,publicDigitalCheckoutEnabled:false,serviceQboSendEnabled:false},
+    capability:verifiedPaymentsCapability,item,fulfillmentAvailable:true,
+  }),true);
+  assert.equal(isControlledOwnerPilotReady({
+    flags:{controlledOwnerPilotEnabled:false,publicAuthResumeEnabled:false,publicDigitalCheckoutEnabled:false,serviceQboSendEnabled:false},
+    capability:verifiedPaymentsCapability,item,fulfillmentAvailable:true,
+  }),false);
+  for (const publicFlag of ['publicAuthResumeEnabled','publicDigitalCheckoutEnabled']) {
+    assert.equal(isControlledOwnerPilotReady({
+      flags:{controlledOwnerPilotEnabled:true,publicAuthResumeEnabled:false,
+        publicDigitalCheckoutEnabled:false,serviceQboSendEnabled:false,[publicFlag]:true},
+      capability:verifiedPaymentsCapability,item,fulfillmentAvailable:true,
+    }),false,publicFlag);
+  }
 });
 
 test('does not disclose private configuration through buyer capabilities', () => {

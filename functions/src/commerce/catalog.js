@@ -86,7 +86,13 @@ function paymentsCapabilityVerified(capability) {
 
 export function isCommerceItemPurchasable(item, capability = PAYMENTS_CAPABILITY) {
   return paymentsCapabilityVerified(capability)
+    && commerceItemVerified(item)
     && item?.active === true
+    && item.release?.deployApproved === true;
+}
+
+function commerceItemVerified(item) {
+  return item != null
     && Number.isInteger(item.amountCents)
     && item.amountCents > 0
     && item.quickBooks?.itemVerified === true
@@ -109,8 +115,32 @@ export function isCommerceItemPurchasable(item, capability = PAYMENTS_CAPABILITY
     && item.artifact?.objectVerified === true
     && item.release?.ownerPilotApproved === true
     && item.release?.priceApproved === true
-    && item.release?.fulfillmentRuntimeVerified === true
-    && item.release?.deployApproved === true;
+    && item.release?.fulfillmentRuntimeVerified === true;
+}
+
+function exactReviewedPaymentsCapability(capability) {
+  return capability?.mode === 'documented-intuit-flow' && paymentsCapabilityVerified(capability);
+}
+
+export function isControlledOwnerPilotReady({flags,capability,item,fulfillmentAvailable} = {}) {
+  return flags?.controlledOwnerPilotEnabled === true
+    && flags?.publicAuthResumeEnabled === false
+    && flags?.publicDigitalCheckoutEnabled === false
+    && flags?.serviceQboSendEnabled === false
+    && fulfillmentAvailable === true
+    && exactReviewedPaymentsCapability(capability)
+    && commerceItemVerified(item)
+    && item.release?.ownerPilotApproved === true;
+}
+
+export function isPublicCommerceActivationReady({flags,capability,item,fulfillmentAvailable} = {}) {
+  return flags?.publicAuthResumeEnabled === true
+    && flags?.publicDigitalCheckoutEnabled === true
+    && flags?.controlledOwnerPilotEnabled === false
+    && flags?.serviceQboSendEnabled === false
+    && fulfillmentAvailable === true
+    && exactReviewedPaymentsCapability(capability)
+    && isCommerceItemPurchasable(item,capability);
 }
 
 export function getConfiguredPaymentsCapability() {

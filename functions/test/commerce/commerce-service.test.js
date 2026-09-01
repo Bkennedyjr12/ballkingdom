@@ -13,9 +13,14 @@ const catalogItem = Object.freeze({
   currency:'USD',
   orderType:'digital_product',
   fulfillmentType:'protected_download',
+  delivery:'electronic_only',physicalCopyIncluded:false,
   active:true,
   quickBooks:{itemId:'8',itemName:'Home Inspection Study Guide',itemVerified:true},
-  tax:{quickBooksTaxCode:'NON',accountantVerified:true},
+  tax:{quickBooksTaxCode:'NON',classificationApproved:true,accountantVerified:true},
+  artifact:{contentType:'application/pdf',exactBytes:4,
+    sha256:'2bdf6b760b426cc088ade620334fd8ff735f3276bb0b68589ceaccbc1d93cc9d',
+    md5Hash:'XXzfi6ddgB6rru9fLIrv7Q==',generation:'1785951381246665',objectVerified:true},
+  release:{ownerPilotApproved:true,priceApproved:true,fulfillmentRuntimeVerified:true,deployApproved:true},
 });
 const accountingSnapshot=Object.freeze({
   provider:'quickbooks',itemId:'8',itemName:'Home Inspection Study Guide',taxCode:'NON',
@@ -515,7 +520,9 @@ function fixture(overrides = {}) {
       return 'https://ballkingdom.com/finish-sign-in?mode=signIn&oobCode=synthetic';
     },
   };
-  const flags = overrides.flags ?? {publicAuthResumeEnabled:true,publicDigitalCheckoutEnabled:true,digitalInvoicePilotEnabled:true,serviceQboSendEnabled:false};
+  const flags = {publicAuthResumeEnabled:true,publicDigitalCheckoutEnabled:true,
+    controlledOwnerPilotEnabled:false,digitalInvoicePilotEnabled:true,serviceQboSendEnabled:false,
+    ...(overrides.flags ?? {})};
   const getCurrentUser = overrides.getCurrentUser ?? (async uid => ({
     uid,
     email:pilotEmail,
@@ -530,9 +537,10 @@ function fixture(overrides = {}) {
     graph,
     auth,
     getCommerceItem: overrides.getCommerceItem ?? (() => catalogItem),
+    getConfiguredCommerceItem: overrides.getConfiguredCommerceItem ?? (() => catalogItem),
     getPaymentsCapability: overrides.getPaymentsCapability ?? (() => verifiedPaymentsCapability),
     listCommerceCapabilities: overrides.listCommerceCapabilities,
-    isDigitalFulfillmentAvailable: overrides.isDigitalFulfillmentAvailable,
+    isDigitalFulfillmentAvailable: overrides.isDigitalFulfillmentAvailable ?? (() => true),
     readFeatureFlags: () => flags,
     getApprovedPilotEmail: overrides.getApprovedPilotEmail
       ?? (() => overrides.approvedPilotEmail ?? pilotEmail),
@@ -568,7 +576,33 @@ const ownerAuth = Object.freeze({
     auth_time:1788026400,
     iat:1788026400,
     firebase:Object.freeze({sign_in_provider:'emailLink'}),
+    companionOwner:true,
   }),
+});
+
+test('controlled owner purchase requires its separate flag, exact authoritative email, and owner claim while public flags stay off', async () => {
+  const state=fixture({
+    flags:{publicAuthResumeEnabled:false,publicDigitalCheckoutEnabled:false,controlledOwnerPilotEnabled:true,serviceQboSendEnabled:false},
+    getCurrentUser:async uid=>({uid,email:pilotEmail,emailVerified:true,disabled:false,
+      customClaims:{companionOwner:true},tokensValidAfterTime:'2026-08-29T17:00:00.000Z'}),
+    isDigitalFulfillmentAvailable:()=>true,
+  });
+  const result=await state.service.createControlledOwnerPilotOrder({
+    sku:catalogItem.sku,customerName:'Brian',idempotencyKey:'controlled-owner-order',
+  },ownerAuth);
+  assert.equal(result.status,'payment_verification_pending');
+  await assert.rejects(state.service.createControlledOwnerPilotOrder({
+    sku:catalogItem.sku,customerName:'Brian',idempotencyKey:'blocked-owner-order',
+  },{...ownerAuth,token:{...ownerAuth.token,companionOwner:false}}),{code:'PILOT_RECIPIENT_REQUIRED'});
+  await assert.rejects(state.service.createControlledOwnerPilotOrder({
+    sku:catalogItem.sku,customerName:'Brian',idempotencyKey:'blocked-owner-email',
+  },{...ownerAuth,email:'other@example.test',token:{...ownerAuth.token,email:'other@example.test'}}),
+  {code:'AUTH_SESSION_INVALID'});
+  const disabled=fixture({flags:{publicAuthResumeEnabled:false,publicDigitalCheckoutEnabled:false,
+    controlledOwnerPilotEnabled:false,serviceQboSendEnabled:false}});
+  await assert.rejects(disabled.service.createControlledOwnerPilotOrder({
+    sku:catalogItem.sku,customerName:'Brian',idempotencyKey:'disabled-owner-order',
+  },ownerAuth),{code:'COMMERCE_DISABLED'});
 });
 const appCheck = Object.freeze({app:{appId:'test-app'}});
 const publicAuthContext = Object.freeze({
@@ -658,6 +692,18 @@ test('counts recovered public-auth manual reviews without exposing recipient dat
   assert.deepEqual(await state.service.dispatchPendingEffects(new Date('2026-08-29T18:00:00.000Z')), {
     recoveredCreateCount:0,recoveredSendCount:0,manualReviewCount:1,
   });
+});
+
+test('cleanup index failure is isolated so due effects and order reconciliation continue', async () => {
+  const repository=createMemoryRepository();
+  let listed=0;
+  repository.cleanupExpiredPublicAuthArtifacts=async()=>{throw new Error('missing index');};
+  repository.listDueEffects=async()=>{listed+=1;return [];};
+  const state=fixture({repository});
+  const result=await state.service.dispatchPendingEffects(new Date('2026-08-29T18:00:00.000Z'));
+  assert.equal(listed,1);
+  assert.equal(result.cleanupFailed,true);
+  assert.equal(state.calls.alerts.some(alert=>alert.code==='public_auth_cleanup_unavailable'),true);
 });
 
 test('returns one generic auth-link result while suppressing mismatched and disabled delivery', async () => {
@@ -875,7 +921,7 @@ test('reclaims a pre-dispatch auth lease only after expiry and then delivers onc
 });
 
 test('denies digital ordering while its independent feature flag is false', async () => {
-  const state = fixture({flags:{digitalInvoicePilotEnabled:false,serviceQboSendEnabled:false}});
+  const state = fixture({flags:{publicDigitalCheckoutEnabled:false,serviceQboSendEnabled:false}});
   await assert.rejects(
     state.service.createDigitalOrder({
       sku:catalogItem.sku,customerName:'Ada',idempotencyKey:'order-1',
@@ -1202,6 +1248,37 @@ test('quarantines ambiguous QuickBooks Customer evidence before Invoice send or 
   assert.equal(state.repository.orders.get('order-1').status, 'manual_review');
   assert.equal(state.repository.effects.get('order-1:invoice_create').status, 'manual_review');
   assert.equal(state.repository.orders.get('order-1').lastErrorCode, 'customer_accounting_ambiguous');
+});
+
+test('quarantines ambiguous QuickBooks Invoice evidence before send or retry', async () => {
+  let createAttempts=0;
+  let sendAttempts=0;
+  const quickbooks={
+    async createCommerceInvoice() {
+      createAttempts+=1;
+      const error=new Error('redacted invoice ambiguity');
+      error.code='QBO_INVOICE_AMBIGUOUS';
+      throw error;
+    },
+    async getInvoice() { throw new Error('must not accept unresolved invoice evidence'); },
+    async sendInvoice() { sendAttempts+=1; throw new Error('must not send'); },
+    async getAccountingChanges() { return {realmId:'realm-1',changes:[]}; },
+  };
+  const state=fixture({quickbooks});
+
+  await assert.rejects(state.service.createDigitalOrder({
+    sku:catalogItem.sku,customerName:'Ada',idempotencyKey:'ambiguous-invoice-1',
+  },ownerAuth), {code:'ORDER_MANUAL_REVIEW'});
+  await assert.rejects(state.service.createDigitalOrder({
+    sku:catalogItem.sku,customerName:'Changed',idempotencyKey:'ambiguous-invoice-2',
+  },ownerAuth), {code:'ORDER_MANUAL_REVIEW'});
+
+  assert.equal(createAttempts,1);
+  assert.equal(sendAttempts,0);
+  assert.equal(state.repository.orders.size,1);
+  assert.equal(state.repository.orders.get('order-1').status,'manual_review');
+  assert.equal(state.repository.effects.get('order-1:invoice_create').status,'manual_review');
+  assert.equal(state.repository.orders.get('order-1').lastErrorCode,'invoice_accounting_ambiguous');
 });
 
 test('parallel Customer ambiguity returns consistent manual review without a second provider mutation', async () => {
@@ -2236,6 +2313,7 @@ test('release state requires App Check and an administrator and exposes only rev
   assert.deepEqual(await state.service.getCommerceReleaseState({uid:'admin',app:{},admin:true}), {
     publicAuthResumeEnabled:true,
     publicDigitalCheckoutEnabled:true,
+    controlledOwnerPilotEnabled:false,
     serviceQboSendEnabled:false,
   });
 });

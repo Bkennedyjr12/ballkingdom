@@ -137,6 +137,7 @@ During a QuickBooks, Firebase, Secret Manager, or App Check outage, fail closed:
 
 Rollback sets `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false`, keeps
 `COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true`, and keeps
+`COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=false`, and keeps
 `COMMERCE_SERVICE_QBO_SEND_ENABLED=false` in the reviewed
 `functions/.env.the-ballers-kingdom` commit. Redeploy only the separately approved scoped Functions
 target. Retain `requestPilotSignInLink` for returning-customer authentication. Retain

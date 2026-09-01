@@ -6,7 +6,7 @@ export function createPublicAuthLimiter({repository,clock = () => new Date()} = 
     consume({emailDigest,ipDigest,appId}) {
       return repository.consumePublicAuthLimits({
         emailDigest,ipDigest,appId,now:clock(),windowMs:10 * 60 * 1000,
-        emailLimit:5,ipLimit:20,appLimit:100,globalLimit:250,
+        emailLimit:5,ipLimit:20,appGlobalLimit:250,
       });
     },
   });

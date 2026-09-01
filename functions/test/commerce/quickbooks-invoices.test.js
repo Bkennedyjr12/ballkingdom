@@ -339,6 +339,60 @@ test('creates a Customer only when the bounded email lookup returns zero matches
   fetchImpl.assertDone();
 });
 
+test('recovers a timed-out Customer create only from one exact email readback', async () => {
+  const timeout=Object.assign(new Error('provider body must stay redacted'),{name:'TimeoutError'});
+  const fetchImpl=scriptedFetch([
+    tokenStep(),
+    () => json({QueryResponse:{}}),
+    () => { throw timeout; },
+    call => {
+      assert.equal(
+        new URL(call.url).searchParams.get('query'),
+        "select * from Customer where PrimaryEmailAddr = 'ada@example.com' maxresults 2"
+      );
+      return json({QueryResponse:{Customer:[{
+        Id:'customer-recovered',PrimaryEmailAddr:{Address:'ada@example.com'},
+      }]}});
+    },
+    () => json({Item:{Id:'item-4',Name:'Championship Week',Active:true}}),
+    () => json({Invoice:{Id:'invoice-30',DocNumber:'1001'}}),
+    () => json({Invoice:commerceInvoiceReadback({CustomerRef:{value:'customer-recovered'}})}),
+  ]);
+  const client=createQuickBooksClient(clientConfig(),fetchImpl);
+
+  assert.deepEqual(await client.createCommerceInvoice(commerceOrder()),{
+    customerId:'customer-recovered',invoiceId:'invoice-30',documentNumber:'1001',
+  });
+  fetchImpl.assertDone();
+});
+
+test('recovers a timed-out Invoice create only from one exact private-note readback', async () => {
+  const timeout=Object.assign(new Error('provider body must stay redacted'),{name:'AbortError'});
+  const recovered=commerceInvoiceReadback();
+  const fetchImpl=scriptedFetch([
+    tokenStep(),
+    () => json({QueryResponse:{Customer:[{
+      Id:'customer-9',PrimaryEmailAddr:{Address:'ada@example.com'},
+    }]}}),
+    () => json({Item:{Id:'item-4',Name:'Championship Week',Active:true}}),
+    () => { throw timeout; },
+    call => {
+      assert.equal(
+        new URL(call.url).searchParams.get('query'),
+        "select * from Invoice where PrivateNote = 'bk-order-order-1' maxresults 2"
+      );
+      return json({QueryResponse:{Invoice:[recovered]}});
+    },
+    () => json({Invoice:recovered}),
+  ]);
+  const client=createQuickBooksClient(clientConfig(),fetchImpl);
+
+  assert.deepEqual(await client.createCommerceInvoice(commerceOrder()),{
+    customerId:'customer-9',invoiceId:'invoice-30',documentNumber:'1001',
+  });
+  fetchImpl.assertDone();
+});
+
 test('quarantines mismatched or multiple Customer email results before Invoice create', async t => {
   const cases = [
     ['one mismatched result', [{

@@ -1220,12 +1220,24 @@ test('recovers expired public auth leases with opaque bindings and preserves the
   assert.doesNotMatch(JSON.stringify(alert), /first@example|second@example/);
 });
 
+test('public auth ambiguity quarantines recipient, SKU, and purpose across issuance buckets until explicit admin resolution', async () => {
+  const {repository}=repositoryFixture();
+  const identity={email:'quarantine@example.test',sku:'home-inspection-study-guide',purpose:'sign_in'};
+  const first=await repository.createPublicDigitalAuthEmailEffect({...identity,issuanceBucket:1});
+  const claim=await repository.claimPublicDigitalAuthEmailEffect(first.binding,'auth-worker',new Date('2026-08-29T18:00:00.000Z'));
+  await repository.markPublicDigitalAuthDispatchStarted(first.binding,'auth-worker',claim.claimId,new Date('2026-08-29T18:00:01.000Z'));
+  await repository.recordPublicDigitalAuthEmailFailure(first.binding,'auth-worker',claim.claimId,{code:'provider_unknown'});
+  assert.equal(await repository.createPublicDigitalAuthEmailEffect({...identity,issuanceBucket:2}),false);
+  await repository.resolvePublicAuthQuarantine({...identity,adminUid:'owner-uid'});
+  assert.match((await repository.createPublicDigitalAuthEmailEffect({...identity,issuanceBucket:2})).binding,/^[a-f0-9]{64}$/);
+});
+
 test('caps cleanup of expired public auth limits, effects, and audits without retaining raw email or IP', async () => {
   const clock = () => new Date('2026-08-29T18:00:00.000Z');
   const {firestore, repository} = repositoryFixture(clock);
   await repository.consumePublicAuthLimits({
     emailDigest:'a'.repeat(64),ipDigest:'b'.repeat(64),appId:'web-app',now:clock(),windowMs:600000,
-    emailLimit:5,ipLimit:20,appLimit:100,globalLimit:250,
+    emailLimit:5,ipLimit:20,appGlobalLimit:250,
   });
   const effect = await repository.createPublicDigitalAuthEmailEffect({
     email:'retained@example.test',sku:'home-inspection-study-guide',purpose:'sign_in',issuanceBucket:1,
@@ -1241,7 +1253,7 @@ test('caps cleanup of expired public auth limits, effects, and audits without re
   const first = await repository.cleanupExpiredPublicAuthArtifacts(cutoff, {limit:4});
   assert.equal(first.deletedCount, 4);
   const second = await repository.cleanupExpiredPublicAuthArtifacts(cutoff, {limit:4});
-  assert.equal(second.deletedCount, 2);
+  assert.equal(second.deletedCount, 1);
   while ((await repository.cleanupExpiredPublicAuthArtifacts(cutoff, {limit:4})).deletedCount > 0) {}
   assert.equal(firestore.collection('commercePublicAuthLimits').length, 0);
   assert.equal(firestore.collection('commerceEffects').some(entry => entry.effect === 'public_digital_auth_email'), false);
@@ -1682,12 +1694,12 @@ test('enforces bounded digest-keyed abuse windows without storing raw identifier
   assert.equal(serialized.includes('approved-pilot@example.test'), false);
 });
 
-test('consumes email, IP, App Check, and global public-auth windows in one redacted transaction', async () => {
+test('consumes email, IP, and App Check app-global public-auth windows in one redacted transaction', async () => {
   const {firestore, repository}=repositoryFixture();
   const input={
     emailDigest:'a'.repeat(64),ipDigest:'b'.repeat(64),appId:'web',
     now:new Date('2026-08-29T18:00:00.000Z'),windowMs:600000,
-    emailLimit:2,ipLimit:3,appLimit:4,globalLimit:5,
+    emailLimit:2,ipLimit:3,appGlobalLimit:4,
   };
 
   assert.equal(await repository.consumePublicAuthLimits(input),true);

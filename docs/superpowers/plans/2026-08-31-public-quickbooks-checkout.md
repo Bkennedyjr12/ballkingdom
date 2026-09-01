@@ -119,7 +119,7 @@ git commit -m "feat: define public digital checkout gates"
 - Modify: `functions/test/commerce/order-repository.test.js`
 
 **Interfaces:**
-- Consumes: App Check context, normalized email, request metadata reduced to trusted network/device digests, existing leased email effects and Graph sender.
+- Consumes: App Check context, normalized email, request metadata reduced to a trusted network digest and an app-global App Check identifier, existing leased email effects and Graph sender. App Check `appId` is not a device identifier.
 - Produces: `createPublicAuthLimiter({repository,clock})` with `consume({emailDigest,ipDigest,appId}): Promise<boolean>`; service method `requestPublicSignInLink(input, context): Promise<{status:'request_received'}>`. The deployed callable keeps the compatibility-stable export name `requestPilotSignInLink` and delegates only to this new public method, avoiding a destructive Function rename.
 
 - [ ] **Step 1: Write failing public-auth limit tests**
@@ -131,7 +131,7 @@ test('allows bounded distinct public recipients without an allowlist', async () 
   assert.equal(await limiter.consume({emailDigest:'c'.repeat(64),ipDigest:'b'.repeat(64),appId:'web'}),true);
 });
 
-test('fails closed on email, IP, device, or global send-volume exhaustion', async () => {
+test('fails closed on email, IP, or independently reachable app-global exhaustion', async () => {
   const limiter=createPublicAuthLimiter({repository:memoryLimits({emailCount:5}),clock:()=>new Date(0)});
   assert.equal(await limiter.consume({emailDigest:'a'.repeat(64),ipDigest:'b'.repeat(64),appId:'web'}),false);
 });
@@ -154,7 +154,7 @@ export function createPublicAuthLimiter({repository,clock=()=>new Date()}={}) {
     consume({emailDigest,ipDigest,appId}) {
       return repository.consumePublicAuthLimits({
         emailDigest,ipDigest,appId,now:clock(),windowMs:10*60*1000,
-        emailLimit:5,ipLimit:20,appLimit:100,globalLimit:250,
+        emailLimit:5,ipLimit:20,appGlobalLimit:250,
       });
     },
   });

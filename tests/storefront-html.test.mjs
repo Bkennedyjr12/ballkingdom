@@ -90,6 +90,14 @@ test('Firebase Hosting excludes backend, tests, and local source material', asyn
   ]) assert.ok(publicTarget.ignore.includes(pattern), `missing Hosting ignore: ${pattern}`);
 });
 
+test('inactive commerce release deploys Firestore indexes before Functions and Hosting', async () => {
+  const release=await read('docs/operations/public-quickbooks-checkout-release.md');
+  const indexDeploy=release.indexOf('firebase deploy --only firestore:indexes');
+  const inactiveDeploy=release.indexOf('firebase deploy --only functions:requestPilotSignInLink');
+  assert.ok(indexDeploy >= 0,'missing separately scoped Firestore index deploy');
+  assert.ok(inactiveDeploy > indexDeploy,'indexes must deploy before scheduled Functions');
+});
+
 test('Firebase Hosting excludes every tracked root Markdown operations file', async () => {
   const config = JSON.parse(await read('firebase.json'));
   const publicTarget = config.hosting.find((entry) => entry.target === 'public');
@@ -115,13 +123,16 @@ test('public checkout release inventories the exact reviewed Function surface', 
     .map((match) => match[1]);
   assert.deepEqual(exportedFunctions, [
     'requestPilotSignInLink',
+    'requestOwnerPilotSignInLink',
     'createDigitalOrder',
+    'createControlledOwnerPilotOrder',
     'getOrderStatus',
     'createDownloadGrant',
     'redeemDownloadGrant',
     'getBuyerCommerceCapability',
     'verifyOrderPayment',
     'getCommerceReleaseState',
+    'resolvePublicAuthEmailQuarantine',
     'getQuickBooksCommerceHealth',
     'requestRefundReview',
     'reconcileOrder',
@@ -194,7 +205,7 @@ test('public checkout rollback preserves paid-customer access and avoids full pr
   assert.doesNotMatch(release, /git worktree add --detach/);
 });
 
-test('release packet and operator runbook share the three-flag customer-preserving rollback', async () => {
+test('release packet and operator runbook share the four-flag customer-preserving rollback', async () => {
   for (const path of [
     'docs/operations/public-quickbooks-checkout-release.md',
     'docs/operations/quickbooks-commerce-runbook.md',
@@ -202,6 +213,7 @@ test('release packet and operator runbook share the three-flag customer-preservi
     const text=await read(path);
     assert.match(text,/COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false/);
     assert.match(text,/COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true/);
+    assert.match(text,/COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=false/);
     assert.match(text,/COMMERCE_SERVICE_QBO_SEND_ENABLED=false/);
     for (const name of ['requestPilotSignInLink','getOrderStatus','createDownloadGrant','redeemDownloadGrant']) {
       assert.match(text,new RegExp(`retain[^.]*${name}|${name}[^.]*retain`,'i'),`${path}: ${name}`);

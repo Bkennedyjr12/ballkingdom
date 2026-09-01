@@ -73,12 +73,13 @@ path. It remains untouched for any unrelated pilot or service workflow that stil
 Public sign-in accepts a normalized email address only after App Check. Email-link requests use:
 
 - exact input schemas and bounded field lengths;
-- per-IP, per-email-digest, and App Check/device-aware limits;
-- a global circuit breaker for abnormal send volume;
+- per-IP and per-email-digest limits plus one App Check app-global breaker;
+- no claim that Firebase App Check `appId` is a device or installation identifier;
 - generic public responses and redacted internal errors;
 - transactional claims so parallel requests produce at most one send;
 - bounded sequential reissue for lost or expired links;
-- permanent manual-review quarantine after ambiguous post-dispatch failures.
+- durable recipient/SKU/purpose manual-review quarantine after ambiguous post-dispatch failures,
+  independent of issuance windows and removable only by an authenticated administrator action.
 
 The public browser never receives the Firebase action link from the server response. It is sent
 only through the approved Graph mailbox. Link completion is separate from order creation so a
@@ -174,7 +175,7 @@ Implementation follows test-driven development and must add coverage for:
 
 - public emails outside the former allowlist;
 - malformed and abusive requests;
-- per-IP, per-email, per-device, and global volume limits;
+- per-IP, per-email, and independently reachable App Check app-global volume limits;
 - one-send behavior under parallel sign-in requests and bounded reissue;
 - public Auth completion, returning-order resumption, and inactive/revoked identities;
 - one active order/invoice per verified customer and SKU;
