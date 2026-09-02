@@ -22,6 +22,7 @@ export async function runQuickBooksCommerceHealth({credentialCoordinator,createC
   const company=await createClient({
     accessToken:credentials.accessToken,
     realmId:credentials.realmId,
+    requestTimeoutMs:60_000,
   }).getCompanyInfo();
   if (company?.companyName !== EXPECTED_COMPANY_NAME) throw healthError('QBO_COMPANY_MISMATCH');
   return Object.freeze({

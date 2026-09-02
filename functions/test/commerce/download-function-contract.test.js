@@ -65,6 +65,7 @@ test('protects QuickBooks commerce health with admin auth, App Check, and redact
   assert.match(declaration,/secrets:QBO_RUNTIME_SECRETS/);
   assert.match(declaration,/enforceAppCheck:true/);
   assert.ok(declaration.indexOf('requireAdmin(request.auth)') < declaration.indexOf('runQuickBooksCommerceHealth'));
+  assert.match(declaration,/requestTimeoutMs:credentials\.requestTimeoutMs/);
   assert.doesNotMatch(declaration,/request\.data/);
   assert.doesNotMatch(declaration,/createCustomer|createInvoice|sendInvoice|sendMail|sendMessage/);
 });

@@ -618,6 +618,7 @@ export const getQuickBooksCommerceHealth = onCall({
       credentialCoordinator:quickBooksTokenCoordinator(),
       createClient:credentials=>createQuickBooksClient({
         realmId:credentials.realmId,
+        requestTimeoutMs:credentials.requestTimeoutMs,
         accessTokenProvider:{getAccessToken:async()=>credentials.accessToken},
       }),
     });

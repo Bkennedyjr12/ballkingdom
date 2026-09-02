@@ -17,7 +17,9 @@ test('returns only redacted health booleans after exact company verification',as
     status:'healthy',credentialBindingPublished:true,refreshContinuityVerified:true,rotationPersisted:true,
     realmVerified:true,companyVerified:true,
   });
-  assert.deepEqual(calls,['refresh',{accessToken:'private-access',realmId:'private-realm'}]);
+  assert.deepEqual(calls,['refresh',{
+    accessToken:'private-access',realmId:'private-realm',requestTimeoutMs:60_000,
+  }]);
   assert.doesNotMatch(JSON.stringify(result),/private-access|private-realm|token|The Ballers Kingdom/i);
 });
 
