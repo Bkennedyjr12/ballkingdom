@@ -610,7 +610,7 @@ export const resolvePublicAuthEmailQuarantine = onCall({region:REGION,enforceApp
 });
 
 export const getQuickBooksCommerceHealth = onCall({
-  region:REGION,secrets:QBO_RUNTIME_SECRETS,enforceAppCheck:true,
+  region:REGION,secrets:QBO_RUNTIME_SECRETS,enforceAppCheck:true,timeoutSeconds:90,
 }, async request => {
   requireAdmin(request.auth);
   try {
@@ -618,6 +618,7 @@ export const getQuickBooksCommerceHealth = onCall({
       credentialCoordinator:quickBooksTokenCoordinator(),
       createClient:credentials=>createQuickBooksClient({
         realmId:credentials.realmId,
+        requestTimeoutMs:credentials.requestTimeoutMs,
         accessTokenProvider:{getAccessToken:async()=>credentials.accessToken},
       }),
     });
