@@ -54,4 +54,6 @@ test('existing internal artifacts remain hashes only and are flagged for separat
   assert.equal(result.inheritedInternalArtifactCount,1);
   assert.equal(result.files['/.worktrees/old/internal.md'],'c'.repeat(64));
   assert.equal(result.blobs.length,1);
+  assert.equal(result.publicationBlocked,true);
+  assert.deepEqual(result.publicationBlockers,['inherited-internal-artifact-review']);
 });

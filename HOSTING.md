@@ -31,6 +31,10 @@ review decision. See
 [`base44-ai-readiness-integration.md`](docs/operations/base44-ai-readiness-integration.md)
 for the pinned baseline, build command, verification and approval boundary.
 Neither a cloud preview nor production publication is currently approved.
+A subsequent metadata-only review confirmed representative internal artifacts
+are publicly reachable. The compatibility overlay is explicitly publication-blocked;
+see [`hosting-artifact-review-checkpoint.md`](docs/operations/hosting-artifact-review-checkpoint.md)
+for the separate cleanup decision and iOS delivery blocker.
 
 This repo's `firebase.json` covers two sites. Deploy them by target/site so a
 careless full deploy cannot overwrite something unintended:

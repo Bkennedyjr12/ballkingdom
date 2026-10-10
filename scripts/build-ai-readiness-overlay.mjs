@@ -56,9 +56,13 @@ export function buildOverlay({baseline,snapshot,read,paths=OVERLAY_PATHS}) {
       files[`/${path}`]=hash;changedPaths.push(`/${path}`);blobs.push({path,hash,compressed});
     }
   }
+  const inheritedInternalArtifactCount=snapshot.files.filter(file=>file.path.split('/').some(part=>part.startsWith('.'))).length;
+  // Retaining hashes proves compatibility only. It never approves carrying
+  // publicly reachable internal artifacts into a new Hosting release.
   return {baseVersion:baseline.version,config:structuredClone(baseline.config),
     files:Object.fromEntries(sorted(Object.entries(files))),blobs,changedPaths:changedPaths.sort(),
-    inheritedInternalArtifactCount:snapshot.files.filter(file=>file.path.split('/').some(part=>part.startsWith('.'))).length};
+    inheritedInternalArtifactCount,publicationBlocked:inheritedInternalArtifactCount>0,
+    publicationBlockers:inheritedInternalArtifactCount>0?['inherited-internal-artifact-review']:[]};
 }
 
 if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
@@ -82,6 +86,7 @@ if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)
     unchangedFiles:baseline.fileCount-result.changedPaths.filter(path=>snapshot.files.some(file=>file.path===path)).length,
     changedPaths:result.changedPaths,deletions:[],configUnchanged:true,
     inheritedInternalArtifactCount:result.inheritedInternalArtifactCount,
+    publicationBlocked:result.publicationBlocked,publicationBlockers:result.publicationBlockers,
     deploymentPerformed:false,publicationRequiresSeparateApproval:true,
     payloadSha256:digest(JSON.stringify(payload)),configSha256:digest(JSON.stringify(result.config))};
   writeFileSync(resolve(output,'release-plan.json'),JSON.stringify(plan,null,2)+'\n');
