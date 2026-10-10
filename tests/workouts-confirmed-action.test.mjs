@@ -1,0 +1,5 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {confirmedAction} from '../assets/js/workouts-confirmed-action.js';
+test('elapsed warning does not reject or unlock an unconfirmed write',async()=>{let tick,resolve,settled=false,warning=false,cleared=false;const operation=new Promise(r=>resolve=r);const result=confirmedAction(()=>operation,{setTimer:fn=>{tick=fn;return 42;},clearTimer:id=>{assert.equal(id,42);cleared=true;},onPending:()=>warning=true});result.then(()=>settled=true);tick();await Promise.resolve();assert.equal(warning,true);assert.equal(settled,false);resolve({saved:true});assert.deepEqual(await result,{saved:true});assert.equal(cleared,true);});
+test('actual rejection preserves the provider error and clears the pending timer',async()=>{let cleared=false;const error=Object.assign(Error('offline'),{code:'unavailable'});await assert.rejects(confirmedAction(()=>Promise.reject(error),{setTimer:()=>1,clearTimer:()=>cleared=true}),e=>e===error);assert.equal(cleared,true);});

@@ -22,11 +22,20 @@ Mail is Microsoft 365 (`info@ballkingdom.com`) via MX + SPF on
 
 ## Deploying
 
+**October 10, 2026 release hold for the public site:** the live file set differs
+from GitHub main. This assessment branch recovers verified public source and
+prepares an additive overlay that preserves all existing hashes and configuration.
+Do not reconstruct `ballkingdom-com` by deploying the repository root. The live
+release also contains inherited internal artifact paths requiring a separate
+review decision. See
+[`base44-ai-readiness-integration.md`](docs/operations/base44-ai-readiness-integration.md)
+for the pinned baseline, build command, verification and approval boundary.
+Neither a cloud preview nor production publication is currently approved.
+
 This repo's `firebase.json` covers two sites. Deploy them by target/site so a
 careless full deploy cannot overwrite something unintended:
 
-    # main public site
-    firebase deploy --only hosting:public --project the-ballers-kingdom
+    # main public site: publication held; use the reviewed additive release plan
 
     # theballerskingdom.com redirect
     firebase deploy --only hosting:theballerskingdom-redirect --project the-ballers-kingdom

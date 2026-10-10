@@ -10,6 +10,8 @@ npm-debug.log*
 .playwright-cli/
 firebase-debug.log
 output/playwright/
+output/reconciliation/
+output/ai-readiness-release/
 assets/css/*.bak
 test-results/
 playwright-report/

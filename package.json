@@ -17,7 +17,11 @@
     "hi:pdf": "node home-inspection-guide/scripts/build-pdf.mjs",
     "hi:dev": "python3 -m http.server 4173",
     "hi:all": "npm run hi:ingest && npm run hi:build && npm run hi:pdf",
-    "test:ai-readiness": "playwright test tests/ai-readiness-browser.spec.mjs"
+    "test:ai-readiness": "playwright test tests/ai-readiness-browser.spec.mjs",
+    "build:ai-readiness-overlay": "node scripts/build-ai-readiness-overlay.mjs",
+    "build:native-assessment": "node assets/js/ai-assessment-build.js",
+    "test:native-assessment": "node --test tests/native-assessment-model.test.mjs functions/test/assessment-service.test.mjs",
+    "test:native-assessment:browser": "playwright test --config tests/native-assessment.config.mjs"
   },
   "dependencies": {
     "@playwright/test": "^1.45.0",

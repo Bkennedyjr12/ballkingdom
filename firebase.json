@@ -48,7 +48,9 @@
         "home-inspection-guide/audit/**",
         "home-inspection-guide/public/assets/guide.pdf",
         "home-inspection-guide/README.md",
-        "hosting/**"
+        "hosting/**",
+        "scripts/**",
+        "assets/js/ai-assessment-build.js"
       ],
       "rewrites": [
         {
@@ -63,6 +65,24 @@
             {
               "key": "Cache-Control",
               "value": "public, max-age=300, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "/workouts",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "private, no-store, max-age=0"
+            }
+          ]
+        },
+        {
+          "source": "/workouts.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "private, no-store, max-age=0"
             }
           ]
         }

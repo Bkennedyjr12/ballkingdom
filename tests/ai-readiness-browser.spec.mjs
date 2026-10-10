@@ -43,7 +43,7 @@ for (const state of ['signed out', 'synthetic saved session']) {
       seen.push({ url: route.request().url(), headers: route.request().headers() });
       return route.fulfill({ contentType: 'text/html', body: '<h1>Synthetic external destination</h1>' });
     });
-    for (const [name, destination] of [['Start AI assessment', assessment], ['Explore the Ballers Kingdom hub', hub]]) {
+    for (const [name, destination] of [['Open Base44 assessment', assessment], ['Explore the Ballers Kingdom hub', hub]]) {
       const link = page.getByRole('link', { name, exact: true });
       await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
       await expect(link).toHaveAttribute('referrerpolicy', 'no-referrer');
@@ -72,13 +72,13 @@ test('a failed external load can be closed and retried without losing local data
   let fail = true;
   await context.route('https://ballers-ready-ai.base44.app/**', route => fail ? route.abort('internetdisconnected') : route.fulfill({ contentType: 'text/html', body: '<h1>Retry succeeded</h1>' }));
   const first = page.waitForEvent('popup');
-  await page.getByRole('link', { name: 'Start AI assessment', exact: true }).click();
+  await page.getByRole('link', { name: 'Open Base44 assessment', exact: true }).click();
   const failed = await first;
   await failed.close();
   await expect(page.getByText(/close that tab and try the link again/i)).toBeVisible();
   fail = false;
   const second = page.waitForEvent('popup');
-  await page.getByRole('link', { name: 'Start AI assessment', exact: true }).click();
+  await page.getByRole('link', { name: 'Open Base44 assessment', exact: true }).click();
   const retry = await second;
   await expect(retry.getByRole('heading', { name: 'Retry succeeded' })).toBeVisible();
   await retry.close();
@@ -94,7 +94,7 @@ test('mobile entry and keyboard links remain usable without overflow', async ({ 
   await page.getByRole('button', { name: 'Open menu' }).click();
   await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Training', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Open menu' }).click();
-  const link = page.getByRole('link', { name: 'Start AI assessment', exact: true });
+  const link = page.getByRole('link', { name: 'Try the native assessment', exact: true });
   await link.focus();
   await expect(link).toBeFocused();
   await page.screenshot({ path: 'output/playwright/ai-readiness-mobile.png', fullPage: true });
