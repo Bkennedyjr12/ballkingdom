@@ -47,4 +47,6 @@ Define full refund, partial refund, void/delete, dispute and cancellation polici
 - `node --test test/commerce/refunds.test.js`: 27 passed, zero failed, exit 0. Log: `output/reconciliation/commerce-audit-refund-tests.log`.
 - A synthetic signed CloudEvents invoice notification through the current processor returns `WEBHOOK_PAYLOAD_INVALID` and makes zero persistence calls. No network/provider calls. Evidence: `output/reconciliation/cloudevents-compatibility-probe.json`.
 
+The root workstream subsequently resolved the missing-module environment failures by installing the existing unchanged lockfile into the isolated checkout, with install scripts disabled. Its final full Functions Node 22 run passed 518 of 520 checks, with zero failures and two explicit Firestore/Storage emulator skips. No live or emulator rule enforcement is claimed. Final log: `output/reconciliation/functions-tests-final.txt`.
+
 The tests establish existing source behavior. They do not prove current OAuth health, payment settlement, webhook delivery, production permissions or real buyer access. This audit changed only ignored evidence files; production and financial services remain untouched.

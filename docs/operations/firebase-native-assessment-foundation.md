@@ -42,7 +42,7 @@ Test-first evidence: the thirteen new Node tests failed with explicit missing sc
 node --test tests/native-assessment-model.test.mjs functions/test/assessment-service.test.mjs
 /opt/homebrew/opt/node@22/bin/node node_modules/playwright/cli.js test --config tests/native-assessment.config.mjs --workers=1
 node --test tests/*.test.mjs
-cd functions && npm test
+cd functions && /opt/homebrew/opt/node@22/bin/node --test
 ```
 
 The first Node command passes 13 tests. The native browser suite passes 5 tests using installed Chrome and a fresh context on localhost port 4174. It verifies unanswered-next blocking, zero answers, back/review retention, changed scores, cancelled/confirmed restart, refresh reset, incomplete review, no external requests or writes, no reads/changes to synthetic account/workout/journal storage, same-domain tools exit, keyboard choice and 390-pixel layouts. It never authenticates a real user or submits a real assessment to a provider.
