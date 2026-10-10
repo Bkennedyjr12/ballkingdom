@@ -79,6 +79,14 @@ ECOAI tooling inventory confirmed Claude Code 2.1.296, Grok 1.0.44, and Muse Cod
 
 The Claude reviewer raised a possible clean canonical URL mismatch because the supplied diff did not include the existing Hosting config. Direct readback of `firebase.json` confirms `cleanUrls: true` on the public target, so Firebase serves `ai-readiness.html` at `/ai-readiness` and redirects the extension form. Official behavior is documented at https://firebase.google.com/docs/hosting/full-config#cleanurls. The concern is resolved by the existing verified configuration, with no Hosting change needed. The reviewer reported no other hard blockers in the supplied files. Mobile screenshots were visually inspected; broader accessibility certification is not claimed.
 
+## Production preservation blocker
+
+Final live readback confirms that `https://ballkingdom.com/` and `https://ballkingdom-com.web.app/` serve byte-identical homepage HTML, verifying the configured public site. However, the live homepage differs from GitHub `main`: it includes `assets/css/public-chat.css` and `assets/js/public-chat.js`, which are absent from this checkout and its tracked source baseline. No matching public-chat PR or source file was identified in the inspected Ballers Kingdom repositories/worktrees.
+
+This branch must not be deployed as a standalone replacement for the current public Hosting release. It would remove the live chat entry points and could omit other release assets. Reconcile the authoritative current production artifact/source into the release baseline first, preserve its reviewed configuration/assets, then reapply this narrow change and repeat the public-site verification. The draft PR and local preview remain reviewable; no live assets were changed.
+
+Local readback evidence: `output/playwright/hosting-source-evidence.json` and `live-home-drift.diff`. The diff was checked for credential patterns before output and contains only the two public asset references.
+
 ## Preview and release
 
 Local preview: http://127.0.0.1:8899/ai-readiness.html
@@ -86,7 +94,7 @@ Homepage preview: http://127.0.0.1:8899/index.html#tools
 
 No Firebase deployment, domain change, or new permission grant has occurred. No CI workflow is configured in this repository; do not describe the local preview as a hosted Firebase preview.
 
-After review, approval, and the normal PR merge, the intended production command is:
+After resolving the production/source drift above, review, approval, and the normal PR merge, the intended production command is:
 
 ```sh
 firebase deploy --only hosting:public --project the-ballers-kingdom
@@ -98,7 +106,7 @@ Local `ecoai-firebase-deploy-review/SKILL.md` requires explicit Brian approval b
 
 ## Remaining decisions
 
-1. Approve the linked journey for publication to the existing public Firebase target.
+1. Identify and reconcile the authoritative live public-chat release/source before publishing; preserve the live assets and repeat verification. Then approve the linked journey for the existing public Firebase target.
 2. If unified login, saved reports, or lead synchronization is desired later, first approve the exact data flow, access boundaries, storage/retention, and any provider plan or new grant. These capabilities are not implied by the links.
 3. Have the Base44 owner review lead consent/privacy wording and, if desired, add a visible return link to ballkingdom.com inside the hub. No Base44 authoring connection was created for this task.
 4. Perform a real member smoke check after approval using an authorized test account; no credentials should be shared in chat or browser code.
