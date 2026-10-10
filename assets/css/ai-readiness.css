@@ -1,0 +1,32 @@
+.ai-main { padding-bottom: 48px; }
+.ai-hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 64px; padding-top: 80px; padding-bottom: 64px; align-items: center; }
+.ai-hero h1 { max-width: 12ch; margin-bottom: 24px; }
+.ai-stats { margin-top: 28px; font-weight: 600; color: var(--cream); }
+.ai-stats span { padding: 0 10px; color: var(--gray-400); }
+.ai-panel { border: 1px solid var(--gray-200); background: var(--ink); padding: 32px; border-radius: var(--radius); }
+.ai-panel h2 { font-size: clamp(1.5rem, 2.5vw, 2rem); margin-bottom: 20px; }
+.ai-panel .btn { width: 100%; text-align: center; }
+.ai-caption { font-size: .82rem; line-height: 1.5; margin: 14px 0 0; }
+.ai-details { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; padding-bottom: 64px; }
+.ai-details h2 { margin-bottom: 20px; }
+.ai-details > div:first-child { padding-top: 32px; }
+.ai-boundary a, .ai-support a:not(.btn) { text-decoration: underline; text-underline-offset: 4px; }
+.ai-support { border-top: 1px solid var(--gray-200); padding-top: 40px; }
+.ai-support h2 { font-size: 1.6rem; margin-bottom: 16px; }
+.ai-support p { max-width: 75ch; }
+.ai-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; }
+.ai-footer { display: flex; flex-wrap: wrap; align-items: baseline; gap: 24px; padding-top: 24px; padding-bottom: 24px; border-top: 1px solid var(--gray-200); font-size: .85rem; }
+.ai-footer p { margin-right: auto; margin-bottom: 0; }
+.ai-main a:focus-visible, .ai-footer a:focus-visible, .ai-skip:focus-visible { outline: 3px solid var(--white); outline-offset: 5px; }
+.ai-skip { position: fixed; top: 8px; left: 8px; z-index: 101; background: var(--white); color: var(--black); padding: 12px; transform: translateY(-160%); }
+.ai-skip:focus { transform: translateY(0); color: var(--black); }
+@media (max-width: 859px) {
+  .ai-hero, .ai-details { grid-template-columns: 1fr; gap: 32px; }
+  .ai-hero { padding-top: 48px; padding-bottom: 40px; }
+  .ai-hero h1 { max-width: 14ch; }
+  .ai-details { padding-bottom: 40px; }
+  .ai-details > div:first-child { padding-top: 0; }
+  .ai-panel { padding: 24px; }
+  .ai-main .btn { white-space: normal; }
+  .ai-footer p { flex-basis: 100%; }
+}
