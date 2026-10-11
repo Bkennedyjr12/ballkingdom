@@ -1,9 +1,9 @@
 {
-  "version": "projects/the-ballers-kingdom/sites/ballkingdom-com/versions/e33289aa8931f7ee",
+  "version": "projects/the-ballers-kingdom/sites/ballkingdom-com/versions/4a80d522cc70cc38",
   "releaseTime": "2026-10-06T20:59:23.206Z",
   "sourceBase": "e2fafaf972720748d14c485a0e38099fd109cb3b",
-  "fileCount": 1489,
-  "manifestSha256": "b336651a07b4b4cfe7e303b554f4c1fa104f9de549dbc2cf85e9880d4fb5dd6a",
+  "fileCount": 171,
+  "manifestSha256": "5706746386f8b7dcd06265efb2862b8553b8ae83beb7ee841e979ea7e5cf13ab",
   "config": {
     "headers": [
       {
@@ -205,5 +205,7 @@
       "hostingHash": "94b8beb785768b06a98a5e41ac22fa80f5ee4a9e6aee7088a4f6619dfe9d2efc",
       "sha256": "a3e138080f40af66be525e9840c9a5219af56ab813ec6c156b76fc0995fca97c"
     }
-  ]
+  ],
+  "releasedAt": "2026-10-11T01:17:58.652Z",
+  "cleanupRemovedInternalPaths": 1318
 }

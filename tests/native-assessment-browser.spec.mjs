@@ -46,13 +46,13 @@ test('restart confirmation is reversible, clears answers and refresh starts a fr
   await expect(page.getByRole('button', { name: 'Start assessment', exact: true })).toBeVisible();
 });
 
-test('assessment never reads or alters saved account, workout or journal data and makes no external requests', async ({ context, page }) => {
+test('assessment never reads or alters saved account, workout or journal data and makes no external requests', async ({ context, page, baseURL }) => {
   const network = [];
   const failures = [];
   await context.route('**/*', route => {
     const request = route.request();
     const url = new URL(request.url());
-    if (url.origin !== 'http://127.0.0.1:4174' || !['GET', 'HEAD'].includes(request.method())) {
+    if (url.origin !== new URL(baseURL).origin || !['GET', 'HEAD'].includes(request.method())) {
       network.push({ origin: url.origin, method: request.method() });
       return route.abort();
     }
