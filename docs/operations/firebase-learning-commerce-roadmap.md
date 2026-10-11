@@ -2,6 +2,15 @@
 
 Reviewed 2026-10-10 against public source in `ballkingdom-base44`. Source architecture is reusable, but the paid funnel is not ready for activation. This audit used source, public PR metadata and synthetic tests only. It did not read purchaser records, credentials or private business data, and made no provider changes.
 
+October 11 update: Brian approved one-time course/guide purchases for the first
+release and memberships later. He also requested incorporating forthcoming
+uploads; no source files have arrived. The default-disabled
+[private ingestion scaffold](private-content-ingestion-scaffold.md) now defines
+attribution, rights review, publication state and access boundaries. Specific
+products/prices, merchant capability and live buyer access remain unverified.
+The separate [Hosting cleanup](hosting-cleanup-release.md) is deployed; no
+assessment or commerce feature was included.
+
 ## Existing work to preserve
 
 Public PRs [12](https://github.com/Bkennedyjr12/ballkingdom/pull/12) (guarded public checkout), [14](https://github.com/Bkennedyjr12/ballkingdom/pull/14) (controlled owner pilot) and [18](https://github.com/Bkennedyjr12/ballkingdom/pull/18) (Accounting health timeout) are merged. PR titles and merge dates were verified through `gh pr view`; merge commits are `2d190cc1`, `feed89de` and `e2fafaf9` respectively. A merged PR establishes source history, not an activated merchant or successful live purchase.
@@ -38,7 +47,7 @@ Proposed additions are versioned public product/lesson metadata, private `assess
 
 Before paid activation, implement a bounded CloudEvents adapter that verifies raw bytes before parsing, validates event type/version/time/IDs, checks each event's authorized realm, and records durable receipts keyed by realm plus event ID. Persist authorized hints before acknowledging; process provider reads in the worker. Unsupported or foreign events must not create orders or access. Test mixed realms, duplicates across batches, out-of-order events, malformed events, durable-write failure and retries. Never trust event order or payload as payment authority. Add a saved CDC checkpoint/backfill strategy and operator alerts; the current rolling 24-hour window alone is insufficient evidence after a longer outage.
 
-Define full refund, partial refund, void/delete, dispute and cancellation policies before activation. Confirmed full revocation should atomically update order/enrollment, invalidate unused grants and append an audit event. Existing downloaded copies cannot be recalled. Partial/ambiguous evidence needs an explicit hold/manual-review policy. Recurring membership is a separate phase requiring renewal, failed payment, cancellation, expiry and proration behavior; Brian's one-time-versus-membership choice is pending. No new price, tax, payment account, subscription, OAuth grant, transaction or deployment is authorized by this audit.
+Define full refund, partial refund, void/delete, dispute and cancellation policies before activation. Confirmed full revocation should atomically update order/enrollment, invalidate unused grants and append an audit event. Existing downloaded copies cannot be recalled. Partial/ambiguous evidence needs an explicit hold/manual-review policy. Brian selected one-time course/guide purchases first; recurring membership is a later phase requiring renewal, failed payment, cancellation, expiry and proration behavior. No new price, tax, payment account, subscription, OAuth grant, transaction or commerce deployment is authorized by this audit.
 
 ## Verification performed
 
