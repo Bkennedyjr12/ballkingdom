@@ -80,7 +80,8 @@ test('assessment never reads or alters saved account, workout or journal data an
   await page.getByRole('button', { name: 'Start assessment', exact: true }).click();
   await complete(page, 'Not yet');
   await expect(page.locator('[data-total-score]')).toHaveText('0 / 36');
-  await expect(page.getByText(/Account saving and purchases are not connected/)).toBeVisible();
+  await expect(page.getByText(/Guest results stay in this tab/)).toBeVisible();
+  await expect(page.getByText(/Purchases are not connected/)).toBeVisible();
   expect(await page.evaluate(() => window.__assessmentStorageReads)).toEqual([]);
   expect(await page.evaluate(() => ({ ...localStorage }))).toEqual(synthetic);
   expect(await page.evaluate(() => ({ ...sessionStorage }))).toEqual({ 'synthetic-session': 'keep' });

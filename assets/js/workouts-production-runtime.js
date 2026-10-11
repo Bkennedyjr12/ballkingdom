@@ -1,9 +1,10 @@
+import {createAssessmentAccountClient} from './member-assessment-app.js';
 import {createWorkoutTrackingClient} from './workouts-tracking-client.js';
 import {createWorkoutEmailLinkRuntime} from './workouts-email-link-runtime.js?v=signin-feedback-20261006';
 // Activation requires approval of the live-based workout rules and email-link Auth setup.
 export const WORKOUTS_ACTIVATED=true;
 export const WORKOUT_FIREBASE_CONFIG=Object.freeze({projectId:'the-ballers-kingdom',appId:'1:78885961453:web:9f7beee5425137768a96e4',apiKey:'AIzaSyAaDpJxm-iOybCpsXio6cmW_JClPzq1lUw',authDomain:'the-ballers-kingdom.firebaseapp.com'});
-export function createProductionWorkoutRuntime({enabled=false,appSdk,authSdk,firestoreSdk,location,history,trackingFactory=null,trackingClient=null,now=()=>Date.now()}={}){
+export function createProductionWorkoutRuntime({enabled=false,appSdk,authSdk,firestoreSdk,location,history,trackingFactory=null,trackingClient=null,assessmentFactory=null,now=()=>Date.now()}={}){
  if(!enabled)throw new Error('Private sign-in and saving are awaiting the approved security update. You can still use the generic workout planner.');
  if(location?.origin!=='https://ballkingdom.com')throw new Error('Open the private notebook at https://ballkingdom.com/workouts.');
  if(!authSdk?.inMemoryPersistence||typeof firestoreSdk?.memoryLocalCache!=='function'||(!trackingClient&&typeof authSdk?.sendSignInLinkToEmail!=='function'))throw new Error('Private sign-in is unavailable.');
@@ -11,9 +12,10 @@ export function createProductionWorkoutRuntime({enabled=false,appSdk,authSdk,fir
  const auth=authSdk.initializeAuth(app,{persistence:authSdk.inMemoryPersistence});
  const db=firestoreSdk.initializeFirestore(app,{localCache:firestoreSdk.memoryLocalCache()});
  if(trackingFactory)trackingClient=trackingFactory(app);
+ const assessmentAccount=assessmentFactory?assessmentFactory(app):null;
  const bridge=createWorkoutEmailLinkRuntime({auth,db,authSdk,firestoreSdk,location,history});
  let nextRequest=0,inFlight=false;
- return Object.freeze({...bridge,
+ return Object.freeze({...bridge,assessmentAccount,
   async signOut(){trackingClient?.clear();return bridge.signOut();},
   async completeEmailLink(input){const result=await bridge.completeEmailLink(input);if(trackingClient){try{await trackingClient.confirmSignIn();}catch{/* Authentication success is independent of optional tracking confirmation. */}}return result;},
   requestStatus:()=>trackingClient?trackingClient.requestStatus():Promise.reject(new Error('Delivery tracking is not active.')),
@@ -42,7 +44,7 @@ export async function productionRuntime(){
  return createProductionWorkoutRuntime({enabled:true,appSdk,authSdk,firestoreSdk,location:window.location,history:window.history,trackingFactory:app=>{
   appCheckSdk.initializeAppCheck(app,{provider:new appCheckSdk.ReCaptchaEnterpriseProvider('6LfY_GQtAAAAAHbwGeII_U4bf8YNWHUMu5OkoS2I'),isTokenAutoRefreshEnabled:true});
   return createWorkoutTrackingClient({functions:functionsSdk.getFunctions(app,'us-west1'),httpsCallable:functionsSdk.httpsCallable,randomBytes:size=>crypto.getRandomValues(new Uint8Array(size)),location:window.location});
- }});
+ },assessmentFactory:app=>createAssessmentAccountClient({functions:functionsSdk.getFunctions(app,'us-west1'),httpsCallable:functionsSdk.httpsCallable})});
 }
 export function friendlyError(error){
  if(error?.code==='permission-denied')return 'Access is unavailable. Check your coach permission or sign in to the correct account.';

@@ -1,0 +1,230 @@
+{
+  "version": "sites/ballkingdom-com/versions/4be02151b6597aec",
+  "fileCount": 177,
+  "manifestSha256": "809fef8078f3bf84bf5d11a9e9bcfda18e1fb0ba26c677de60951f6abcb136e9",
+  "config": {
+    "headers": [
+      {
+        "headers": {
+          "Cache-Control": "public, max-age=300, must-revalidate"
+        },
+        "glob": "**/*.@(js|css)"
+      },
+      {
+        "headers": {
+          "Cache-Control": "private, no-store, max-age=0"
+        },
+        "glob": "/workouts"
+      },
+      {
+        "headers": {
+          "Cache-Control": "private, no-store, max-age=0"
+        },
+        "glob": "/workouts.html"
+      }
+    ],
+    "rewrites": [
+      {
+        "glob": "**",
+        "path": "/index.html"
+      }
+    ],
+    "cleanUrls": true,
+    "trailingSlashBehavior": "REMOVE"
+  },
+  "recoveredFiles": [
+    {
+      "path": "assets/css/accountability.css",
+      "hostingHash": "e8d3231a675ce222d17152713432d2104bd0b193417c20ea3a9a8fbe0bc5a62c",
+      "sha256": "1ea5241e2641b9d7026188a83c8b537fa30d5bdb14bdfa205934e656c0d3a3ee"
+    },
+    {
+      "path": "assets/css/public-chat.css",
+      "hostingHash": "59b4b745c02b3e191eb08cba40b16d4fe55e896d4139ab7367d4eba8648f3409",
+      "sha256": "de950e4566341a33f7e9ec2ff5a98a5eaa54e6454b2a863539215eae36d53896"
+    },
+    {
+      "path": "assets/css/workouts-notebook.css",
+      "hostingHash": "5e04d6a8aa99b52eaad155035ac03ea40bf04f70356327f9e89dc6d8b0aa2b89",
+      "sha256": "45fa7c2fc540550938363df94fa8f8bf05ccd6be024bbf0dee70eaa59993ce6a"
+    },
+    {
+      "path": "assets/css/workouts-plan.css",
+      "hostingHash": "1b4a56c3ac9f63c92af5970d871d71e493cd9f2efda857a965c6b6c26f9ad680",
+      "sha256": "9af61362958fe30b17adc35b26edbf8442f7c91d9c188743cbbdb821114add6a"
+    },
+    {
+      "path": "assets/css/workouts.css",
+      "hostingHash": "fdd99e708ef27a132f4c6436b2b038d59048d45c4ce2ca2fe41dd6fdae3692d9",
+      "sha256": "0336ee3011d98a7e6a5b60f7ed0be90eb64a88316fcc6261092e66f038219b53"
+    },
+    {
+      "path": "assets/js/accountability-device.js",
+      "hostingHash": "2913b65dbec93ba078c70cc7edc702d64c0f3400e0b4e26106c3e5e6c4e74691",
+      "sha256": "4cceb1f415fb70368994aad87aacb94849ffcf8d4f27b276bc7ea3d49c5677c9"
+    },
+    {
+      "path": "assets/js/accountability-model.js",
+      "hostingHash": "349fe9e6bff9e3ad8d745030917aab7dc6afbc50bbe2b1f9804d6514e644ac5c",
+      "sha256": "7460eac4272d7c1c9afa225b4c6c816f0c9c8bdcc56bd5d92974fd30ae1ea4f8"
+    },
+    {
+      "path": "assets/js/accountability-view.js",
+      "hostingHash": "6227adb35e2a88fd9c40054e7c9abdccd14191f78e084181c6ea19e1289eeead",
+      "sha256": "8bbac9cafea2380677d5f72f67e65d23a703bf082967d0aa49e7565fc7aa66c6"
+    },
+    {
+      "path": "assets/js/public-chat-content.js",
+      "hostingHash": "6d162c67ae0e69c98024ddd2268c4128b087ef2c9796d548414317750087fe8f",
+      "sha256": "4e79fede679db2ccb132bd3f75d5af29bea3aabe4f8e56b126d65a44e52dc4bb"
+    },
+    {
+      "path": "assets/js/public-chat.js",
+      "hostingHash": "c3f717f98b967dce618958a928939ec0d59086e5fedd78b87db1ad988edb17fa",
+      "sha256": "5e1763ebfc8d243af359bf76b3265a704629ce76ddb29e93088cfd36e1560fc1"
+    },
+    {
+      "path": "assets/js/workouts-confirmed-action.js",
+      "hostingHash": "913a0899bfea95e91ce61dd3a118ffecc2e19c3fb78a5cbc67c8325eee84a2bf",
+      "sha256": "e19fd1f656c7ac1a5b2cf113a1f7beed90aec5848dcec933c8739203afd2b089"
+    },
+    {
+      "path": "assets/js/workouts-email-link-runtime.js",
+      "hostingHash": "f04bb86fbeda746ffc8624686676d695c097ae672aa6b452c42aa4cb80ca6ccb",
+      "sha256": "7c8d7b6867ee1793788646006a1002a12165537e30c1a83cbbd227aad16799d1"
+    },
+    {
+      "path": "assets/js/workouts-exercises.js",
+      "hostingHash": "d01c597184123174266afc14594f40cb7a98945c1371c5eea130f1a27a34533f",
+      "sha256": "ac0d6970ade21d54cd86247f80664a8cea484fcbbb76527d60b6c4eb6e33c8be"
+    },
+    {
+      "path": "assets/js/workouts-model.js",
+      "hostingHash": "a9b22482456d01dae108f7d3f2deff60c5c5bb5ba6cc72878f8ab0fcad761eca",
+      "sha256": "3d2aec08ec3f422b231992871c761f74075228b64bcb205f376a21ca3895ee5d"
+    },
+    {
+      "path": "assets/js/workouts-options.js",
+      "hostingHash": "46848c325e826c67c80e50ebbc7d839eea3f5f9e16dc5055bcfb6238f75e512a",
+      "sha256": "f6ee8e8567557728c129cc8df42bfec78bb57f088e207f981d8fc3adbc8c4625"
+    },
+    {
+      "path": "assets/js/workouts-plan-view.js",
+      "hostingHash": "032d36a07aabd13cc2bdfc37154ac8e44bbf595167b4d5b50c0ee569e2439d2a",
+      "sha256": "eac087d4ad7953814b2919ff35f53215f56bcaf00f7738ae725e212a864fec42"
+    },
+    {
+      "path": "assets/js/workouts-public-app.js",
+      "hostingHash": "ca6a45aeb5b05b69c9a0f67decb7546d68d0138e8849e7b059ae2b5cf4f37725",
+      "sha256": "a5471ddecd05f53b918210795d0abb25b142fc061890a4c8e6250982be09301f"
+    },
+    {
+      "path": "assets/js/workouts-repository.js",
+      "hostingHash": "927dce1216baae6fe5abade599df3187a88987f33908d5a0fe91b6d6d9e0f2b1",
+      "sha256": "c22bda835f4f6908c1b975c620d6967a91e4cc86d876fdd51c803d2a1b733b9a"
+    },
+    {
+      "path": "assets/js/workouts-security-check.js",
+      "hostingHash": "f5f173c08d1ba1717d2a89bbb1fcacd3bb8e558eb0d962d9753354988bc00a09",
+      "sha256": "3da43f7229672bb9dd83411d0a7524039aadad96c0fe8fe406f039462d4af242"
+    },
+    {
+      "path": "assets/js/workouts-session-summary.js",
+      "hostingHash": "68f070455016b3adb99d1e4e2e1c976fc1690a2f5a116b674e0771ca099c6ae8",
+      "sha256": "5e1025ec598830aec5d3990d3aa4513cde10ba82ee184f2e4a71583438c781cf"
+    },
+    {
+      "path": "assets/js/workouts-tracking-client.js",
+      "hostingHash": "23ddb907b39d76b16ea85f742a6c2ec93ff3c76689491fc31dbcf15023a279ad",
+      "sha256": "b571b018c96e57d15fed07f5c31ca3064c97b76f4ff5371c149580822ff81c69"
+    },
+    {
+      "path": "assets/js/workouts-videos.js",
+      "hostingHash": "6f39eb692b2cf922329177350d1d79e9e7226ce8a7184cb08a902d7a6798a563",
+      "sha256": "8b2272587cc1f984b9decc4ca0fd70d14aff7206f91a47031a9b0f1c7abd143b"
+    },
+    {
+      "path": "assets/js/your-game-app.js",
+      "hostingHash": "3a6bad04e8d10e56882d907e67c4c3419fceee00e646ee9dc5d38878b90a909c",
+      "sha256": "bee5da73af76da9c1edb4e88f887a867e417fba1c01d96027cbb5ef69fea666a"
+    },
+    {
+      "path": "assets/vendor/workouts/firebase-app-check.js",
+      "hostingHash": "d1a70b693b82bc1d5223ca9399c89bb2043bc4b9a03a2156055496ba3cddb7c5",
+      "sha256": "caa19bf1e1558fde1ad8f1c2551ad9713981fc1764389f9cf70dc48cfa79930f"
+    },
+    {
+      "path": "assets/vendor/workouts/firebase-app.js",
+      "hostingHash": "473cf1cccbf26d9f5f9422690e8355272d696136ae91c7af0744833d68be6fb8",
+      "sha256": "713a11c1ff85ab03e0c55fa3fd737a702aec9e4035285e7734e4cd5ecde735bc"
+    },
+    {
+      "path": "assets/vendor/workouts/firebase-auth.js",
+      "hostingHash": "21635199345bd226961c0dc69ec3804e570e281d22c2e0701e7ffc1ed0a9d563",
+      "sha256": "69c3ab71e142b4e71bfa4f26e4ef0b8968518a41ce728e475fa8699f2f00117e"
+    },
+    {
+      "path": "assets/vendor/workouts/firebase-firestore.js",
+      "hostingHash": "21be9b90c350e268322ccc83c72c765a9ed767878a0d84e09ca4d1012d7491d6",
+      "sha256": "6e9f1c96c2f09eed6c20760c69524a6d3cbed4826cb5baa1b21c41ffe894941e"
+    },
+    {
+      "path": "assets/vendor/workouts/firebase-functions.js",
+      "hostingHash": "998c69155335082f505462a712c55f18c7f35a36745c928428366bfada108405",
+      "sha256": "1e9766838af203b4c4c8e939b7e4495fba8a16644e4fad2a53c18a2de5307b05"
+    },
+    {
+      "path": "workout-security-check.html",
+      "hostingHash": "6bd7676e4dcfb9c2a0c4bd5bc7ca5ac7a6a2a65b6e3c62d780c04149b668e2ff",
+      "sha256": "54803d805c1c38f96b8ac93522b65b6f1bcf90531204ab9d26dc4be06b29550c"
+    },
+    {
+      "path": "workouts-preview.html",
+      "hostingHash": "99ff74be4875a21f708f136e4e9c73cc17b7047668c41fee7ccff9cc8da8b553",
+      "sha256": "5d3c0f8101aae0d5d30b5dd89b7ea55abbae4f064d8b3b528ed5aa255543f1d7"
+    },
+    {
+      "path": "your-game.html",
+      "hostingHash": "94b8beb785768b06a98a5e41ac22fa80f5ee4a9e6aee7088a4f6619dfe9d2efc",
+      "sha256": "a3e138080f40af66be525e9840c9a5219af56ab813ec6c156b76fc0995fca97c"
+    }
+  ],
+  "approvedOverlay": [
+    {
+      "path": "/workouts.html",
+      "hostingHash": "eaa7b54f3b07a12606c5ccd2fe0174128401f0f2fd511322ed748e371132dbb4"
+    },
+    {
+      "path": "/assets/js/workouts-app.js",
+      "hostingHash": "74378d7bfc08956ad099ee7d3a557450b09275fbbcacd46bee37940aa5f21f4e"
+    },
+    {
+      "path": "/assets/js/workouts-production-runtime.js",
+      "hostingHash": "5d5860ab21b60e64b531d1e7a602e97340eaeecd9cd5e56f7ce4fefaef5a6eb6"
+    },
+    {
+      "path": "/assets/js/member-assessment-app.js",
+      "hostingHash": "47994a0fdb9cd68dbb713e35967f6f453f81f1dbf6ab9db5cdf82a1368969348"
+    },
+    {
+      "path": "/assets/css/member-assessment.css",
+      "hostingHash": "60dec81a7863d6fb9d9106c4456115c2db6e8817401327ac11d3a4ae0a94ceb6"
+    },
+    {
+      "path": "/assets/js/ai-assessment-app.js",
+      "hostingHash": "b84b0ae63134e2f524fa6a5429f3deeea76aac2cc2f52acc79a5937ce50fdb94"
+    },
+    {
+      "path": "/ai-assessment.html",
+      "hostingHash": "a624a2cebf6a59a61d440c3e0f23dcacf53da92e4025ac73262cbb9aff392bc5"
+    },
+    {
+      "path": "/ai-readiness.html",
+      "hostingHash": "cbafeda6dff9c89c251fd131db587acad7c6b64c8352d16096f9288d447ac06f"
+    },
+    {
+      "path": "/privacy.html",
+      "hostingHash": "4e8d5a26ccf3913f541b4f58aac38336945df36082c0449fe633b22f98aac3b2"
+    }
+  ]
+}

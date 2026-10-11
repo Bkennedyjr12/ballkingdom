@@ -13,6 +13,7 @@ output/playwright/
 output/reconciliation/
 output/ai-readiness-release/
 output/member-assessment-release/
+functions-assessment/.env*
 # Unreviewed course source stays private; the GitHub repository is public.
 docs/course-drafts/
 output/cleanup-only-release/

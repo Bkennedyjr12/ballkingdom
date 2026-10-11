@@ -1,6 +1,9 @@
 # Opt-in assessment account release candidate
 
-Status: prepared locally, not deployed or permission-approved. The public
+Status: Brian explicitly approved the exact runtime permissions and deployment
+bundle on October 11, 2026. The dedicated identity and seven-permission role are
+bound; unrelated project bindings are unchanged and no user-managed key exists.
+Backend and member Hosting publication are in progress. The public
 [native assessment](ai-readiness-live-release.md) is already live. This candidate
 adds optional saved results to the existing signed-in workout tab, preserving
 the current email-link Auth journey, plans, coach grants and Daily Game records.
@@ -49,7 +52,8 @@ counters retain no answers, scores, emails or source content.
 The original integration instruction explicitly requires approval for “new
 persistent grants or permission expansion.” Brian's instruction to make the
 site live authorized the public Hosting release; it did not specify these new
-backend grants. No grant below has been applied.
+backend grants. Brian subsequently approved the specifically described bundle
+with “Of course approved.” Only that bundle is authorized.
 
 Proposed personal project: `the-ballers-kingdom` only.
 
@@ -129,3 +133,12 @@ current Hosting settings. Never deploy the stale root Functions source or the
 root Hosting tree. A real signed-in journey still requires an explicitly
 authorized synthetic test identity and normal App Check, or Brian's own manual
 acceptance; no attestation/debug bypass is prepared.
+
+The Firebase CLI's generic Gen 2 preparation includes event service identities.
+The release instead uses the supported Cloud Functions v2 create/upload APIs
+for this HTTP-only callable; no Eventarc/Pub/Sub grant is needed or added.
+The isolated source ZIP includes only the new package, lockfile, entry point and
+four checked generated modules. Existing build infrastructure is reused.
+The approved nine-path Hosting overlay has a separate pinned baseline and
+offline builder; it adds two assets, changes seven paths, preserves 170 hashes
+and all Hosting configuration, and deletes no public path.
