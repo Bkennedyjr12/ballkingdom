@@ -1,5 +1,9 @@
 # AI readiness production release
 
+Current member update: [the approved member interface and backend are now
+deployed](member-assessment-live-release.md); real signed-in acceptance remains
+unverified. The original guest release recorded below is the clean rollback.
+
 Published October 10, 2026 at 7:37:54 p.m. America/Los_Angeles (PDT).
 Exact Firebase timestamp: `2026-10-11T02:37:54.289Z`.
 
@@ -74,11 +78,11 @@ Ignored raw evidence lives in `output/reconciliation/` and
 
 ## What remains distinct
 
-The public release has guest tab-memory results. Opt-in account saving is prepared
-and locally tested but not activated; its new permissions need explicit approval.
-See [the concrete account release candidate](member-assessment-release-candidate.md).
-The branch's later account modules and original course draft are preparation work,
-not part of the live `4f95e06` source snapshot.
+The original public release has guest tab-memory results. The later approved
+[member interface/backend release](member-assessment-live-release.md) is now
+deployed; real signed-in acceptance remains unverified. The member modules are
+not part of this historical `4f95e06` source snapshot. The original course draft
+remains private preparation work.
 
 Brian chose save only when the member asks and retain until deletion. He also
 requested original Ballers Kingdom courses informed by Justin Lester's public

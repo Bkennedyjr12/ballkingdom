@@ -1,6 +1,6 @@
 # Ballers Kingdom Base44 integration — preview release
 
-Current status: the native assessment and optional Base44 links are live. See [the exact production release](ai-readiness-live-release.md) for the deployed source snapshot, verification and remaining account/commerce boundaries. Historical preview/approval notes below describe earlier checkpoints.
+Current status: the native assessment and optional Base44 links are live. The approved [member notebook and isolated backend are also deployed](member-assessment-live-release.md); real signed-in save/delete acceptance remains unverified. Paid checkout remains inactive. Historical preview/approval notes below describe earlier checkpoints.
 
 Prepared October 10, 2026. Personal Ballers Kingdom work only.
 

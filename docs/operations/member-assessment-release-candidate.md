@@ -3,7 +3,9 @@
 Status: Brian explicitly approved the exact runtime permissions and deployment
 bundle on October 11, 2026. The dedicated identity and seven-permission role are
 bound; unrelated project bindings are unchanged and no user-managed key exists.
-Backend and member Hosting publication are in progress. The public
+Backend and member Hosting publication are deployed; see
+[the exact release and remaining acceptance gap](member-assessment-live-release.md).
+Real signed-in save/delete is not yet verified. The public
 [native assessment](ai-readiness-live-release.md) is already live. This candidate
 adds optional saved results to the existing signed-in workout tab, preserving
 the current email-link Auth journey, plans, coach grants and Daily Game records.
@@ -55,7 +57,7 @@ site live authorized the public Hosting release; it did not specify these new
 backend grants. Brian subsequently approved the specifically described bundle
 with “Of course approved.” Only that bundle is authorized.
 
-Proposed personal project: `the-ballers-kingdom` only.
+Approved personal project: `the-ballers-kingdom` only.
 
 1. Create a dedicated runtime service account
    `tbk-assessment-account@the-ballers-kingdom.iam.gserviceaccount.com`.

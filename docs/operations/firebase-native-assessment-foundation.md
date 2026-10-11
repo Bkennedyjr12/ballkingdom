@@ -1,6 +1,6 @@
 # Firebase-native assessment foundation
 
-Current status: the guest assessment is [live](ai-readiness-live-release.md). The later opt-in account service and UI are [prepared, not activated](member-assessment-release-candidate.md). The disabled two-method contract described below is historical; the current candidate adds explicit consent, list/delete, quota and retry protection.
+Current status: the guest assessment is [live](ai-readiness-live-release.md). The approved [opt-in account service and UI are deployed](member-assessment-live-release.md); real signed-in acceptance remains unverified. The disabled two-method contract described below is historical; the deployed service adds explicit consent, list/delete, quota and retry protection.
 
 Brian's product target is a Firebase-native assessment, account portal, paid courses and guides, with QuickBooks integration. This preview supplies the assessment foundation only. It does not complete the commercial funnel or migrate Base44 records.
 
