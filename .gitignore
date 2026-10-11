@@ -12,6 +12,7 @@ firebase-debug.log
 output/playwright/
 output/reconciliation/
 output/ai-readiness-release/
+output/cleanup-only-release/
 assets/css/*.bak
 test-results/
 playwright-report/

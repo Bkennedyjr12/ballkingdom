@@ -1,9 +1,16 @@
 # Hosting artifact and iOS handoff checkpoint
 
-Reviewed October 10, 2026. This narrow follow-up classified manifest metadata,
+Historical checkpoint reviewed October 10, 2026. This narrow follow-up classified manifest metadata,
 made six public HEAD-only requests, and checked Library upload availability.
 No artifact body, secret, member record or paid document was fetched. No
 production file, permission, Auth setting, rule, price or provider changed.
+
+Brian subsequently approved a **cleanup-only** production release. It is live
+as of October 11, 2026, with all 171 ordinary hashes preserved and 1,318 internal
+paths removed. The assessment overlay was excluded. The release evidence and
+safe rollback procedure are in [hosting-cleanup-release.md](hosting-cleanup-release.md).
+The earlier 177-file overlay candidate below is historical and was never
+published; it is not the approved or deployed manifest.
 
 ## Manifest classification
 
