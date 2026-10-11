@@ -1,5 +1,7 @@
 # Firebase commerce and learning audit
 
+Current status: [native guest assessment and Base44 navigation are live](ai-readiness-live-release.md). Brian selected opt-in retention until deletion and requested original Ballers Kingdom course materials; an original six-lesson draft is ready. Paid checkout remains inactive pending an approved price/access split and verified merchant/product/tax/protected-delivery setup. Historical audit details below remain useful source findings, not a claim of current activation.
+
 Reviewed 2026-10-10 against public source in `ballkingdom-base44`. Source architecture is reusable, but the paid funnel is not ready for activation. This audit used source, public PR metadata and synthetic tests only. It did not read purchaser records, credentials or private business data, and made no provider changes.
 
 October 11 update: Brian approved one-time course/guide purchases for the first

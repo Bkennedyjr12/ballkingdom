@@ -1,5 +1,7 @@
 # Ballers Kingdom Base44 integration — preview release
 
+Current status: the native assessment and optional Base44 links are live. See [the exact production release](ai-readiness-live-release.md) for the deployed source snapshot, verification and remaining account/commerce boundaries. Historical preview/approval notes below describe earlier checkpoints.
+
 Prepared October 10, 2026. Personal Ballers Kingdom work only.
 
 ## Result and integration choice

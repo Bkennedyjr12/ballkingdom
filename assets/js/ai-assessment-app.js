@@ -1,7 +1,7 @@
 import { ANSWER_OPTIONS, DIMENSIONS, QUESTIONS, createAssessmentSession, scoreAssessment, transitionAssessment } from './ai-assessment-model.js';
 
 // Tab-memory only. Deliberately no network, storage, cookies, query parsing or auth SDK.
-const root = document.querySelector('#assessment-app');
+export function mountAssessment(root, { onChange = () => {}, accountMode = false } = {}) {
 let state = createAssessmentSession();
 
 function element(tag, text, className) {
@@ -44,7 +44,7 @@ function restartButton() {
 
 function renderIntro() {
   root.append(heading('A snapshot of your current practice'), element('p', 'Answer twelve questions across three areas. Choose what is true today, then review and change any answer before seeing your results.'),
-    element('p', 'This is a planning tool with fixed scoring. No account or contact details are needed.'),
+    element('p', accountMode ? 'You are signed in. This planning tool uses fixed scoring; saving happens only when you choose.' : 'This is a planning tool with fixed scoring. No account or contact details are needed.'),
     actions(button('Start assessment', { type: 'START' }, { primary: true })));
 }
 
@@ -141,6 +141,7 @@ function render(focus = true) {
   else if (state.screen === 'questions') renderQuestions();
   else if (state.screen === 'review') renderReview();
   else renderResults();
+  onChange(state.screen === 'results' && !state.restarting ? { answers: [...state.answers], report: scoreAssessment(state.answers) } : null);
   if (focus) root.querySelector('[data-screen-heading]')?.focus();
 }
 
@@ -156,4 +157,11 @@ function dispatch(action) {
   }
 }
 
-if (root) render(false);
+render(false);
+return Object.freeze({ destroy() { state = createAssessmentSession(); root.replaceChildren(); } });
+}
+
+if (typeof document !== 'undefined') {
+  const root = document.querySelector('#assessment-app');
+  if (root) mountAssessment(root);
+}

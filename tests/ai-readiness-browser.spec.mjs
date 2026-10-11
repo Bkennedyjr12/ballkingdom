@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 test('homepage discovers AI readiness while retaining existing development tools', async ({ page }) => {
   await page.goto('/index.html');
   await page.getByRole('link', { name: /AI Readiness Assessment.*Explore AI readiness/ }).click();
-  await expect(page).toHaveURL(/ai-readiness\.html$/);
+  await expect(page).toHaveURL(/\/ai-readiness(?:\.html)?$/);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Make your next move with AI');
   await page.goto('/index.html');
   for (const href of ['your-game.html', 'readiness.html', 'growth.html', 'soccer.html']) {
@@ -54,7 +54,7 @@ for (const state of ['signed out', 'synthetic saved session']) {
       expect(popup.url()).toBe(destination);
       expect(await popup.evaluate(() => window.opener === null)).toBe(true);
       await popup.close();
-      await expect(page).toHaveURL(/ai-readiness\.html\?email=/);
+      await expect(page).toHaveURL(/\/ai-readiness(?:\.html)?\?email=/);
     }
     expect(seen).toHaveLength(2);
     for (const request of seen) {
@@ -83,7 +83,7 @@ test('a failed external load can be closed and retried without losing local data
   await expect(retry.getByRole('heading', { name: 'Retry succeeded' })).toBeVisible();
   await retry.close();
   await page.getByRole('link', { name: 'Stay with the existing tools', exact: true }).click();
-  await expect(page).toHaveURL(/index\.html#tools$/);
+  await expect(page).toHaveURL(/\/(?:index\.html)?#tools$/);
 });
 
 test('mobile entry and keyboard links remain usable without overflow', async ({ page }) => {

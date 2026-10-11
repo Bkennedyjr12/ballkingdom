@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const module = await import('../src/assessment/service.js').catch(() => ({}));
-const input = () => ({ schemaVersion: 'bk-ai-readiness-v1', answers: Array(12).fill(2) });
+const input = () => ({ schemaVersion: 'bk-ai-readiness-v1', answers: Array(12).fill(2), saveConsent: true, requestId: '11111111-1111-4111-8111-111111111111' });
 const trusted = Object.freeze({ fixture: 'verified-synthetic-user' });
 
 function fixture(options = {}) {
@@ -10,9 +10,13 @@ function fixture(options = {}) {
   let writes = 0;
   let reads = 0;
   const repository = {
+    async consumeQuota() { return true; },
+    async listForOwner() { return { status: 'ok', items: [], nextCursor: null }; },
+    async deleteForOwner() {},
     async createForOwner(uid, id, record) {
       writes += 1;
       records.set(`${uid}/${id}`, structuredClone(record));
+      return { status: 'saved', record: structuredClone(record) };
     },
     async getForOwner(uid, id) {
       reads += 1;
@@ -45,7 +49,7 @@ test('saved assessment ownership comes only from verified identity and scores ar
   assert.equal(result.assessmentId, 'synthetic-assessment-1');
   assert.equal(result.report.total, 24);
   assert.deepEqual(f.records.get('synthetic-owner/synthetic-assessment-1'), {
-    ownerUid: 'synthetic-owner', schemaVersion: 'bk-ai-readiness-v1', answers: Array(12).fill(2), createdAtMs: 1700000000000,
+    ownerUid: 'synthetic-owner', schemaVersion: 'bk-ai-readiness-v1', answers: Array(12).fill(2), createdAtMs: 1700000000000, saveConsentVersion: 'member-opt-in-until-delete-v1',
   });
   const loaded = await f.service.get({ assessmentId: 'synthetic-assessment-1' }, trusted);
   assert.equal(loaded.report.total, 24);
@@ -97,6 +101,9 @@ test('owner-scoped lookup cannot retrieve another account assessment or leak its
 test('repository failures return bounded errors and never expose provider details', async () => {
   assert.equal(typeof module.createAssessmentService, 'function');
   const f = fixture({ enabled: true, repository: {
+    async consumeQuota() { return true; },
+    async listForOwner() { return { status: 'ok', items: [], nextCursor: null }; },
+    async deleteForOwner() {},
     async createForOwner() { throw new Error('synthetic-private-provider-detail'); },
     async getForOwner() { throw new Error('synthetic-private-provider-detail'); },
   } });

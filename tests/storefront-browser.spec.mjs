@@ -20,7 +20,7 @@ test('mobile visitor can reach the career funnel', async ({ page }) => {
   await page.getByRole('button', { name: 'Open menu' }).click();
   await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Products' })).toBeVisible();
   await page.getByRole('link', { name: 'Build My Free Career Snapshot' }).click();
-  await expect(page).toHaveURL(/career-blueprint\.html/);
+  await expect(page).toHaveURL(/\/career-blueprint(?:\.html)?$/);
 });
 
 test('career page exposes no file upload or active checkout', async ({ page }) => {

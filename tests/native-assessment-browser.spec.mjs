@@ -88,7 +88,7 @@ test('assessment never reads or alters saved account, workout or journal data an
   expect(failures).toEqual([]);
   await expect(page.locator('iframe, input[type="email"], input[type="text"]')).toHaveCount(0);
   await page.getByRole('link', { name: 'Explore existing tools', exact: true }).click();
-  await expect(page).toHaveURL(/index\.html#tools$/);
+  await expect(page).toHaveURL(/\/(?:index\.html)?#tools$/);
 });
 
 test('mobile questionnaire and results fit 390 pixels and support keyboard selection', async ({ page }) => {

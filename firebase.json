@@ -50,7 +50,11 @@
         "home-inspection-guide/README.md",
         "hosting/**",
         "scripts/**",
-        "assets/js/ai-assessment-build.js"
+        "assets/js/ai-assessment-build.js",
+        "firebase.assessment.json",
+        "functions-assessment/**",
+        "member-assessment-preview.html",
+        "assets/js/member-assessment-preview.js"
       ],
       "rewrites": [
         {

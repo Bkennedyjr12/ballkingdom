@@ -4,9 +4,9 @@ test.beforeEach(async ({page}) => {
   await page.route(/^https:\/\/fonts\.(?:googleapis|gstatic)\.com\//,route=>route.abort());
 });
 
-test('recovered public chat remains a local FAQ with no provider or storage calls',async ({page})=>{
+test('recovered public chat remains a local FAQ with no provider or storage calls',async ({page,baseURL})=>{
   const external=[];
-  page.on('request',request=>{if(!request.url().startsWith('http://127.0.0.1:4173/'))external.push(request.url());});
+  page.on('request',request=>{if(new URL(request.url()).origin!==new URL(baseURL).origin)external.push(request.url());});
   await page.goto('/index.html');
   await page.getByRole('button',{name:'Ask The Ballers Kingdom',exact:true}).click();
   await expect(page.getByText('AI chat is not connected yet.',{exact:false})).toBeVisible();
@@ -16,7 +16,7 @@ test('recovered public chat remains a local FAQ with no provider or storage call
   await page.getByRole('button',{name:'Close service guide',exact:true}).click();
   await page.getByRole('link',{name:/AI Readiness Assessment.*Explore AI readiness/}).click();
   await page.getByRole('link',{name:'Try the native assessment',exact:true}).click();
-  await expect(page).toHaveURL(/ai-assessment\.html$/);
+  await expect(page).toHaveURL(/\/ai-assessment(?:\.html)?$/);
 });
 
 for(const signedIn of [false,true]) {

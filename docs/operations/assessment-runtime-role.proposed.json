@@ -1,0 +1,14 @@
+{
+  "title": "Ballers assessment account runtime",
+  "description": "Verified Firebase account status and private assessment transaction storage. No email-sending or provider-secret permissions.",
+  "stage": "GA",
+  "includedPermissions": [
+    "datastore.databases.get",
+    "datastore.entities.create",
+    "datastore.entities.delete",
+    "datastore.entities.get",
+    "datastore.entities.list",
+    "datastore.entities.update",
+    "firebaseauth.users.get"
+  ]
+}
