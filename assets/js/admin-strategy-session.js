@@ -11,15 +11,31 @@ async function callable(name,data,{auth=false}={}){
   if(auth)headers.Authorization=`Bearer ${await rt.getIdToken()}`;
   const res=await fetch(`${FUNCTION_ORIGIN}/${name}`,{method:'POST',headers,body:JSON.stringify({data}),credentials:'omit',referrerPolicy:'no-referrer'});
   const env=await res.json().catch(()=>({}));
-  if(!res.ok)throw new Error(env?.error?.message||`Request failed (${res.status})`);
-  return env.data;
+  if(!res.ok||env?.error)throw new Error(`Request failed (${res.status})`);
+  const result=Object.hasOwn(env,'result')?env.result:env.data;
+  if(result===undefined)throw new Error('Invalid callable response');
+  return result;
 }
 async function init(){
   const params=new URLSearchParams(location.search);
   const signIn=$('[data-admin-signin]');const actions=$('[data-admin-actions]');
-  signIn.addEventListener('submit',async e=>{e.preventDefault();const email=String(new FormData(signIn).get('email')||'').trim();if(!email)return;localStorage.setItem(EMAIL_KEY,email);
-    try{await callable('requestPilotSignInLink',{email,sku:'owner-admin'});}catch{}
-    out('If this is the owner address, a sign-in link was emailed. Open it on this device.');});
+  let signInPending=false;
+  const submitButton=signIn.querySelector('button[type="submit"]');
+  signIn.addEventListener('submit',async e=>{
+    e.preventDefault();
+    if(signInPending)return;
+    const email=String(new FormData(signIn).get('email')||'').trim();
+    if(!email)return;
+    localStorage.setItem(EMAIL_KEY,email);
+    signInPending=true;submitButton.disabled=true;out('Requesting a secure sign-in link…');
+    try{
+      const result=await callable('requestPilotSignInLink',{email,sku:'owner-admin'});
+      if(result?.status!=='request_received')throw new Error('Sign-in request was not acknowledged');
+      out('Sign-in request received. Check your inbox and spam folder for the newest link. This page cannot confirm email delivery.');
+    }catch{
+      out('Sign-in request failed. No email delivery is confirmed. Please try again later.');
+    }finally{signInPending=false;submitButton.disabled=false;}
+  });
   if(!params.has('oobCode'))return;
   const rt=await runtime();const email=localStorage.getItem(EMAIL_KEY)||prompt('Confirm your owner email:')||'';
   try{await rt.completeEmailLink({email});}catch{out('Sign-in link expired or already used. Request a new one.');return;}

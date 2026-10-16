@@ -503,6 +503,8 @@ function downloadHttpHandler() {
 
 export const requestPilotSignInLink = onCall({
   region:REGION,
+  // Browser sign-in and CORS preflight reach the handler; App Check remains mandatory.
+  invoker:'public',
   secrets:MS_SECRETS,
   // APP_CHECK_TRANSPORT_CONTRACT: Firebase rejects absent or invalid App Check as
   // UNAUTHENTICATED before this handler; valid requests always receive the generic result.
