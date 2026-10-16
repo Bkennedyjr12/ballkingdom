@@ -33,3 +33,9 @@ video/ballers-kingdom-flagship/ballers-kingdom-flagship-review.mp4
 video/ballers-kingdom-flagship/ballers-kingdom-flagship-thumb.png
 video/ballers-kingdom-flagship/qa-report.md
 video/ballers-kingdom-flagship/youtube-receipt.json
+
+# Local verification and allowlisted release builds
+output/
+test-results/
+playwright-report/
+.playwright-cli/

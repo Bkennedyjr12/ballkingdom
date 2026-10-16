@@ -1005,3 +1005,47 @@ body.theme-training .training-hero::before {
   .commerce-action .btn { width: 100%; text-align: center; }
 }
 @media (prefers-reduced-motion: reduce) { .commerce-page *, .commerce-page *::before, .commerce-page *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
+
+/* Refined shared shell: preserve the wordmark's aspect ratio and reserve its space. */
+.nav-inner { min-height: 82px; gap: 32px; }
+.logo { flex: 0 0 auto; }
+.logo-img { width: 260px; height: auto; max-width: 100%; }
+.nav-links { gap: 26px; }
+.nav-links a { font-size: .84rem; letter-spacing: .035em; }
+.nav-links .nav-cta { padding: 12px 18px; }
+.nav-toggle { min-width: 44px; min-height: 44px; border-radius: 4px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #fff; outline-offset: 5px; box-shadow: 0 0 0 7px #050505; }
+.footer-grid { column-gap: 48px; row-gap: 32px; }
+.footer-grid h4 { margin-bottom: 16px; }
+.footer-grid a { padding: 6px 0; }
+@media (max-width: 1100px) {
+  .nav-inner { min-height: 74px; gap: 20px; }
+  .nav-links { align-items: stretch; gap: 0; max-height: calc(100dvh - 74px); overflow-y: auto; padding: 12px 24px 24px; }
+  .nav-links a { padding: 13px 0; }
+  .nav-links .nav-cta { margin-top: 12px; text-align: center; }
+  .nav-toggle { flex: 0 0 auto; }
+}
+@media (max-width: 480px) {
+  .nav-inner { padding: 12px 20px; }
+  .logo-img { width: min(244px, 67vw); }
+  .container, .container-tight { padding-left: 20px; padding-right: 20px; }
+  section { padding-top: 60px; padding-bottom: 60px; }
+  .section-header { margin-bottom: 30px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .js [data-reveal] { opacity: 1; transform: none; }
+}
+
+.featured-download { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 40px; }
+.featured-download h2 { max-width: 24ch; margin-bottom: 20px; }
+.featured-download .lead { margin-bottom: 0; }
+@media (max-width: 860px) { .featured-download { grid-template-columns: 1fr; gap: 24px; } .featured-download .btn { justify-self: start; white-space: normal; } }
+html:not(.js) .nav-toggle { display: none; }
+@media (max-width: 1100px) { html:not(.js) .nav-inner { flex-wrap: wrap; } html:not(.js) .nav-links { display: flex; position: static; width: 100%; max-height: none; } }
+
+/* Retain direct inspection product links without promoting the tool in the collection. */
+.product-offer[data-unlisted]:not(:target) { display: none; }
+.product-offer:target { scroll-margin-top: 110px; }
+.product-offer-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }

@@ -43,21 +43,9 @@
 <!-- NAV -->
 <nav class="nav" role="navigation" aria-label="Main">
   <div class="nav-inner">
-        <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
-      <img src="assets/img/logo-nav-white.png" alt="The Ballers Kingdom" class="logo-img" width="340" height="24" />
-    </a>
-    <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
-    <div class="nav-links">
-      <a href="soccer.html">Training</a>
-      <a href="ee-venture.html">Consulting</a>
-      <a href="shop.html">Shop</a>
-      <a href="readiness.html">Readiness</a>
-      <a href="your-game.html">Your Game</a><a href="growth.html">Inner Game</a>
-      <a href="audit.html">Site Audit</a>
-      <a href="home-inspection-guide/">Home Inspection</a>
-      <a href="about.html">About</a>
-      <a href="contact.html" class="nav-cta">Book Consulting</a>
-    </div>
+    <a href="/" class="logo" aria-label="The Ballers Kingdom home"><img src="/assets/img/logo-nav-white.png" alt="The Ballers Kingdom" class="logo-img" width="340" height="24" /></a>
+    <button class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="main-menu">☰</button>
+    <div class="nav-links" id="main-menu"><a href="/soccer.html">Training</a><a href="/ee-venture.html">Consulting</a><a href="/tools.html">Tools</a><a href="/products.html">Products</a><a href="/about.html">About</a><a href="/contact.html" class="nav-cta">Book Consulting</a></div>
   </div>
 </nav>
 
@@ -79,13 +67,24 @@
   </div>
 </section>
 
+<!-- UPSELL: Scorecard Pro -->
+<section class="tool-section" id="readiness-pro" style="padding-top:0;">
+  <div class="container-tight" style="text-align:center;border:1px solid #1B3A8E;border-radius:16px;padding:40px 24px;background:#0E224F;color:#F3F3F3;">
+    <div class="kicker" style="color:#9BB0DC;letter-spacing:0.22em;text-transform:uppercase;font-size:0.8rem;margin-bottom:10px;">Go deeper · Self-serve toolkit</div>
+    <h2 style="color:#fff;">Business Readiness Scorecard Pro</h2>
+    <p style="max-width:60ch;margin:14px auto 0;color:#CBD5E1;">Score your business across 8 pillars — capital, financial records, legal &amp; contracts, operations, team, sales pipeline, risk &amp; insurance, and exit — with an auto-scoring Excel workbook, dashboard, prioritized action plan, 90-day roadmap, and the 30+ page Business Readiness Playbook.</p>
+    <a href="https://ballerskingdom.gumroad.com/l/ejldv" target="_blank" rel="noopener" class="btn" style="margin-top:22px;">Get Scorecard Pro →</a>
+    <p class="disclaimer" style="margin-top:14px;font-size:0.8rem;color:#9BB0DC;">Educational digital download. Not financial, legal, or investment advice; no funding or approval is promised.</p>
+  </div>
+</section>
+
 <!-- AUTHORITY / ECOSYSTEM -->
 <section class="section-dark">
   <div class="container-tight" style="text-align:center;">
     <div class="kicker" style="color: var(--royal-light); font-family: var(--font-display); letter-spacing: 0.22em; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 12px;">Backed by real experience</div>
     <h2>Capital. Contracts. Continuity.</h2>
     <p style="color:#CBD5E1; max-width: 60ch; margin: 14px auto 0;">
-      Brian Kennedy Jr, M.Ed serves as Entrepreneur Ecosystem Executive Director at <strong style="color:#fff;">AmPac Business Capital</strong> — helping deploy <strong style="color:#fff;">$1B+ in loans</strong> and support <strong style="color:#fff;">1,500+ businesses</strong> across CA, AZ, and NV. SBA 504 for buildings and major equipment; 7(a) for acquisitions, working capital, and changes of ownership.
+      Brian Kennedy Jr, M.Ed serves as an Entrepreneur Ecosystem Executive Director in small business capital — helping deploy <strong style="color:#fff;">$1B+ in loans</strong> and support <strong style="color:#fff;">1,500+ businesses</strong> across CA, AZ, and NV. SBA 504 for buildings and major equipment; 7(a) for acquisitions, working capital, and changes of ownership.
     </p>
     <a href="https://entrepreneur-ecosystem.com" target="_blank" rel="noopener" class="btn btn-ghost" style="margin-top:24px;">Explore the Entrepreneur Ecosystem →</a>
   </div>
@@ -95,37 +94,12 @@
 <footer>
   <div class="container">
     <div class="footer-grid">
-      <div class="footer-brand">
-                <a href="index.html" class="logo" aria-label="The Ballers Kingdom home">
-          <img src="assets/img/logo-wordmark-white.png" alt="The Ballers Kingdom" class="footer-logo" width="380" height="49" />
-        </a>
-        <p>Soccer training and multi-dimensional development consulting. Inland Empire, California.</p>
-      </div>
-      <div>
-        <h4>Tools</h4>
-        <a href="readiness.html">Business Readiness Scorecard</a>
-        <a href="audit.html">Site Leak Audit</a>
-        <a href="home-inspection-guide/">Home Inspection Guide</a>
-        <a href="your-game.html">Your Game</a><a href="growth.html">Inner Game</a>
-        <a href="ee-venture.html">Consulting</a>
-        <a href="soccer.html">Training</a>
-      </div>
-      <div>
-        <h4>About</h4>
-        <a href="about.html">Meet Brian</a>
-        <a href="shop.html">Apparel &amp; Shop · Coming Soon</a>
-        <a href="contact.html">Book Consulting</a>
-      </div>
-      <div>
-        <h4>Get in touch</h4>
-        <a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a>
-        <a href="https://linktr.ee/TheBallersKingdom" target="_blank" rel="noopener">Linktree</a>
-      </div>
+      <div class="footer-brand"><a href="/" aria-label="The Ballers Kingdom home"><img src="/assets/img/logo-wordmark-white.png" alt="The Ballers Kingdom" class="footer-logo" width="380" height="49" /></a><p>Soccer training, practical tools, and personal development.<br />Inland Empire, California.</p></div>
+      <div><h4>Explore</h4><a href="/soccer.html">Training</a><a href="/ee-venture.html">Consulting</a><a href="/tools.html">Tools</a><a href="/products.html">Products</a><a href="/about.html">Meet Brian</a></div>
+      <div><h4>Resources</h4><a href="/technology.html">AI Systems</a><a href="/blog/">Blog</a><a href="/news/">News</a><a href="/shop.html">Apparel · Coming soon</a></div>
+      <div><h4>Connect</h4><a href="/contact.html">Book Consulting</a><a href="mailto:info@ballkingdom.com">info@ballkingdom.com</a><a href="https://www.instagram.com/theballerskingdom_" target="_blank" rel="noopener">Instagram</a><a href="https://www.youtube.com/@TheBallersKingdom" target="_blank" rel="noopener">YouTube</a></div>
     </div>
-    <div class="footer-bottom">
-      <div>© <span id="year">2026</span> The Ballers Kingdom. All rights reserved.</div>
-      <div>A program of the AmPac Entrepreneur Ecosystem.</div>
-    </div>
+    <div class="footer-bottom"><div>© <span id="year">2026</span> The Ballers Kingdom. All rights reserved.</div><div><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="/home-inspection-guide/">Inspection study guide</a></div></div>
   </div>
 </footer>
 

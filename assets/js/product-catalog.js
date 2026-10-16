@@ -8,7 +8,7 @@ const PRODUCTS = Object.freeze([
     availability: 'coming-soon',
     priceLabel: 'Founding price to be announced',
     href: 'products.html#sba-ready-business-acquisition-toolkit',
-    cta: 'Get the Acquisition Toolkit',
+    cta: 'Preview the Acquisition Toolkit',
     disclaimer: 'Educational screening tools only. Financing and transaction outcomes are not guaranteed.'
   }),
   Object.freeze({
@@ -28,12 +28,12 @@ const PRODUCTS = Object.freeze([
     slug: 'personalized-career-opportunity-blueprint',
     eyebrow: 'Career navigation',
     name: 'Personalized Career Opportunity Blueprint',
-    summary: 'Start with a free Career Opportunity Snapshot, then unlock a tailored action plan with source-linked roles and professional opportunities.',
+    summary: 'Preview a tailored career action plan with source-linked roles and professional opportunities. Intake is coming soon.',
     delivery: 'personalized-digital',
     availability: 'free-intake-preview',
     priceLabel: 'Free Snapshot · Blueprint price to be announced',
     href: 'career-blueprint.html',
-    cta: 'Build My Free Career Snapshot',
+    cta: 'Preview Career Blueprint',
     disclaimer: 'Opportunity availability changes. No interview, introduction, employment, compensation, or outcome is guaranteed.'
   }),
   Object.freeze({
