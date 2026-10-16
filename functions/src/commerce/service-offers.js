@@ -21,7 +21,7 @@ export const STRATEGY_SESSION_QBO_ITEM_SPEC = deepFreeze({
   unitPrice: 97,
   currency: 'USD',
   incomeAccountName: 'Services',
-  taxable: false,
+  taxable: true, // owner decision 2026-10-15: tax charged on top via QBO automated sales tax
   description: 'Paid 30-minute Ballers Kingdom strategy/consulting session. Booked via Calendly after payment.',
 });
 
@@ -40,8 +40,9 @@ const OFFERS = deepFreeze({
       itemVerified: false,
     },
     tax: {
-      classification: 'service_non_taxable_pending_accountant',
-      quickBooksTaxCode: 'NON',
+      classification: 'taxable_qbo_automated_sales_tax_owner_approved_pending_accountant',
+      quickBooksTaxCode: 'TAX',
+      chargedOnTopOfPrice: true,
       classificationApproved: true,
       accountantVerified: false,
     },
