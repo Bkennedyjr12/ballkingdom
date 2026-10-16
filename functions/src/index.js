@@ -510,10 +510,19 @@ export const requestPilotSignInLink = onCall({
   // UNAUTHENTICATED before this handler; valid requests always receive the generic result.
   enforceAppCheck:true,
 }, async request => {
+  const context = publicAuthRequestContext(request);
+  // Log transport shape only: never email addresses, IPs, tokens, or sign-in links.
+  console.info('public_auth_transport', {
+    appVerified:Boolean(request.app?.appId),
+    ipContextAvailable:Boolean(context.ipDigest),
+    forwardedEntryCount:typeof request.rawRequest?.headers?.['x-forwarded-for'] === 'string'
+      ? request.rawRequest.headers['x-forwarded-for'].split(',').length : 0,
+  });
   try {
     const service = await commerceService({withAuth:true,withGraph:true});
-    return await service.requestPublicSignInLink(request.data, publicAuthRequestContext(request));
+    return await service.requestPublicSignInLink(request.data, context);
   } catch {
+    console.error('public_auth_handler_unavailable');
     return {status:'request_received'};
   }
 });
