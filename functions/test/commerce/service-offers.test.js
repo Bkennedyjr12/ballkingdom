@@ -8,10 +8,10 @@ import {createQuickBooksClient} from '../../src/providers/quickbooks.js';
 
 const offer = getServiceOffer(STRATEGY_SESSION_SKU);
 
-test('strategy session offer is $97 USD and fail-closed', () => {
-  assert.equal(offer.tax.quickBooksTaxCode, 'TAX');
-  assert.equal(STRATEGY_SESSION_QBO_ITEM_SPEC.taxable, true);
-  assert.equal(offer.amountCents, 9700);
+test('strategy session offer is $100 USD and fail-closed', () => {
+  assert.equal(offer.tax.quickBooksTaxCode, 'NON');
+  assert.equal(STRATEGY_SESSION_QBO_ITEM_SPEC.taxable, false);
+  assert.equal(offer.amountCents, 10000);
   assert.equal(offer.currency, 'USD');
   assert.equal(offer.active, false);
   assert.equal(offer.release.deployApproved, false);
@@ -49,10 +49,10 @@ test('booking link is released only after verified payment', () => {
   assert.equal(getPostPaymentBookingUrl({...base, fulfillmentType:'protected_download', status:'paid', payment:{verified:true}}), null);
 });
 
-const good = {itemId:'42', name:STRATEGY_SESSION_QBO_ITEM_SPEC.name, type:'Service', active:true, unitPrice:97, incomeAccountName:'Services', taxable:true};
+const good = {itemId:'42', name:STRATEGY_SESSION_QBO_ITEM_SPEC.name, type:'Service', active:true, unitPrice:100, incomeAccountName:'Services', taxable:false};
 test('item readback assertion', () => {
   assert.equal(assertServiceItemReadback(good), good);
-  for (const bad of [{unitPrice:49},{type:'NonInventory'},{incomeAccountName:'Sales'},{taxable:false},{active:false},{name:'x'}]) {
+  for (const bad of [{unitPrice:97},{type:'NonInventory'},{incomeAccountName:'Sales'},{taxable:false},{active:false},{name:'x'}]) {
     assert.throws(() => assertServiceItemReadback({...good, ...bad}), {code:'QBO_ITEM_MISMATCH'});
   }
 });
@@ -63,7 +63,7 @@ function client(steps) {
   const fetchImpl = async (url, init = {}) => { calls.push({url:String(url), init}); const s = steps.shift(); assert.ok(s, `unexpected ${url}`); return s(); };
   return {calls, c:createQuickBooksClient({realmId:'realm-7', accessTokenProvider:{getAccessToken:async()=>'t'}}, fetchImpl)};
 }
-const itemBody = {Item:{Id:'42', Name:STRATEGY_SESSION_QBO_ITEM_SPEC.name, Type:'Service', Active:true, UnitPrice:97, Taxable:true, IncomeAccountRef:{value:'26', name:'Services'}}};
+const itemBody = {Item:{Id:'42', Name:STRATEGY_SESSION_QBO_ITEM_SPEC.name, Type:'Service', Active:true, UnitPrice:100, Taxable:false, IncomeAccountRef:{value:'26', name:'Services'}}};
 
 test('ensureServiceItem reads back an existing item without creating', async () => {
   const {calls, c} = client([() => json({QueryResponse:{Item:[{Id:'42'}]}}), () => json(itemBody)]);
@@ -87,7 +87,7 @@ test('ensureServiceItem creates once with Services account then reads back', asy
   assert.equal(post.init.method, 'POST');
   assert.match(post.url, /\/item\?minorversion=\d+&requestid=/);
   const body = JSON.parse(post.init.body);
-  assert.deepEqual([body.Type, body.UnitPrice, body.Taxable, body.IncomeAccountRef.value], ['Service', 97, true, '26']);
+  assert.deepEqual([body.Type, body.UnitPrice, body.Taxable, body.IncomeAccountRef.value], ['Service', 100, false, '26']);
 });
 
 test('ensureServiceItem refuses ambiguous names or accounts', async () => {

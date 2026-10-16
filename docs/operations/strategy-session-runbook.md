@@ -1,4 +1,4 @@
-# $97 Strategy Session (30 min) — inactive release runbook
+# $100 Strategy Session (30 min) — inactive release runbook
 
 Status: **code only, fail-closed. Nothing deployed, no QBO write, no customer/invoice/payment/email.**
 
