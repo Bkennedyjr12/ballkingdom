@@ -15,7 +15,7 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const mainRef = '280ad62b1fc4e9cdd9d401594736dafaf96ef856';
 const snapshot = json(resolve(process.argv[2] || resolve(root, '../live-hosting-snapshot.json')));
 const member = json(resolve(process.argv[3] || resolve(root, 'docs/operations/site-refinement-member-paths.json')));
-const rootPages = new Set('404 about admin-strategy-session strategy-session agent-city ai-assessment ai-readiness audit career-blueprint contact custom-solutions ecosystem-city ee-venture growth index order-status privacy products quickbooks-connect quickbooks-disconnect readiness shop soccer technology terms tools workout-security-check workouts your-game yvp'.split(' ').map(x => x + '.html'));
+const rootPages = new Set('404 about admin-strategy-session strategy-session agent-city ai-assessment ai-readiness audit career-blueprint college-by-design contact custom-solutions ecosystem-city ee-venture growth index order-status privacy products quickbooks-connect quickbooks-disconnect readiness shop soccer technology terms tools workout-security-check workouts your-game yvp'.split(' ').map(x => x + '.html'));
 const excluded = [], platformManaged = [], unknown = [];
 const candidate = new Set();
 function classify(raw, source) {
@@ -24,6 +24,7 @@ function classify(raw, source) {
   if (path.split('/').some(x => x.startsWith('.')) || /^(?:CNAME|rebuild_form\.gs|workouts-preview\.html|member-assessment-preview\.html)$/.test(path)) { excluded.push({path, source, reason:'reviewed internal or publication-only artifact'}); return; }
   if (path.includes('\\') || path.includes('..') || /(?:\.map$|\.bak$|preview|ai-assessment-build)/.test(path)) {unknown.push({path,source});return;}
   const allowed = rootPages.has(path) || /^(?:robots\.txt|sitemap\.xml)$/.test(path)
+    || path === 'assets/downloads/college-by-design-sample.pdf'
     || /^(?:blog\/[a-z0-9-]+\.html|news\/index\.html|credit-health\/index\.html)$/.test(path)
     || /^assets\/(?:css\/[a-z0-9-]+\.css|js\/[a-z0-9-]+\.js|img\/[A-Za-z0-9_.-]+\.(?:png|jpg|jpeg|webp|svg|mp4)|vendor\/(?:leaflet\/(?:leaflet\.(?:js|css)|LICENSE|images\/[a-z0-9-]+\.png)|workouts\/[a-z-]+\.js))$/.test(path)
     || /^home-inspection-guide\/(?:(?:index|freebie|full-study-guide)\.html|data\/(?:figure-curation|guide|image-manifest)\.json|styles\/home-inspection-guide\.css|public\/assets\/(?:figures\/figure-[a-z0-9-]+\.webp|homeowner-freebie\.pdf|professional-home-inspector-seminar\.ics))$/.test(path);
@@ -37,7 +38,7 @@ for (const path of tracked) {
   if (rootPages.has(path) || /^(?:blog|news|credit-health)\/.*\.html$/.test(path)
     || /^assets\/(?:css|js|img|vendor\/leaflet)\//.test(path)) classify(path, 'latest-main');
 }
-for (const path of ['assets/img/apparel-polo-wordmark-v2.jpg',...['jr','la','aa','av','cb'].map(id=>`assets/img/apparel-tee-${id}-v2.jpg`),'assets/img/brian-ampac-headshot-2026.jpg','tools.html','assets/css/tool-directory.css','assets/css/gumroad.css',...GUMROAD_PRODUCTS.map(p=>p.cover.slice(1))]) classify(path,'refinement');
+for (const path of ['college-by-design.html','assets/css/college-by-design.css','assets/downloads/college-by-design-sample.pdf','assets/img/gumroad-college-by-design.png','assets/img/college-by-design-worksheet.png','assets/img/apparel-polo-wordmark-v2.jpg',...['jr','la','aa','av','cb'].map(id=>`assets/img/apparel-tee-${id}-v2.jpg`),'assets/img/brian-ampac-headshot-2026.jpg','tools.html','assets/css/tool-directory.css','assets/css/gumroad.css',...GUMROAD_PRODUCTS.map(p=>p.cover.slice(1))]) classify(path,'refinement');
 const missing = [...candidate].filter(path => !existsSync(resolve(root,path)) || !lstatSync(resolve(root,path)).isFile());
 for (const path of candidate) if (existsSync(resolve(root,path)) && (lstatSync(resolve(root,path)).isSymbolicLink() || !realpathSync(resolve(root,path)).startsWith(realpathSync(root) + '/'))) throw new Error('Symlink or escaped source rejected: '+path);
 const outputRoot = resolve(root, 'output');
