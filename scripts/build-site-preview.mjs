@@ -4,6 +4,9 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, lstatSync, realpath
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { synchronize } from './build-gumroad-sections.mjs';
+import { GUMROAD_PRODUCTS } from './gumroad-catalog.mjs';
+synchronize({check:true});
 
 // Offline packaging only. Never authenticates, downloads, or deploys.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,7 +37,7 @@ for (const path of tracked) {
   if (rootPages.has(path) || /^(?:blog|news|credit-health)\/.*\.html$/.test(path)
     || /^assets\/(?:css|js|img|vendor\/leaflet)\//.test(path)) classify(path, 'latest-main');
 }
-for (const path of ['tools.html','assets/css/tool-directory.css']) classify(path,'refinement');
+for (const path of ['tools.html','assets/css/tool-directory.css','assets/css/gumroad.css',...GUMROAD_PRODUCTS.map(p=>p.cover.slice(1))]) classify(path,'refinement');
 const missing = [...candidate].filter(path => !existsSync(resolve(root,path)) || !lstatSync(resolve(root,path)).isFile());
 for (const path of candidate) if (existsSync(resolve(root,path)) && (lstatSync(resolve(root,path)).isSymbolicLink() || !realpathSync(resolve(root,path)).startsWith(realpathSync(root) + '/'))) throw new Error('Symlink or escaped source rejected: '+path);
 const outputRoot = resolve(root, 'output');
