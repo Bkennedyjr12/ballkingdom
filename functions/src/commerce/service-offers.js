@@ -18,9 +18,12 @@ export const STRATEGY_SESSION_SKU = 'strategy-session-30';
 export const STRATEGY_SESSION_QBO_ITEM_SPEC = deepFreeze({
   name: 'Ballers Kingdom Strategy Session (30 min)',
   type: 'Service',
-  unitPrice: 97,
+  unitPrice: 100,
   currency: 'USD',
   incomeAccountName: 'Services',
+  // Owner decision 2026-10-15: client pays exactly $100 total, tax included. US QBO companies on
+  // automated sales tax cannot use tax-inclusive (GlobalTaxCalculation=TaxInclusive) pricing, so the
+  // item is non-taxable at $100 and the tax treatment is flagged for accountant review.
   taxable: false,
   description: 'Paid 30-minute Ballers Kingdom strategy/consulting session. Booked via Calendly after payment.',
 });
@@ -29,7 +32,7 @@ const OFFERS = deepFreeze({
   [STRATEGY_SESSION_SKU]: {
     sku: STRATEGY_SESSION_SKU,
     name: STRATEGY_SESSION_QBO_ITEM_SPEC.name,
-    amountCents: 9700,
+    amountCents: 10000,
     currency: 'USD',
     orderType: 'service',
     fulfillmentType: 'post_payment_booking',
@@ -40,8 +43,9 @@ const OFFERS = deepFreeze({
       itemVerified: false,
     },
     tax: {
-      classification: 'service_non_taxable_pending_accountant',
+      classification: 'flat_100_total_tax_included_owner_approved_pending_accountant',
       quickBooksTaxCode: 'NON',
+      totalIsTaxInclusive: true,
       classificationApproved: true,
       accountantVerified: false,
     },
