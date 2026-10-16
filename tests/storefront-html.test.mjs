@@ -64,10 +64,10 @@ test('sitemap includes all public storefront routes', async () => {
   }
 });
 
-test('homepage introduces digital products without claiming checkout is live', async () => {
+test('homepage promotes live Gumroad products without claiming native checkout is live', async () => {
   const html = await read('index.html');
   assert.match(html, /Digital Products &amp; Personalized Solutions/);
-  assert.match(html, /Preview Career Blueprint/);
+  for (const title of ['The Recruiting Playbook','The Car Ride Home','Business Readiness Scorecard Pro']) assert.ok(html.includes(title));
   assert.doesNotMatch(html, /secure checkout is live|buy now/i);
 });
 
