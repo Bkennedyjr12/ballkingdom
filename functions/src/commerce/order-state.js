@@ -1,3 +1,4 @@
+import {taxGatePassed} from './service-offers.js';
 import {createHash} from 'node:crypto';
 
 const ORDER_STATUSES = new Set([
@@ -130,7 +131,7 @@ function normalizeAccountingSnapshot(item) {
   const itemId=item?.quickBooks?.itemId;
   const itemName=item?.quickBooks?.itemName;
   const taxCode=item?.tax?.quickBooksTaxCode;
-  if (item?.quickBooks?.itemVerified !== true || item?.tax?.accountantVerified !== true
+  if (item?.quickBooks?.itemVerified !== true || !taxGatePassed(item)
     || !isRequiredString(itemId) || itemId.length > 200
     || !isRequiredString(itemName) || itemName.length > 200
     || !isRequiredString(taxCode) || taxCode.length > 32) invalidOrder();

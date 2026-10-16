@@ -2314,7 +2314,11 @@ test('buyer catalog capability requires App Check and stays inactive until every
   const state = fixture();
   await assert.rejects(state.service.getBuyerCommerceCapability({}), {code:'APP_CHECK_REQUIRED'});
   assert.deepEqual(await state.service.getBuyerCommerceCapability(appCheck), {
-    products:[{sku:'home-inspection-study-guide',active:false,display:publicDisplay}],
+    products:[
+      {sku:'home-inspection-study-guide',active:false,display:publicDisplay},
+      {sku:'strategy-session-30',active:false,display:{...publicDisplay,
+        name:'Ballers Kingdom Strategy Session (30 min)',amountCents:10000,delivery:'post_payment_booking'}},
+    ],
   });
   assert.deepEqual(Object.keys((await state.service.getBuyerCommerceCapability(appCheck)).products[0]), ['sku','active','display']);
 });

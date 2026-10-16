@@ -94,9 +94,17 @@
       <li>Show up with your goals. Leave with a plan.</li>
     </ol>
     <div class="hero-ctas" style="margin-top: 24px;" data-offer-sku="strategy-session-30" data-offer-state="inactive">
-      <span class="btn btn-primary" aria-disabled="true" data-strategy-checkout>Paid checkout opening soon</span>
+      <button type="button" class="btn btn-primary" aria-disabled="true" data-strategy-checkout>Paid checkout opening soon</button>
       <a href="contact.html" class="btn btn-ghost">Questions? Contact us</a>
     </div>
+    <form data-strategy-form hidden style="margin-top:20px;max-width:420px;display:grid;gap:10px">
+      <label>Your name <input name="customerName" required maxlength="120" autocomplete="name" /></label>
+      <label>Email for your QuickBooks invoice <input name="email" type="email" required autocomplete="email" /></label>
+      <button type="submit" class="btn btn-primary">Email me a secure sign-in link</button>
+      <small>We never collect card details on this site. You pay on the QuickBooks invoice.</small>
+    </form>
+    <p data-strategy-status role="status" aria-live="polite" style="margin-top:16px"></p>
+    <div data-strategy-booking hidden><a data-strategy-booking-link class="btn btn-primary" rel="noopener">Book your session on Calendly &rarr;</a></div>
   </div>
 </header>
 
@@ -135,5 +143,6 @@
   })();
 </script>
 <script src="assets/js/main.js"></script>
+<script type="module" src="assets/js/firebase-commerce-runtime.js"></script><script type="module" src="assets/js/strategy-session.js"></script>
 </body>
 </html>

@@ -106,7 +106,7 @@ test('Task 7 and the operative release packet share one exact inactive manifest 
     'createControlledOwnerPilotOrder','getOrderStatus','createDownloadGrant',
     'redeemDownloadGrant','getBuyerCommerceCapability','verifyOrderPayment',
     'getCommerceReleaseState','resolvePublicAuthEmailQuarantine','getQuickBooksCommerceHealth',
-    'requestRefundReview','reconcileOrder','reconcileRefund','quickBooksCommerceWebhook',
+    'ensureStrategySessionItem','requestRefundReview','reconcileOrder','reconcileRefund','quickBooksCommerceWebhook',
     'reconcileCommerceOrders','dispatchCommerceEffects','stageInvoiceApprovals','approveInvoice',
     'beginQuickBooksConnection','quickBooksOAuthCallback','beginMicrosoftConnection',
     'microsoftOAuthCallback',
@@ -187,6 +187,7 @@ test('public checkout release inventories the exact reviewed Function surface', 
     'getCommerceReleaseState',
     'resolvePublicAuthEmailQuarantine',
     'getQuickBooksCommerceHealth',
+    'ensureStrategySessionItem',
     'requestRefundReview',
     'reconcileOrder',
     'reconcileRefund',
@@ -211,10 +212,11 @@ test('public checkout release inventories the exact reviewed Function surface', 
     /functions:ballkingdom-integrations:confirmAcceptedBooking(?:,|\s)/);
 });
 
-test('public auth and ordering flags support inactive launch and customer-preserving disable', async () => {
+test('public auth and ordering flags are live for the strategy session release with customer-preserving disable', async () => {
   const env=await read('functions/.env.the-ballers-kingdom');
-  assert.match(env,/^COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=false$/m);
-  assert.match(env,/^COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false$/m);
+  assert.match(env,/^COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true$/m);
+  assert.match(env,/^COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=true$/m);
+  assert.match(env,/^COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=false$/m);
   const release=await read('docs/operations/public-quickbooks-checkout-release.md');
   assert.match(release,/activate[^.]*AUTH_RESUME[^.]*DIGITAL_CHECKOUT/i);
   assert.match(release,/emergency[^.]*DIGITAL_CHECKOUT_ENABLED=false[^.]*AUTH_RESUME_ENABLED=true/is);

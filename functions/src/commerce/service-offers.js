@@ -28,34 +28,47 @@ export const STRATEGY_SESSION_QBO_ITEM_SPEC = deepFreeze({
   description: 'Paid 30-minute Ballers Kingdom strategy/consulting session. Booked via Calendly after payment.',
 });
 
+// The offer rides the existing QuickBooks digital-order pipeline (invoice create/send, exact payment
+// verification, reconciliation). "Fulfillment" is releasing the allowlisted booking link after the
+// order is fulfilled; there is no protected download.
 const OFFERS = deepFreeze({
   [STRATEGY_SESSION_SKU]: {
     sku: STRATEGY_SESSION_SKU,
     name: STRATEGY_SESSION_QBO_ITEM_SPEC.name,
     amountCents: 10000,
     currency: 'USD',
-    orderType: 'service',
+    offerKind: 'service',
+    orderType: 'digital_product',
     fulfillmentType: 'post_payment_booking',
-    active: false,
+    delivery: 'post_payment_booking',
+    physicalCopyIncluded: false,
+    active: true,
     quickBooks: {
       itemName: STRATEGY_SESSION_QBO_ITEM_SPEC.name,
-      itemId: null, // set only after ensureStrategySessionItem readback is verified
+      itemId: null, // supplied at runtime only from the verified ensureStrategySessionItem readback
       itemVerified: false,
+      runtimeVerifiable: true,
     },
     tax: {
       classification: 'flat_100_total_tax_included_owner_approved_pending_accountant',
       quickBooksTaxCode: 'NON',
       totalIsTaxInclusive: true,
       classificationApproved: true,
+      ownerApproved: true,
       accountantVerified: false,
+      reviewStatus: 'pending_accountant_review',
     },
     booking: {
       provider: 'calendly',
       url: 'https://calendly.com/ballerskingdom/30min',
     },
-    release: {priceApproved: true, deployApproved: false},
+    release: {ownerPilotApproved: true, priceApproved: true, deployApproved: true},
   },
 });
+
+export function listServiceOffers() {
+  return Object.values(OFFERS);
+}
 
 export function isAllowedBookingUrl(url) {
   try {
@@ -72,28 +85,23 @@ export function getServiceOffer(sku) {
   return OFFERS[String(sku || '')] ?? null;
 }
 
-export function isServiceOfferPurchasable(offer, {publicCheckoutEnabled = false} = {}) {
-  return publicCheckoutEnabled === true
-    && offer != null
-    && offer.active === true
-    && offer.release?.deployApproved === true
-    && offer.release?.priceApproved === true
-    && Number.isInteger(offer.amountCents) && offer.amountCents > 0
-    && offer.quickBooks?.itemVerified === true
-    && typeof offer.quickBooks?.itemId === 'string' && offer.quickBooks.itemId.length > 0
-    && offer.quickBooks?.itemName === offer.name
-    && offer.tax?.classificationApproved === true
-    && offer.tax?.accountantVerified === true
-    && isAllowedBookingUrl(offer.booking?.url);
+export function isServiceBookingOffer(item) {
+  return item?.offerKind === 'service' && item?.fulfillmentType === 'post_payment_booking';
 }
 
-const PAID_STATUSES = new Set(['paid', 'fulfilled']);
+// Service offers may pass with owner approval while accountant review is pending. Every other item
+// (digital downloads such as the Study Guide) still requires accountantVerified === true.
+export function taxGatePassed(item) {
+  if (item?.tax?.accountantVerified === true) return true;
+  return isServiceBookingOffer(item) && item.tax?.classificationApproved === true
+    && item.tax.ownerApproved === true
+    && item.tax.reviewStatus === 'pending_accountant_review';
+}
 
-// Returns the booking link only for an order whose QuickBooks payment was independently verified.
+// Returns the booking link only for a fulfilled order (fulfillment happens only after exact
+// QuickBooks payment verification).
 export function getPostPaymentBookingUrl(order) {
-  if (!order || order.fulfillmentType !== 'post_payment_booking') return null;
-  if (!PAID_STATUSES.has(order.status)) return null;
-  if (order.payment?.verified !== true) return null;
+  if (!order || order.fulfillmentType !== 'post_payment_booking' || order.status !== 'fulfilled') return null;
   const offer = getServiceOffer(order.sku);
   if (!offer || !isAllowedBookingUrl(offer.booking?.url)) return null;
   return offer.booking.url;
