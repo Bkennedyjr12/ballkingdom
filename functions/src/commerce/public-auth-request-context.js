@@ -8,11 +8,14 @@ function normalizedIp(value) {
   return ip.toLowerCase();
 }
 
-function verifiedForwardedClient(request) {
+function verifiedForwardedClient(request, ingress) {
   const rawRequest = request?.rawRequest;
   const forwarded = rawRequest?.headers?.['x-forwarded-for'];
   if (typeof forwarded !== 'string' || forwarded.length < 1 || forwarded.length > 512) return null;
   const chain = forwarded.split(',');
+  // Direct Cloud Functions ingress appends the connecting client as the final IP.
+  // Keep this choice fixed by deployment route, never by user-controlled chain length.
+  if (ingress === 'cloud-functions') return normalizedIp(chain.at(-1));
   if (chain.length < 2) return null;
   const client = normalizedIp(chain.at(-2));
   const forwardingRule = normalizedIp(chain.at(-1));
@@ -22,8 +25,8 @@ function verifiedForwardedClient(request) {
   return client;
 }
 
-export function publicAuthRequestContext(request) {
-  const client = verifiedForwardedClient(request);
+export function publicAuthRequestContext(request, {ingress = 'external-load-balancer'} = {}) {
+  const client = verifiedForwardedClient(request, ingress);
   if (client == null) return Object.freeze({app:request?.app});
   return Object.freeze({
     app:request?.app,

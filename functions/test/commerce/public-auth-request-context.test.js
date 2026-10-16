@@ -61,3 +61,23 @@ test('fails closed for missing, short, or malformed forwarded chains and never u
     assert.deepEqual(publicAuthRequestContext(input), {app});
   }
 });
+
+test('direct Functions ingress accepts its single platform-appended client IP', () => {
+  const context = publicAuthRequestContext(request({forwardedFor:'198.51.100.8'}), {ingress:'cloud-functions'});
+  assert.match(context.ipDigest, /^[a-f0-9]{64}$/);
+});
+
+test('direct Functions ingress ignores attacker-controlled prefixes consistently', () => {
+  const options={ingress:'cloud-functions'};
+  const direct=publicAuthRequestContext(request({forwardedFor:'198.51.100.8'}), options);
+  for(const forwardedFor of ['203.0.113.99, 198.51.100.8','unknown, attacker-controlled, 198.51.100.8']) {
+    assert.equal(publicAuthRequestContext(request({forwardedFor}), options).ipDigest,direct.ipDigest);
+  }
+  assert.notEqual(publicAuthRequestContext(request({forwardedFor:'198.51.100.9'}), options).ipDigest,direct.ipDigest);
+});
+
+test('direct Functions ingress fails closed for missing or invalid final IP', () => {
+  for(const forwardedFor of [undefined,'','198.51.100.8, unknown','198.51.100.8,']) {
+    assert.deepEqual(publicAuthRequestContext(request({forwardedFor}), {ingress:'cloud-functions'}), {app});
+  }
+});

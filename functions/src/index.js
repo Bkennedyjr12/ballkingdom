@@ -510,7 +510,7 @@ export const requestPilotSignInLink = onCall({
   // UNAUTHENTICATED before this handler; valid requests always receive the generic result.
   enforceAppCheck:true,
 }, async request => {
-  const context = publicAuthRequestContext(request);
+  const context = publicAuthRequestContext(request, {ingress:'cloud-functions'});
   // Log transport shape only: never email addresses, IPs, tokens, or sign-in links.
   console.info('public_auth_transport', {
     appVerified:Boolean(request.app?.appId),
