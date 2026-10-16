@@ -247,7 +247,7 @@ for (const [scenario, expectedStatus] of [['reuse-paid', 'paid'], ['reuse-fulfil
 
 test('digital product shows QuickBooks email instructions without a pay URL', async ({page}) => {
   await installCommerceMock(page);
-  await page.goto('/products.html');
+  await page.goto('/products.html#home-inspection-study-guide');
   await page.getByRole('link',{name:/Get the Home Inspection Guide/i}).click();
   await expect(page).toHaveURL(/order-status/);
   await expect(page.getByRole('heading',{name:/Get the guide/i})).toBeVisible();
@@ -259,7 +259,7 @@ test('digital product shows QuickBooks email instructions without a pay URL', as
 
 test('product card renders server-authoritative name and price instead of its static checkout copy', async ({page}) => {
   await installCommerceMock(page,'display-override');
-  await page.goto('/products.html');
+  await page.goto('/products.html#home-inspection-study-guide');
   const card=page.locator('[data-commerce-sku="home-inspection-study-guide"]').locator('xpath=ancestor::article');
   await expect(card.getByRole('heading')).toHaveText('Server Catalog Guide');
   await expect(card.locator('.product-offer__price')).toHaveText('$51.00');
@@ -273,12 +273,12 @@ test('client assertions do not unlock fulfillment', async ({page}) => {
 });
 
 test('unavailable Functions leave purchase controls fail closed', async ({page}) => {
-  await page.goto('/products.html');
+  await page.goto('/products.html#home-inspection-study-guide');
   await expect(page.getByText(/Purchasing is temporarily unavailable/i)).toBeVisible();
   const control = page.getByRole('link',{name:/Get the Home Inspection Guide/i});
   await expect(control).toHaveAttribute('aria-disabled','true');
   await control.dispatchEvent('click');
-  await expect(page).toHaveURL(/products\.html$/);
+  await expect(page).toHaveURL(/products\.html#home-inspection-study-guide$/);
   await page.goto('/order-status.html');
   await expect(page.getByRole('button',{name:/Email.*sign-in link/i})).toBeDisabled();
   await expect(page.getByRole('button',{name:/Request QuickBooks invoice/i})).toBeDisabled();

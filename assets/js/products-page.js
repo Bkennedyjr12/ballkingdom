@@ -11,7 +11,8 @@ function renderProductCard(product) {
   const href = product.commerceSku ? 'products.html#home-inspection-study-guide' : product.href;
   const commerceName = product.commerceSku ? ' data-commerce-product-name' : '';
   const commercePrice = product.commerceSku ? ' data-commerce-product-price' : '';
-  return `<article class="product-offer" id="${escapeHtml(product.slug)}">
+  const unlisted = product.slug === 'home-inspection-study-guide' ? ' data-unlisted' : '';
+  return `<article class="product-offer"${unlisted} id="${escapeHtml(product.slug)}">
     <p class="product-offer__eyebrow">${escapeHtml(product.eyebrow)}</p>
     <h2${commerceName}>${escapeHtml(product.name)}</h2>
     <p>${escapeHtml(product.summary)}</p>
@@ -25,6 +26,19 @@ function renderProductCard(product) {
 const grid = document.querySelector('[data-product-grid]');
 if (grid) grid.innerHTML = getPrimaryProducts().map(renderProductCard).join('');
 
+function focusLinkedProduct() {
+  if (!grid || !location.hash) return;
+  let id;
+  try { id = decodeURIComponent(location.hash.slice(1)); } catch { return; }
+  const card = document.getElementById(id);
+  if (!card || !grid.contains(card) || !card.classList.contains('product-offer')) return;
+  card.scrollIntoView({ block: 'start', behavior: 'instant' });
+  const heading = card.querySelector('h2');
+  if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
+}
+focusLinkedProduct();
+window.addEventListener('hashchange', focusLinkedProduct);
+
 async function applyCommerceAvailability() {
   const controls = [...document.querySelectorAll('[data-commerce-sku]')];
   if (!controls.length) return;
@@ -32,7 +46,10 @@ async function applyCommerceAvailability() {
     if (control.getAttribute('aria-disabled') === 'true') event.preventDefault();
   }));
   const boundary = await getCommerceBoundary();
-  const unavailable = control => control.insertAdjacentHTML('afterend','<span class="commerce-unavailable" role="status">Purchasing is temporarily unavailable</span>');
+  const unavailable = control => {
+    const state = control.closest('.product-offer')?.querySelector('.product-offer__state');
+    if (state) { state.textContent = 'Purchasing is temporarily unavailable'; state.setAttribute('role', 'status'); }
+  };
   if (!boundary) { controls.forEach(unavailable); return; }
   try {
     const release = validateCapabilityResponse(await boundary.getBuyerCommerceCapability());
@@ -46,6 +63,8 @@ async function applyCommerceAvailability() {
       if(name)name.textContent=product.display.name;
       if(price)price.textContent=new Intl.NumberFormat('en-US',{style:'currency',currency:product.display.currency}).format(product.display.amountCents/100);
       if (!product.active) { unavailable(control); return; }
+      const state = card?.querySelector('.product-offer__state');
+      if (state) state.textContent = 'Available now';
       control.href = `order-status.html?sku=${encodeURIComponent(control.dataset.commerceSku)}`;
       control.classList.remove('btn-disabled');
       control.removeAttribute('aria-disabled');

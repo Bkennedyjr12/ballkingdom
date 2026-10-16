@@ -1,0 +1,14 @@
+.assessment-account { --assessment-line:#415066; --assessment-muted:#b9c7d6; --font-body:Arial,sans-serif; --font-display:Arial,sans-serif; margin-block:2rem; padding:1.25rem; background:#141b27; color:#edf2f7; border-radius:1rem; font-family:var(--font-body); }
+.assessment-account p { color:var(--assessment-muted); }
+.assessment-account h2,.assessment-account h3,.assessment-account h4 { color:#fff; text-transform:none; letter-spacing:0; }
+.assessment-account button { width:auto; margin-top:0; }
+.assessment-account :focus-visible { outline:3px solid #8ec5ff; outline-offset:4px; }
+.assessment-account .assessment-meta { display:flex; justify-content:space-between; gap:8px; }
+.assessment-account input[type=radio] { min-height:20px; margin:3px 0 0; padding:0; }
+.assessment-account .assessment-stage { margin-block:1rem; }
+.assessment-account-save { padding:1rem; margin-block:1rem; background:#202b3c; border-radius:.75rem; }
+.assessment-account-row { padding:1rem; margin-block:.75rem; border:1px solid #4f5966; border-radius:.75rem; }
+.assessment-account-row button { margin:.25rem .5rem .25rem 0; }
+.assessment-account-delete { padding:.75rem; margin-top:.75rem; background:#362d26; border-radius:.5rem; }
+.assessment-account [role=status] { min-height:1.5rem; }
+@media print { .assessment-account { display:none; } }

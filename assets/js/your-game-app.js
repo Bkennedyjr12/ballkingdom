@@ -1,3 +1,5 @@
+import {emptyLinks,projectedLog,connectedCount,weekSummary,validDate,localDate,weekStart} from './accountability-model.js';
+import {browserAccountability} from './accountability-device.js';
 // The Ballers Kingdom — Your Game interactive experience.
 // Local-first by design: assessment, journal, and daily check-ins stay in this browser.
 (function () {
@@ -10,9 +12,12 @@
   var PROFILE_KEY = 'bk_your_game_profile_v1';
   var DAILY_KEY = 'bk_daily_game_log_v1';
   var DRAFT_KEY = 'bk_your_game_draft_v1';
+  var query = new URLSearchParams(location.search);
+  var selectedDate = validDate(query.get('date')) ? query.get('date') : localDate();
+  var stateInitialTab = ['progress','today'].includes(query.get('tab')) ? query.get('tab') : '';
   var state = {
     screen: load(PROFILE_KEY, null) ? 'result' : 'welcome',
-    tab: load(PROFILE_KEY, null) ? 'today' : 'assessment',
+    tab: load(PROFILE_KEY, null) ? (stateInitialTab || 'today') : 'assessment',
     round: 0,
     context: { name: '', arena: '', season: '' },
     answers: {},
@@ -54,7 +59,7 @@
       '<div class="yg-tabs" role="tablist" aria-label="Your Game sections">' +
         tabButton('result', 'Your roles') + tabButton('today', 'Today') + tabButton('progress', 'Progress') +
       '</div>' : '';
-    return '<div class="yg-app-shell">' + tabs + (state.notice ? '<div class="yg-notice" role="status">' + esc(state.notice) + '</div>' : '') + content + '</div>';
+    return '<div class="yg-app-shell">' + tabs + (state.notice ? '<div class="yg-notice" role="status">' + esc(state.notice) + '</div>' : '') + workoutNavigation() + (!profile?weeklySummary()+linkManagement():'') + content + '</div>';
   }
   function tabButton(id, label) {
     return '<button type="button" class="yg-tab' + (state.tab === id ? ' active' : '') + '" data-tab="' + id + '" role="tab" aria-selected="' + (state.tab === id) + '">' + label + '</button>';
@@ -161,39 +166,56 @@
     return 'In this ' + seasonById(profile.season).name.toLowerCase() + ' season, I will use my ' + role.name.replace('The ', '').toLowerCase() + ' strengths to ' + people + '.' + burden + ' I will begin with the responsibility already in front of me.';
   }
 
+  function linkedState() { try { return browserAccountability().links(); } catch(error) { state.notice=error.message; return emptyLinks(); } }
+  function effectiveLog() { return projectedLog(load(DAILY_KEY, []), linkedState()); }
+  function connected(date) { return connectedCount(linkedState(),date); }
+  function workoutNavigation() {
+    return '<aside class="yg-workout-link"><strong>Your training week, connected.</strong><p>Build a workout draft, then choose whether its completion dates contribute to Physical on this device. Journals stay on this device. Sign in to the private notebook to save plans and choose coach access.</p><a target="_blank" rel="noopener noreferrer" href="workouts-preview.html?date=' + selectedDate + '">Open workout planner (new tab)</a><p><a target="_blank" rel="noopener noreferrer" href="workouts.html">Open private notebook (new tab)</a></p></aside>';
+  }
+  function weeklySummary() {
+    var totals=weekSummary(load(DAILY_KEY, []),linkedState(),selectedDate);
+    return '<section class="yg-week-summary" data-physical-days="'+totals.physicalDays+'" data-workout-days="'+totals.workoutDays+'"><strong>Week of '+totals.start+' to '+totals.end+'</strong><span>'+totals.workoutDays+' linked workout days · '+totals.physicalDays+' Physical days · '+totals.allThree+' days honoring all three</span><p>Each calendar day counts once. Physical includes linked workouts and your other physical practice.</p></section>';
+  }
+  function linkManagement() {
+    var plans=Object.entries(linkedState().plans);
+    if(!plans.length)return '';
+    return '<details class="yg-link-management"><summary>Manage device-only workout links ('+plans.length+')</summary><p>Disconnecting removes only a plan’s workout contributions. Your journal, other physical activity and other plans remain unchanged.</p>'+plans.map(function(pair,index){var completed=pair[1].filter(function(s){return s.status==='completed';});return '<div><p>Connected plan '+(index+1)+': '+(completed.length?completed.map(function(s){return s.date;}).join(', '):'No completed dates')+'</p><button type="button" data-disconnect="'+esc(pair[0])+'">Disconnect plan '+(index+1)+'</button></div>';}).join('')+'</details>';
+  }
   function renderToday(profile) {
-    var key = dateKey(); var log = load(DAILY_KEY, []); var entry = log.filter(function (x) { return x.date === key; })[0] || {};
+    var key = selectedDate; var log = load(DAILY_KEY, []); var entry = log.filter(function (x) { return x.date === key; })[0] || {};
     var scripture = DATA.dailyScripture[Math.floor(new Date(key + 'T12:00:00').getTime() / 86400000) % DATA.dailyScripture.length];
-    var primary = roleById(profile.primary);
-    return '<section class="yg-daily">' +
+    var primary = roleById(profile.primary); var linked=connected(key);
+    return weeklySummary() + '<section class="yg-daily">' +
       '<header class="yg-daily-head"><div><div class="yg-card-kicker">Daily Game · ' + prettyDate(key) + '</div><h2>Play today faithfully.</h2></div><div class="yg-day-mark"><span>' + primary.mark + '</span><small>' + primary.name.replace('The ', '') + '</small></div></header>' +
+      '<label class="yg-date-picker">Daily Game date <input id="daily-date" type="date" value="'+key+'"></label>' +
       '<article class="yg-daily-word"><span>Today’s biblical lens</span><h3>' + scripture.ref + '</h3><p>' + scripture.truth + '</p><strong>' + scripture.question + '</strong></article>' +
       (profile.purpose.prayer ? '<article class="yg-prayer"><span>My one prayer</span><p>' + esc(profile.purpose.prayer) + '</p></article>' : '') +
       '<form id="yg-daily-form">' +
         fieldValue('move', 'My one purpose move', 'The next faithful action—not the whole assignment.', entry.move || profile.purpose.assignment || '') +
         '<label class="yg-move-done"><input type="checkbox" name="moveDone"' + (entry.moveDone ? ' checked' : '') + ' /><span>I made this move today</span></label>' +
-        '<div class="yg-daily-checks">' + check('spiritual', 'Spiritual', entry.spiritual, 'Scripture, prayer, worship, stillness…') + check('physical', 'Physical', entry.physical, 'Training, recovery, sleep, nutrition…') + check('relational', 'Relational / vocational', entry.relational, 'A conversation, service, craft, or repair…') + '</div>' +
-        '<div class="yg-inner-reset"><div><span>Inner Game forecast</span><p>' + primary.innerPrompt + '</p></div><a href="growth.html?source=your-game&amp;role=' + primary.id + '">Work through what I’m feeling →</a></div>' +
+        '<div class="yg-daily-checks">' + check('spiritual', 'Spiritual', entry.spiritual, 'Scripture, prayer, worship, stillness…') + check('physical', 'Physical', entry.physical || linked>0, linked?'Completed workout linked for this date':'Training, recovery, sleep, nutrition…',linked>0) + check('relational', 'Relational / vocational', entry.relational, 'A conversation, service, craft, or repair…') + '</div>' +
+        (linked?'<div class="yg-linked-day">Physical is checked by a connected completed workout. Undo it in the workout planner or disconnect the link below. '+check('physicalOther','Other physical practice',entry.physical,'Keep a separate record of recovery, sleep or other activity.')+'</div>':'') +
+      '<div class="yg-inner-reset"><div><span>Inner Game forecast</span><p>' + primary.innerPrompt + '</p></div><a href="growth.html?source=your-game&amp;role=' + primary.id + '">Work through what I’m feeling →</a></div>' +
         fieldValue('reflection', 'End-of-day truth', 'Where did I act faithfully? What needs gratitude, confession, repair, or release?', entry.reflection || '', true) +
-        '<div class="yg-save-row"><button type="submit" class="yg-action primary">Save today</button><button type="button" class="yg-action secondary" data-share="today">Share accountability card</button></div>' +
-      '</form></section>';
+        '<div class="yg-save-row"><button type="submit" class="yg-action primary">'+(key===localDate()?'Save today':'Save this day')+'</button><button type="button" class="yg-action secondary" data-share="today">Share accountability card</button></div>' +
+      '</form></section>'+linkManagement();
   }
   function fieldValue(id, label, placeholder, value, textarea) {
     var tag = textarea ? 'textarea' : 'input'; var end = textarea ? '</textarea>' : ' />';
     return '<label class="yg-label" for="daily-' + id + '">' + label + '</label><' + tag + ' class="yg-input' + (textarea ? ' yg-text' : '') + '" id="daily-' + id + '" name="' + id + '" placeholder="' + esc(placeholder) + '"' + (textarea ? ' rows="3">' + esc(value) : ' value="' + esc(value) + '"') + end;
   }
-  function check(id, label, checked, hint) {
-    return '<label class="yg-check"><input type="checkbox" name="' + id + '"' + (checked ? ' checked' : '') + ' /><span><b>' + label + '</b><small>' + hint + '</small></span></label>';
+  function check(id, label, checked, hint, disabled) {
+    return '<label class="yg-check"><input type="checkbox" name="' + id + '"' + (checked ? ' checked' : '') + (disabled?' disabled':'') + ' /><span><b>' + label + '</b><small>' + hint + '</small></span></label>';
   }
 
   function renderProgress(profile) {
-    var log = load(DAILY_KEY, []).slice().sort(function (a, b) { return a.date.localeCompare(b.date); });
+    var log = effectiveLog().slice().sort(function (a, b) { return a.date.localeCompare(b.date); });
     var allThree = log.filter(function (e) { return e.spiritual && e.physical && e.relational; }).length;
     var moves = log.filter(function (e) { return e.moveDone || (e.move && String(e.move).trim()); }).length;
     var returns = 0;
     for (var i = 1; i < log.length; i++) if (daysBetween(log[i - 1].date, log[i].date) > 1) returns++;
     var recent = log.slice(-7).reverse();
-    return '<section class="yg-progress-view"><div class="yg-card-kicker">Daily Game · Progress</div><h2>Faithfulness is measured by return.</h2><p>No shame counter. No public leaderboard. Missed days are information; coming back is the practice.</p>' +
+    return weeklySummary()+linkManagement()+'<section class="yg-progress-view"><div class="yg-card-kicker">Daily Game · Progress</div><h2>Faithfulness is measured by return.</h2><p>No shame counter. No public leaderboard. Missed days are information; coming back is the practice.</p>' +
       '<div class="yg-stat-grid"><article><strong>' + log.length + '</strong><span>Days engaged</span></article><article><strong>' + allThree + '</strong><span>All three honored</span></article><article><strong>' + moves + '</strong><span>Purpose moves</span></article><article><strong>' + returns + '</strong><span>Times you returned</span></article></div>' +
       '<article class="yg-week"><header><span>Recent days</span><button type="button" data-share="week">Share weekly review</button></header>' + (recent.length ? recent.map(function (e) {
         var count = [e.spiritual, e.physical, e.relational].filter(Boolean).length;
@@ -204,29 +226,31 @@
   }
 
   function saveDaily(form) {
-    var key = dateKey(); var log = load(DAILY_KEY, []); var existing = log.findIndex(function (e) { return e.date === key; });
-    var entry = {
+    var key = selectedDate; var log = load(DAILY_KEY, []); var existing = log.findIndex(function (e) { return e.date === key; });
+    var prior=existing>=0?log[existing]:{};
+    var entry = Object.assign({},prior,{
       date: key, move: form.elements.move.value.trim(), moveDone: form.elements.moveDone.checked,
-      spiritual: form.elements.spiritual.checked, physical: form.elements.physical.checked,
+      spiritual: form.elements.spiritual.checked, physical: form.elements.physicalOther ? form.elements.physicalOther.checked : form.elements.physical.checked,
       relational: form.elements.relational.checked, reflection: form.elements.reflection.value.trim(), updatedAt: Date.now()
-    };
+    });
     if (existing >= 0) log[existing] = entry; else log.push(entry);
-    store(DAILY_KEY, log); setNotice('Today’s game card is saved on this device.');
+    if(store(DAILY_KEY, log))setNotice('This day’s game card is saved on this device.');else {state.notice='Device storage is unavailable. This day was not saved; your edits remain in the form.';preserveDraftRefresh();}
   }
 
   function shareText(type) {
     var profile = load(PROFILE_KEY, null); if (!profile) return '';
     var primary = roleById(profile.primary); var secondary = roleById(profile.secondary);
     if (type === 'roles') return 'MY KINGDOM PLAYBOOK\n\nPrimary: ' + primary.name + '\nSupporting: ' + secondary.name + '\nSeason: ' + seasonById(profile.season).name + '\n\n' + buildPurpose(profile, primary) + '\n\nKnow whose you are. Play today faithfully.\nballkingdom.com/your-game';
-    var log = load(DAILY_KEY, []); var today = log.filter(function (e) { return e.date === dateKey(); })[0];
+    var log = effectiveLog(); var today = log.filter(function (e) { return e.date === selectedDate; })[0];
     if (type === 'today') {
-      if (!today) return 'I have not saved today’s Daily Game yet.';
+      if (!today) return 'I have not saved a Daily Game for this date yet.';
       var count = [today.spiritual, today.physical, today.relational].filter(Boolean).length;
       return 'DAILY GAME · ' + prettyDate(today.date) + '\nPurpose move: ' + (today.moveDone ? 'Made' : 'Still in play') + '\nCommitments: ' + count + '/3\nOne honest line: ' + (today.reflection || 'Still reflecting.') + '\n\nAccountability without performance. Faithful return.\nballkingdom.com/your-game';
     }
-    var last = log.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 7);
+    var totals=weekSummary(load(DAILY_KEY, []),linkedState(),selectedDate);
+    var last = log.filter(function(e){return e.date>=totals.start&&e.date<=totals.end;});
     var full = last.filter(function (e) { return e.spiritual && e.physical && e.relational; }).length;
-    return 'WEEKLY KINGDOM REVIEW\nDays engaged: ' + last.length + '\nDays I honored all three: ' + full + '\nOne ask: Pray that I keep returning with honesty and discipline.\n\nballkingdom.com/your-game';
+    return 'WEEKLY KINGDOM REVIEW · '+totals.start+' to '+totals.end+'\nLinked workout days: '+totals.workoutDays+'\nPhysical days: '+totals.physicalDays+'\nDays engaged: ' + last.length + '\nDays I honored all three: ' + full + '\nOne ask: Pray that I keep returning with honesty and discipline.\n\nballkingdom.com/your-game';
   }
   function share(type) {
     var text = shareText(type);
@@ -235,7 +259,13 @@
     else setNotice('Sharing is not available in this browser.');
   }
 
+  function preserveDraftRefresh(){
+    var form=app.querySelector('#yg-daily-form'),pending=form?{move:form.elements.move.value,reflection:form.elements.reflection.value,moveDone:form.elements.moveDone.checked,spiritual:form.elements.spiritual.checked,relational:form.elements.relational.checked,physical:form.elements.physicalOther?form.elements.physicalOther.checked:form.elements.physical.checked}:null;
+    render();form=app.querySelector('#yg-daily-form');if(pending&&form){for(var key of ['move','reflection'])form.elements[key].value=pending[key];for(var key of ['moveDone','spiritual','relational'])form.elements[key].checked=pending[key];if(form.elements.physicalOther)form.elements.physicalOther.checked=pending.physical;else form.elements.physical.checked=pending.physical;}
+  }
   function bind() {
+    var dateInput=app.querySelector('#daily-date');if(dateInput)dateInput.addEventListener('change',function(){if(!validDate(dateInput.value)){dateInput.value=selectedDate;return;}var form=app.querySelector('#yg-daily-form');if(form&&form.dataset.edited==='true'&&!confirm('Change dates and discard unsaved edits?')){dateInput.value=selectedDate;return;}selectedDate=dateInput.value;var url=new URL(location.href);url.searchParams.set('date',selectedDate);url.searchParams.set('tab','today');history.replaceState(null,'',url);render();});
+    app.querySelectorAll('[data-disconnect]').forEach(function(button){button.addEventListener('click',function(){try{browserAccountability().disconnect(button.dataset.disconnect);preserveDraftRefresh();state.notice='Workout link disconnected. Journal content and other activity are unchanged.';preserveDraftRefresh();}catch(error){state.notice=error.message;preserveDraftRefresh();}});});
     app.querySelectorAll('[data-tab]').forEach(function (button) { button.addEventListener('click', function () { state.tab = button.dataset.tab; state.screen = button.dataset.tab; state.notice = ''; render(); }); });
     app.querySelectorAll('[data-choice]').forEach(function (button) { button.addEventListener('click', function () { state.context[button.dataset.choice] = button.dataset.value; render(); }); });
     app.querySelectorAll('[data-rate]').forEach(function (button) { button.addEventListener('click', function () { state.answers[button.dataset.rate] = Number(button.dataset.value); render(); }); });
@@ -246,7 +276,7 @@
     }); });
     app.querySelectorAll('[data-share]').forEach(function (button) { button.addEventListener('click', function () { share(button.dataset.share); }); });
     var name = app.querySelector('#yg-name'); if (name) name.addEventListener('input', function () { state.context.name = name.value; });
-    var form = app.querySelector('#yg-daily-form'); if (form) form.addEventListener('submit', function (event) { event.preventDefault(); saveDaily(form); render(); });
+    var form = app.querySelector('#yg-daily-form'); if(form)form.addEventListener('input',function(){form.dataset.edited='true';}); if (form) form.addEventListener('submit', function (event) { event.preventDefault(); saveDaily(form); });
     app.querySelectorAll('[data-action]').forEach(function (button) { button.addEventListener('click', function () { action(button.dataset.action); }); });
   }
 
@@ -265,5 +295,7 @@
     app.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  window.addEventListener('storage',function(event){if(event.key==='bk_workout_daily_links_v1')preserveDraftRefresh();});
+  window.addEventListener('tbk-accountability-changed',preserveDraftRefresh);
   render();
 }());

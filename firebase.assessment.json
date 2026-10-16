@@ -1,0 +1,9 @@
+{
+  "functions": [{
+    "source": "functions-assessment",
+    "runtime": "nodejs22",
+    "codebase": "bk-assessments",
+    "ignore": ["node_modules", ".git", "**/.*", "**/*.log", "**/*.test.*"],
+    "predeploy": ["node scripts/build-assessment-function.mjs --check"]
+  }]
+}

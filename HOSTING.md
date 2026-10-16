@@ -22,11 +22,27 @@ Mail is Microsoft 365 (`info@ballkingdom.com`) via MX + SPF on
 
 ## Deploying
 
+**October 11, 2026 cleanup-only release:** Brian approved removing exposed
+internal artifacts while preserving the public website. Live version
+`4a80d522cc70cc38` retains all 171 ordinary hashes and the exact Hosting config,
+and omits 1,318 internal paths. The sanitized rollback version is
+`87fe2cf57d72b0c5`; older rollback versions can restore the exposure. See
+[`hosting-cleanup-release.md`](docs/operations/hosting-cleanup-release.md)
+for release evidence, regression results and safe rollback.
+
+Assessment/commerce feature publication and a cloud feature preview remain held.
+Do not reconstruct `ballkingdom-com` by deploying the repository root. Reconcile
+the feature builder's historical baseline to the clean live manifest before a
+future reviewed release. The older additive manifest includes internal artifacts
+and must never be published. See
+[`base44-ai-readiness-integration.md`](docs/operations/base44-ai-readiness-integration.md)
+and [`hosting-artifact-review-checkpoint.md`](docs/operations/hosting-artifact-review-checkpoint.md)
+for historical findings and the unresolved Library/iOS feature-review blocker.
+
 This repo's `firebase.json` covers two sites. Deploy them by target/site so a
 careless full deploy cannot overwrite something unintended:
 
-    # main public site
-    firebase deploy --only hosting:public --project the-ballers-kingdom
+    # main public site: further feature publication held; reconcile clean baseline first
 
     # theballerskingdom.com redirect
     firebase deploy --only hosting:theballerskingdom-redirect --project the-ballers-kingdom

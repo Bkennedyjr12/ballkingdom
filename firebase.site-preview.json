@@ -1,0 +1,46 @@
+{
+  "hosting": [
+    {
+      "target": "public",
+      "public": "output/site-preview",
+      "ignore": [],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "**/*.@(js|css)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=300, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "/workouts",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "private, no-store, max-age=0"
+            }
+          ]
+        },
+        {
+          "source": "/workouts.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "private, no-store, max-age=0"
+            }
+          ]
+        }
+      ],
+      "cleanUrls": true,
+      "trailingSlash": false
+    }
+  ]
+}

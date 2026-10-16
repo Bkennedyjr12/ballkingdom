@@ -10,6 +10,13 @@ npm-debug.log*
 .playwright-cli/
 firebase-debug.log
 output/playwright/
+output/reconciliation/
+output/ai-readiness-release/
+output/member-assessment-release/
+functions-assessment/.env*
+# Unreviewed course source stays private; the GitHub repository is public.
+docs/course-drafts/
+output/cleanup-only-release/
 assets/css/*.bak
 test-results/
 playwright-report/
@@ -26,3 +33,9 @@ video/ballers-kingdom-flagship/ballers-kingdom-flagship-review.mp4
 video/ballers-kingdom-flagship/ballers-kingdom-flagship-thumb.png
 video/ballers-kingdom-flagship/qa-report.md
 video/ballers-kingdom-flagship/youtube-receipt.json
+
+# Local verification and allowlisted release builds
+output/
+test-results/
+playwright-report/
+.playwright-cli/

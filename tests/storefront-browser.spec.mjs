@@ -7,11 +7,14 @@ test.beforeEach(async ({ page }) => {
   await page.route(/^https:\/\/fonts\.(?:googleapis|gstatic)\.com\//, route => route.abort());
 });
 
-test('desktop catalog renders three primary offers', async ({ page }) => {
+test('desktop catalog promotes two previews and keeps inspection unlisted', async ({ page }) => {
   await page.goto('/products.html');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Practical playbooks');
-  await expect(page.locator('.product-offer')).toHaveCount(3);
-  await expect(page.getByRole('link', { name: 'Build My Free Career Snapshot' })).toBeVisible();
+  await expect(page.locator('.product-offer:visible')).toHaveCount(2);
+  await expect(page.locator('#home-inspection-study-guide')).toBeHidden();
+  await page.goto('/products.html#home-inspection-study-guide');
+  await expect(page.locator('#home-inspection-study-guide')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Preview Career Blueprint' })).toBeVisible();
 });
 
 test('mobile visitor can reach the career funnel', async ({ page }) => {
@@ -19,8 +22,8 @@ test('mobile visitor can reach the career funnel', async ({ page }) => {
   await page.goto('/products.html');
   await page.getByRole('button', { name: 'Open menu' }).click();
   await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Products' })).toBeVisible();
-  await page.getByRole('link', { name: 'Build My Free Career Snapshot' }).click();
-  await expect(page).toHaveURL(/career-blueprint\.html/);
+  await page.getByRole('link', { name: 'Preview Career Blueprint' }).click();
+  await expect(page).toHaveURL(/\/career-blueprint(?:\.html)?$/);
 });
 
 test('career page exposes no file upload or active checkout', async ({ page }) => {

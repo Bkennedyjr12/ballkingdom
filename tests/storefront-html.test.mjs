@@ -53,7 +53,7 @@ test('custom solutions page states scope and avoids promises', async () => {
 
 test('primary pages expose the products destination', async () => {
   for (const page of ['index.html', 'shop.html', 'products.html', 'career-blueprint.html', 'custom-solutions.html']) {
-    assert.match(await read(page), /href=["']products\.html["']/i, page);
+    assert.match(await read(page), /href=["']\/?products\.html["']/i, page);
   }
 });
 
@@ -67,7 +67,7 @@ test('sitemap includes all public storefront routes', async () => {
 test('homepage introduces digital products without claiming checkout is live', async () => {
   const html = await read('index.html');
   assert.match(html, /Digital Products &amp; Personalized Solutions/);
-  assert.match(html, /Build My Free Career Snapshot/);
+  assert.match(html, /Preview Career Blueprint/);
   assert.doesNotMatch(html, /secure checkout is live|buy now/i);
 });
 
