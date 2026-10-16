@@ -23,3 +23,31 @@
 .gr-checkout-note a { text-decoration:underline; text-underline-offset:4px; }
 .gr-card .gr-cta { white-space:normal; }
 .gr-grid--single { margin-inline:auto; }
+
+/* Collection navigation stays usable with JavaScript disabled. */
+.gr-collections { display:flex; flex-wrap:wrap; gap:10px; padding:0 0 26px; margin:0 0 12px; border-bottom:1px solid #333; }
+.gr-collections a { display:block; border:1px solid #454545; padding:12px 16px; font:500 .85rem/1.4 var(--font-body); color:#eee; }
+.gr-collections a:hover { background:#fff; color:#111; }
+.gr-collection { padding:40px 0 12px; scroll-margin-top:100px; }
+.gr-collection+.gr-collection { margin-top:24px; border-top:1px solid #333; }
+.gr-collection-heading { max-width:720px; margin-bottom:26px; }
+.gr-collection-heading h3 { font-size:clamp(1.65rem,3vw,2.3rem); margin:8px 0 12px; }
+.gr-collection-heading p { color:#bbb; }
+.gr-collection .gr-grid { gap:20px; }
+.gr-empty { padding:20px 0; }
+.gr-empty a { text-decoration:underline; text-underline-offset:4px; }
+@media (min-width:761px) and (max-width:1000px) { .gr-collection .gr-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .gr-collection .gr-grid--single { grid-template-columns:1fr; } }
+@media (max-width:760px) { .gr-collection { padding-top:28px; } .gr-collections { gap:8px; } .gr-collections a { font-size:.8rem; padding:11px 13px; } }
+@media (min-width:761px) {
+ .gr-grid--single .gr-card { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); column-gap:26px; align-items:start; }
+ .gr-grid--single .gr-cover { grid-column:1; grid-row:1/5; margin-bottom:0; align-self:center; }
+ .gr-grid--single .gr-category,.gr-grid--single h3,.gr-grid--single .gr-description,.gr-grid--single .gr-purchase { grid-column:2; }
+ .gr-grid--single .gr-category { margin-bottom:12px; }
+ .gr-grid--single .gr-purchase { padding-top:12px; }
+}
+.gr-pending { margin-top:40px; padding:26px 28px; border:1px dashed #555; background:#0c0c0c; }
+.gr-pending h3 { margin:8px 0 16px; font-size:1.5rem; }
+.gr-pending ul { padding-left:20px; margin:0 0 16px; }
+.gr-pending li { margin-bottom:10px; color:#ddd; }
+.gr-pending li span,.gr-pending>p:last-child { color:#aaa; font-size:.85rem; }
+@media(max-width:480px) { .gr-pending { padding:22px; } }

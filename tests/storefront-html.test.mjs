@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import {GUMROAD_PRODUCTS} from '../scripts/gumroad-catalog.mjs';
+import {placements} from '../scripts/build-gumroad-sections.mjs';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -67,7 +69,8 @@ test('sitemap includes all public storefront routes', async () => {
 test('homepage promotes live Gumroad products without claiming native checkout is live', async () => {
   const html = await read('index.html');
   assert.match(html, /Digital Products &amp; Personalized Solutions/);
-  for (const title of ['The Recruiting Playbook','The Car Ride Home','Business Readiness Scorecard Pro']) assert.ok(html.includes(title));
+  for (const id of placements.home.ids) { const product=GUMROAD_PRODUCTS.find(p=>p.id===id); assert.ok(product,id); assert.ok(html.includes(product.name),product.name); assert.ok(html.includes(product.url),product.url); }
+  assert.deepEqual(placements.home.ids,['train-develop-serve-lead','matchday-body','scorecard']);
   assert.doesNotMatch(html, /secure checkout is live|buy now/i);
 });
 
