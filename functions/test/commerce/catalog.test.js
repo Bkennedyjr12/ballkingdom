@@ -187,6 +187,11 @@ test('publishes only strict buyer-safe SKU and display capability fields', () =>
       invoiceProvider:'quickbooks',paymentMethods:['card','apple_pay','paypal','venmo'],
       delivery:'protected_electronic_delivery',
     }},
+    {sku:'strategy-session-30',active:false,display:{
+      name:'Ballers Kingdom Strategy Session (30 min)',amountCents:10000,currency:'USD',
+      invoiceProvider:'quickbooks',paymentMethods:['card','apple_pay','paypal','venmo'],
+      delivery:'post_payment_booking',
+    }},
   ]);
   assert.deepEqual(Object.keys(listCommerceCapabilities()[0]), ['sku','active','display']);
   assert.deepEqual(Object.keys(listCommerceCapabilities()[0].display), ['name','amountCents','currency','invoiceProvider','paymentMethods','delivery']);

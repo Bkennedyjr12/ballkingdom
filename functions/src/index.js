@@ -1,3 +1,5 @@
+import {STRATEGY_SESSION_SKU,STRATEGY_SESSION_QBO_ITEM_SPEC,assertServiceItemReadback} from './commerce/service-offers.js';
+import {applyRuntimeItemVerification,listRuntimeVerifiableSkus} from './commerce/catalog.js';
 import {initializeApp} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
 import {getAppCheck} from 'firebase-admin/app-check';
@@ -70,6 +72,38 @@ async function addSecretVersion(secretName, value) {
 
 function requireAdmin(auth) {
   if (!auth?.uid || auth.token?.admin !== true) throw new HttpsError('permission-denied','An authenticated administrator is required');
+}
+
+// Owner operations: an admin:true user, or the configured owner email signed in with a verified
+// email link (the site's existing public email-link sign-in). Never exposes the configured email.
+function requireOwnerOrAdmin(auth) {
+  if (auth?.uid && auth.token?.admin === true) return;
+  const email = typeof auth?.token?.email === 'string' ? auth.token.email.trim().toLowerCase() : '';
+  let approved = '';
+  try { approved = String(COMMERCE_PILOT_RECIPIENT_EMAIL.value() || '').trim().toLowerCase(); } catch { approved = ''; }
+  if (!auth?.uid || auth.token?.email_verified !== true || !email || !approved || email !== approved) {
+    throw new HttpsError('permission-denied','An authenticated owner or administrator is required');
+  }
+}
+
+const ITEM_VERIFICATION_COLLECTION = 'integrationControl';
+const itemVerificationDocId = sku => `commerce-item-verification-${sku}`;
+let itemVerificationLoadedAtMs = 0;
+async function loadItemVerifications({force = false} = {}) {
+  if (!force && Date.now() - itemVerificationLoadedAtMs < 60_000) return;
+  for (const sku of listRuntimeVerifiableSkus()) {
+    try {
+      const snapshot = await db.collection(ITEM_VERIFICATION_COLLECTION).doc(itemVerificationDocId(sku)).get();
+      applyRuntimeItemVerification(sku, snapshot.exists ? snapshot.data() : null);
+    } catch {
+      applyRuntimeItemVerification(sku, null); // fail closed
+    }
+  }
+  itemVerificationLoadedAtMs = Date.now();
+}
+async function commerceService(options) {
+  await loadItemVerifications();
+  return runtimeCommerceService(options);
 }
 
 async function createOAuthState(provider, uid) {
@@ -475,7 +509,7 @@ export const requestPilotSignInLink = onCall({
   enforceAppCheck:true,
 }, async request => {
   try {
-    const service = runtimeCommerceService({withAuth:true,withGraph:true});
+    const service = await commerceService({withAuth:true,withGraph:true});
     return await service.requestPublicSignInLink(request.data, publicAuthRequestContext(request));
   } catch {
     return {status:'request_received'};
@@ -488,7 +522,7 @@ export const requestOwnerPilotSignInLink = onCall({
   enforceAppCheck:true,
 }, async request => {
   try {
-    const service=runtimeCommerceService({withPilotEmail:true,withGraph:true});
+    const service=await commerceService({withPilotEmail:true,withGraph:true});
     return await service.requestPilotSignInLink(request.data,{app:request.app});
   } catch {
     return {status:'request_received'};
@@ -501,7 +535,7 @@ export const createDigitalOrder = onCall({
   enforceAppCheck:true,
 }, async request => {
   try {
-    const service = runtimeCommerceService({withQuickBooks:true});
+    const service = await commerceService({withQuickBooks:true});
     return await service.createDigitalOrder(request.data, request.auth);
   } catch (error) {
     throw commerceHttpsError(error);
@@ -514,7 +548,7 @@ export const createControlledOwnerPilotOrder = onCall({
   enforceAppCheck:true,
 }, async request => {
   try {
-    const service=runtimeCommerceService({withPilotEmail:true,withQuickBooks:true});
+    const service=await commerceService({withPilotEmail:true,withQuickBooks:true});
     return await service.createControlledOwnerPilotOrder(request.data,request.auth);
   } catch (error) {
     throw commerceHttpsError(error);
@@ -523,7 +557,7 @@ export const createControlledOwnerPilotOrder = onCall({
 
 export const getOrderStatus = onCall({region:REGION,enforceAppCheck:true}, async request => {
   try {
-    const service = runtimeCommerceService();
+    const service = await commerceService();
     return await service.getOrderStatus(request.data, request.auth);
   } catch (error) {
     throw commerceHttpsError(error);
@@ -563,7 +597,7 @@ export const redeemDownloadGrant = onRequest({region:REGION}, async (request,res
 
 export const getBuyerCommerceCapability = onCall({region:REGION,enforceAppCheck:true}, async request => {
   try {
-    const service = runtimeCommerceService();
+    const service = await commerceService();
     return await service.getBuyerCommerceCapability({app:request.app});
   } catch (error) {
     throw commerceHttpsError(error);
@@ -577,7 +611,7 @@ export const verifyOrderPayment = onCall({
 }, async request => {
   requireAdmin(request.auth);
   try {
-    const service = runtimeCommerceService({withQuickBooks:true});
+    const service = await commerceService({withQuickBooks:true});
     return await service.verifyOrderPayment({
       orderId:String(request.data?.orderId ?? ''),
       source:'admin',
@@ -589,7 +623,7 @@ export const verifyOrderPayment = onCall({
 
 export const getCommerceReleaseState = onCall({region:REGION,enforceAppCheck:true}, async request => {
   try {
-    const service = runtimeCommerceService();
+    const service = await commerceService();
     return await service.getCommerceReleaseState({
       uid:request.auth?.uid,
       token:request.auth?.token,
@@ -602,7 +636,7 @@ export const getCommerceReleaseState = onCall({region:REGION,enforceAppCheck:tru
 
 export const resolvePublicAuthEmailQuarantine = onCall({region:REGION,enforceAppCheck:true}, async request => {
   try {
-    const service=runtimeCommerceService();
+    const service=await commerceService();
     return await service.resolvePublicAuthEmailQuarantine(request.data,adminCommerceContext(request));
   } catch (error) {
     throw commerceHttpsError(error);
@@ -627,6 +661,47 @@ export const getQuickBooksCommerceHealth = onCall({
   }
 });
 
+// Admin-only, App Check-protected. Creates or reads back the single approved QuickBooks service
+// item through the deployed credential coordinator. Creates no customer, invoice, or payment.
+export const ensureStrategySessionItem = onCall({
+  region:REGION,secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_RUNTIME_SECRETS],enforceAppCheck:true,timeoutSeconds:90,
+}, async request => {
+  requireOwnerOrAdmin(request.auth);
+  let readback;
+  try {
+    const credentials = await quickBooksTokenCoordinator().getCredentials();
+    const client = createQuickBooksClient({
+      realmId:credentials.realmId,
+      accessTokenProvider:{getAccessToken:async()=>credentials.accessToken},
+    });
+    const company = await client.getCompanyInfo();
+    if (company?.companyName !== 'The Ballers Kingdom') return {status:'company_mismatch'};
+    readback = await client.ensureServiceItem(STRATEGY_SESSION_QBO_ITEM_SPEC);
+  } catch (error) {
+    if (['QBO_RECONNECT_REQUIRED','QBO_REFRESH_TIMEOUT'].includes(error?.code)
+      || /reconnect|manual review|credential/i.test(String(error?.message))) {
+      return {status:'qbo_reconnect_required'};
+    }
+    throw new HttpsError('failed-precondition','QuickBooks item could not be verified');
+  }
+  try {
+    assertServiceItemReadback(readback);
+  } catch {
+    return {status:'readback_mismatch',readback};
+  }
+  await db.collection(ITEM_VERIFICATION_COLLECTION).doc(itemVerificationDocId(STRATEGY_SESSION_SKU)).set({
+    sku:STRATEGY_SESSION_SKU,verified:true,itemId:readback.itemId,itemName:readback.name,
+    type:readback.type,unitPrice:readback.unitPrice,incomeAccountName:readback.incomeAccountName,
+    taxable:readback.taxable,created:readback.created,verifiedByUid:request.auth.uid,
+    verifiedAt:FieldValue.serverTimestamp(),
+  });
+  await db.collection('commerceAudit').add({event:'commerce_item_verified',sku:STRATEGY_SESSION_SKU,
+    itemId:readback.itemId,created:readback.created,taxReview:'pending_accountant_review',
+    actorUid:request.auth.uid,createdAt:FieldValue.serverTimestamp()});
+  await loadItemVerifications({force:true});
+  return {status:'verified',readback};
+});
+
 function adminCommerceContext(request) {
   return {uid:request.auth?.uid,token:request.auth?.token,app:request.app};
 }
@@ -635,7 +710,7 @@ export const requestRefundReview = onCall({
   region:REGION,secrets:QBO_RUNTIME_SECRETS,enforceAppCheck:true,
 }, async request => {
   try {
-    const service = runtimeCommerceService({withQuickBooks:true});
+    const service = await commerceService({withQuickBooks:true});
     return await service.requestRefundReview(request.data, adminCommerceContext(request));
   } catch (error) {
     throw commerceHttpsError(error);
@@ -646,7 +721,7 @@ export const reconcileOrder = onCall({
   region:REGION,secrets:QBO_RUNTIME_SECRETS,enforceAppCheck:true,
 }, async request => {
   try {
-    const service = runtimeCommerceService({withQuickBooks:true});
+    const service = await commerceService({withQuickBooks:true});
     return await service.reconcileOrder(request.data, adminCommerceContext(request));
   } catch (error) {
     throw commerceHttpsError(error);
@@ -657,7 +732,7 @@ export const reconcileRefund = onCall({
   region:REGION,secrets:QBO_RUNTIME_SECRETS,enforceAppCheck:true,
 }, async request => {
   try {
-    const service = runtimeCommerceService({withQuickBooks:true});
+    const service = await commerceService({withQuickBooks:true});
     return await service.reconcileRefund(request.data, adminCommerceContext(request));
   } catch (error) {
     throw commerceHttpsError(error);
@@ -672,7 +747,7 @@ export const reconcileCommerceOrders = onSchedule({schedule:'every 5 minutes',
   timeZone:'America/Los_Angeles',region:REGION,
   secrets:QBO_RUNTIME_SECRETS,
 }, async () => {
-  const service = runtimeCommerceService({withQuickBooks:true});
+  const service = await commerceService({withQuickBooks:true});
   await service.reconcilePendingOrders(new Date());
 });
 
@@ -680,7 +755,7 @@ export const dispatchCommerceEffects = onSchedule({schedule:'every 4 minutes',
   timeZone:'America/Los_Angeles',region:REGION,
   secrets:[COMMERCE_PILOT_RECIPIENT_EMAIL,...QBO_RUNTIME_SECRETS,...MS_SECRETS],
 }, async () => {
-  const service = runtimeCommerceService({withPilotEmail:true,withQuickBooks:true,withGraph:true});
+  const service = await commerceService({withPilotEmail:true,withQuickBooks:true,withGraph:true});
   await service.dispatchPendingEffects(new Date());
 });
 
@@ -714,8 +789,8 @@ export const approveInvoice = onCall({region:REGION,secrets:ALL_SECRETS,enforceA
   }
 });
 
-export const beginQuickBooksConnection = onCall({region:REGION,secrets:[QBO_CLIENT_ID],enforceAppCheck:true}, async request => {
-  requireAdmin(request.auth);
+export const beginQuickBooksConnection = onCall({region:REGION,secrets:[QBO_CLIENT_ID,COMMERCE_PILOT_RECIPIENT_EMAIL],enforceAppCheck:true}, async request => {
+  requireOwnerOrAdmin(request.auth);
   const state = await createOAuthState('quickbooks',request.auth.uid);
   return {url:buildQuickBooksAuthUrl({clientId:QBO_CLIENT_ID.value(),redirectUri:QBO_REDIRECT_URI.value(),state})};
 });

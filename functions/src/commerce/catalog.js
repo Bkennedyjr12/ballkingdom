@@ -1,4 +1,5 @@
 import {assertPaymentsCapability} from '../providers/quickbooks-payments-capability.js';
+import {listServiceOffers,taxGatePassed,isServiceBookingOffer,isAllowedBookingUrl} from './service-offers.js';
 
 function deepFreeze(value) {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -24,7 +25,7 @@ const PAYMENTS_CAPABILITY = deepFreeze({
 
 const INVOICE_PAYMENT_METHODS = Object.freeze(['card','apple_pay','paypal','venmo']);
 
-const ITEMS = deepFreeze({
+const BASE_ITEMS = deepFreeze({
   'home-inspection-study-guide': {
     sku: 'home-inspection-study-guide',
     name: 'Home Inspection Study Guide',
@@ -75,6 +76,42 @@ const ITEMS = deepFreeze({
   }
 });
 
+const SERVICE_ITEMS = Object.fromEntries(listServiceOffers().map(offer => [offer.sku, offer]));
+const STATIC_ITEMS = Object.freeze({...BASE_ITEMS,...SERVICE_ITEMS});
+const runtimeVerifications = new Map();
+
+// Applies a server-recorded QuickBooks item readback (written only by the admin
+// ensureStrategySessionItem callable after exact readback) to a runtime-verifiable item.
+export function applyRuntimeItemVerification(sku, verification) {
+  const item = STATIC_ITEMS[String(sku || '')];
+  if (!item || item.quickBooks?.runtimeVerifiable !== true) return false;
+  if (verification == null) { runtimeVerifications.delete(item.sku); return false; }
+  const itemId = verification.itemId;
+  if (verification.verified !== true || typeof itemId !== 'string' || !/^[0-9]{1,20}$/.test(itemId)
+    || verification.itemName !== item.quickBooks.itemName) {
+    runtimeVerifications.delete(item.sku);
+    return false;
+  }
+  runtimeVerifications.set(item.sku, itemId);
+  return true;
+}
+
+export function clearRuntimeItemVerifications() { runtimeVerifications.clear(); }
+
+function resolveItem(sku) {
+  const item = STATIC_ITEMS[String(sku || '')];
+  if (!item) return null;
+  const itemId = runtimeVerifications.get(item.sku);
+  if (!itemId) return item;
+  return deepFreeze({...item,quickBooks:{...item.quickBooks,itemId,itemVerified:true}});
+}
+
+function allItems() { return Object.keys(STATIC_ITEMS).map(resolveItem); }
+
+export function listRuntimeVerifiableSkus() {
+  return Object.values(STATIC_ITEMS).filter(item => item.quickBooks?.runtimeVerifiable === true).map(item => item.sku);
+}
+
 function paymentsCapabilityVerified(capability) {
   try {
     assertPaymentsCapability(capability);
@@ -92,7 +129,7 @@ export function isCommerceItemPurchasable(item, capability = PAYMENTS_CAPABILITY
 }
 
 function commerceItemVerified(item) {
-  return item != null
+  const common = item != null
     && Number.isInteger(item.amountCents)
     && item.amountCents > 0
     && item.quickBooks?.itemVerified === true
@@ -100,9 +137,15 @@ function commerceItemVerified(item) {
     && item.quickBooks.itemId.length > 0
     && item.quickBooks?.itemName === item.name
     && item.tax?.classificationApproved === true
-    && item.tax?.accountantVerified === true
+    && taxGatePassed(item)
     && typeof item.tax?.quickBooksTaxCode === 'string'
     && /^[A-Za-z0-9._:-]{1,32}$/.test(item.tax.quickBooksTaxCode)
+    && item.release?.ownerPilotApproved === true
+    && item.release?.priceApproved === true;
+  if (!common) return false;
+  if (isServiceBookingOffer(item)) return isAllowedBookingUrl(item.booking?.url);
+  return item.fulfillmentType === 'protected_download'
+    && item.tax?.accountantVerified === true
     && item.artifact?.contentType === 'application/pdf'
     && Number.isSafeInteger(item.artifact?.exactBytes)
     && item.artifact.exactBytes > 0
@@ -113,10 +156,10 @@ function commerceItemVerified(item) {
     && typeof item.artifact?.generation === 'string'
     && /^[1-9][0-9]{0,30}$/.test(item.artifact.generation)
     && item.artifact?.objectVerified === true
-    && item.release?.ownerPilotApproved === true
-    && item.release?.priceApproved === true
     && item.release?.fulfillmentRuntimeVerified === true;
 }
+
+export {commerceItemVerified};
 
 function exactReviewedPaymentsCapability(capability) {
   return capability?.mode === 'documented-intuit-flow' && paymentsCapabilityVerified(capability);
@@ -148,11 +191,11 @@ export function getConfiguredPaymentsCapability() {
 }
 
 export function getConfiguredCommerceItem(sku) {
-  return ITEMS[String(sku || '')] ?? null;
+  return resolveItem(sku);
 }
 
 export function getCommerceItem(sku) {
-  const item = ITEMS[String(sku || '')];
+  const item = resolveItem(sku);
 
   if (!isCommerceItemPurchasable(item)) {
     throw new Error('Commerce item is unavailable');
@@ -162,11 +205,11 @@ export function getCommerceItem(sku) {
 }
 
 export function listPublicCommerceItems() {
-  return Object.freeze(Object.values(ITEMS).filter(item => isCommerceItemPurchasable(item)));
+  return Object.freeze(allItems().filter(item => isCommerceItemPurchasable(item)));
 }
 
 export function listCommerceCapabilities() {
-  return Object.freeze(Object.values(ITEMS).map(item => Object.freeze({
+  return Object.freeze(allItems().map(item => Object.freeze({
     sku:item.sku,
     active:isCommerceItemPurchasable(item),
     display:Object.freeze({
@@ -175,7 +218,7 @@ export function listCommerceCapabilities() {
       currency:item.currency,
       invoiceProvider:'quickbooks',
       paymentMethods:INVOICE_PAYMENT_METHODS,
-      delivery:'protected_electronic_delivery',
+      delivery:isServiceBookingOffer(item) ? 'post_payment_booking' : 'protected_electronic_delivery',
     }),
   })));
 }

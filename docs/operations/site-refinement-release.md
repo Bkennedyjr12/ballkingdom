@@ -38,3 +38,7 @@ A candidate preview does not establish signed-in production assessment acceptanc
 - Do not use the present live release as a rollback without sanitizing its internal paths. Before approved publication, prepare a clean rollback version from the reviewed current public file hashes and current configuration; retain the final version receipt and validate real served asset hashes after release.
 
 Local public-only review: `http://127.0.0.1:4188/`. Source preview at 4187 is for development only. GitHub checks validate source/packaging; they do not publish. Production requires approval of this concrete candidate under the Firebase deploy-review skill.
+
+## Approved publication reconciliation
+
+Brian approved publication of the reviewed version. Preflight found newer main `280ad62` and live version `943fa628fc543b90`, containing Strategy Session checkout and additional Gumroad products. Those public pages, scripts and product links are preserved; the approved compact navigation remains. No concurrent backend code is redeployed. The reconciled candidate contains 199 public files; 121 Node22 source checks pass. Fresh regression and production receipts are retained locally under `output/approved-release/` and adjacent verification logs.

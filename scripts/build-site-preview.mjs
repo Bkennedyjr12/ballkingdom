@@ -9,10 +9,10 @@ import { execFileSync } from 'node:child_process';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
-const mainRef = '17b3fc111a4adefe8cf96dbbe7c96c4dbf076aee';
+const mainRef = '280ad62b1fc4e9cdd9d401594736dafaf96ef856';
 const snapshot = json(resolve(process.argv[2] || resolve(root, '../live-hosting-snapshot.json')));
 const member = json(resolve(process.argv[3] || resolve(root, 'docs/operations/site-refinement-member-paths.json')));
-const rootPages = new Set('404 about agent-city ai-assessment ai-readiness audit career-blueprint contact custom-solutions ecosystem-city ee-venture growth index order-status privacy products quickbooks-connect quickbooks-disconnect readiness shop soccer technology terms tools workout-security-check workouts your-game yvp'.split(' ').map(x => x + '.html'));
+const rootPages = new Set('404 about admin-strategy-session strategy-session agent-city ai-assessment ai-readiness audit career-blueprint contact custom-solutions ecosystem-city ee-venture growth index order-status privacy products quickbooks-connect quickbooks-disconnect readiness shop soccer technology terms tools workout-security-check workouts your-game yvp'.split(' ').map(x => x + '.html'));
 const excluded = [], platformManaged = [], unknown = [];
 const candidate = new Set();
 function classify(raw, source) {
