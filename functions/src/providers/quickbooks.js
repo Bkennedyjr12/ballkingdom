@@ -637,6 +637,43 @@ export function createQuickBooksClient(config, fetchImpl = fetch) {
 
     getItem: readItem,
 
+    // Idempotent: reads an existing Item by exact name, otherwise creates it once. Never edits an
+    // existing Item. Returns a normalized readback for assertServiceItemReadback().
+    async ensureServiceItem({name,unitPrice,incomeAccountName,taxable=false,description=''} = {}) {
+      if (!isNonEmptyString(name) || !(Number(unitPrice) > 0) || !isNonEmptyString(incomeAccountName)) {
+        throw new Error('QuickBooks service item input is invalid');
+      }
+      const existing = await queryMatches('Item','Name',name,2);
+      if (existing.length > 1) throw new Error('QuickBooks Item lookup requires manual review');
+      let itemId = existing[0]?.Id;
+      let created = false;
+      if (!itemId) {
+        const accounts = await queryMatches('Account','Name',incomeAccountName,2);
+        if (accounts.length !== 1 || !isNonEmptyString(accounts[0]?.Id)) {
+          throw new Error('QuickBooks income account requires manual review');
+        }
+        const requestId = encodeURIComponent(`bk-item-${name}`.replace(/[^A-Za-z0-9-]/g,'').slice(0,50));
+        const data = await requestJson(`/item?minorversion=${MINOR_VERSION}&requestid=${requestId}`, {
+          method:'POST',
+          body:{
+            Name:name,Type:'Service',UnitPrice:Number(unitPrice),Taxable:taxable === true,
+            Description:description,IncomeAccountRef:{value:accounts[0].Id,name:accounts[0].Name},
+          },
+        }, 'Item create');
+        itemId = data?.Item?.Id;
+        if (!isNonEmptyString(itemId)) throw invalidResponse('Item create');
+        created = true;
+      }
+      const data = await requestJson(`/item/${encodeURIComponent(itemId)}?minorversion=${MINOR_VERSION}`,undefined,'Item read');
+      const item = data?.Item;
+      if (!item || typeof item !== 'object') throw invalidResponse('Item read');
+      return Object.freeze({
+        itemId:String(item.Id),name:item.Name,type:item.Type,active:item.Active === true,
+        unitPrice:Number(item.UnitPrice),incomeAccountName:item.IncomeAccountRef?.name ?? null,
+        incomeAccountId:item.IncomeAccountRef?.value ?? null,taxable:item.Taxable === true,created,
+      });
+    },
+
     async sendInvoice({invoiceId, customerEmail} = {}) {
       if (!isNonEmptyString(invoiceId) || !isNonEmptyString(customerEmail)) {
         throw new Error('QuickBooks Invoice send input is invalid');

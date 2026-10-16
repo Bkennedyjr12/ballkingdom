@@ -1,3 +1,4 @@
+import {STRATEGY_SESSION_QBO_ITEM_SPEC,assertServiceItemReadback} from './commerce/service-offers.js';
 import {initializeApp} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
 import {getAppCheck} from 'firebase-admin/app-check';
@@ -622,6 +623,28 @@ export const getQuickBooksCommerceHealth = onCall({
         accessTokenProvider:{getAccessToken:async()=>credentials.accessToken},
       }),
     });
+  } catch (error) {
+    throw commerceHttpsError(error);
+  }
+});
+
+// Admin-only, App Check-protected. Creates or reads back the single approved QuickBooks service
+// item through the deployed credential coordinator. Creates no customer, invoice, or payment.
+export const ensureStrategySessionItem = onCall({
+  region:REGION,secrets:QBO_RUNTIME_SECRETS,enforceAppCheck:true,timeoutSeconds:90,
+}, async request => {
+  requireAdmin(request.auth);
+  try {
+    const credentials = await quickBooksTokenCoordinator().getCredentials();
+    const client = createQuickBooksClient({
+      realmId:credentials.realmId,
+      accessTokenProvider:{getAccessToken:async()=>credentials.accessToken},
+    });
+    const company = await client.getCompanyInfo();
+    if (company?.companyName !== 'The Ballers Kingdom') throw new Error('QuickBooks company mismatch');
+    const readback = await client.ensureServiceItem(STRATEGY_SESSION_QBO_ITEM_SPEC);
+    assertServiceItemReadback(readback);
+    return readback;
   } catch (error) {
     throw commerceHttpsError(error);
   }
