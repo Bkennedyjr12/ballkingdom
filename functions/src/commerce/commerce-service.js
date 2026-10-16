@@ -1,3 +1,4 @@
+import {getPostPaymentBookingUrl} from './service-offers.js';
 import {createHash, timingSafeEqual, randomUUID} from 'node:crypto';
 import {
   getCommerceItem as getCatalogItem,
@@ -17,6 +18,16 @@ const SAFE_ORDER_RESULT_MESSAGE = 'QuickBooks sent payment instructions to your 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SAFE_IDEMPOTENCY_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const PILOT_SKU = 'home-inspection-study-guide';
+const PUBLIC_DELIVERY_TYPES = new Set(['protected_electronic_delivery','post_payment_booking']);
+// Per-SKU return pages for public sign-in links. Unknown SKUs fall back to the Study Guide page.
+const SIGN_IN_RETURN_PATHS = Object.freeze({
+  'home-inspection-study-guide':'/order-status.html',
+  'strategy-session-30':'/strategy-session',
+  'owner-admin':'/admin-strategy-session',
+});
+function publicSku(value) {
+  return typeof value === 'string' && Object.hasOwn(SIGN_IN_RETURN_PATHS,value) ? value : null;
+}
 const DEFAULT_ACTION_CODE_SETTINGS = Object.freeze({
   url:`https://ballkingdom.com/order-status.html?sku=${PILOT_SKU}`,
   handleCodeInApp:true,
@@ -45,14 +56,14 @@ function buyerDisplay(value) {
   if (!record(display) || Object.keys(display).length !== keys.length || keys.some(key => !Object.hasOwn(display,key))
     || typeof display.name !== 'string' || display.name.trim().length < 1 || display.name.length > 160
     || !Number.isSafeInteger(display.amountCents) || display.amountCents < 1 || display.amountCents > 100000000
-    || display.currency !== 'USD' || display.invoiceProvider !== 'quickbooks' || display.delivery !== 'protected_electronic_delivery'
+    || display.currency !== 'USD' || display.invoiceProvider !== 'quickbooks' || !PUBLIC_DELIVERY_TYPES.has(display.delivery)
     || !Array.isArray(display.paymentMethods) || display.paymentMethods.length < 1 || display.paymentMethods.length > 4
     || new Set(display.paymentMethods).size !== display.paymentMethods.length
     || display.paymentMethods.some(method => !PUBLIC_PAYMENT_METHODS.has(method))) return null;
   return Object.freeze({...display,paymentMethods:Object.freeze([...display.paymentMethods])});
 }
 
-export function buildPilotActionCodeSettings(orderHandle = null, base = DEFAULT_ACTION_CODE_SETTINGS) {
+export function buildPilotActionCodeSettings(orderHandle = null, base = DEFAULT_ACTION_CODE_SETTINGS, sku = PILOT_SKU) {
   if (!record(base) || Object.keys(base).length !== 2 || base.handleCodeInApp !== true
     || typeof base.url !== 'string') throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable');
   let url;
@@ -63,8 +74,11 @@ export function buildPilotActionCodeSettings(orderHandle = null, base = DEFAULT_
   if (orderHandle !== null && (typeof orderHandle !== 'string' || !SAFE_IDEMPOTENCY_KEY.test(orderHandle))) {
     throw commerceError('ORDER_NOT_FOUND','Order was not found');
   }
+  const targetSku = publicSku(sku);
+  if (!targetSku) throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable');
+  url.pathname = SIGN_IN_RETURN_PATHS[targetSku];
   url.search='';
-  url.searchParams.set('sku',PILOT_SKU);
+  url.searchParams.set('sku',targetSku);
   if (orderHandle !== null) url.searchParams.set('order',orderHandle);
   return Object.freeze({url:url.toString(),handleCodeInApp:true});
 }
@@ -666,10 +680,11 @@ export function createCommerceService({
           }
         }
       }
-    } else if (publicActivationReady(flags,getConfiguredCommerceItem(PILOT_SKU))) {
+    } else if (Object.keys(SIGN_IN_RETURN_PATHS).some(sku => publicActivationReady(flags,getConfiguredCommerceItem(sku)))) {
       for (const effect of dueEffects) {
         if (!['invoice_create','invoice_send'].includes(effect.effect)) continue;
         const order=await repository.getOrder(effect.orderId);
+        if (order && !publicActivationReady(flags,getConfiguredCommerceItem(order.sku))) continue;
         if (!order) {
           await repository.recordPendingEffectFailure(effect,{
             code:'commerce_effect_order_missing',terminal:true,
@@ -895,8 +910,11 @@ export function createCommerceService({
 
     approveServiceInvoice: approveServiceInvoiceInternal,
     async requestPublicSignInLink(input, context) {
-      if (!record(input) || Object.keys(input).some(key => !['email','orderHandle'].includes(key))
+      if (!record(input) || Object.keys(input).some(key => !['email','orderHandle','sku'].includes(key))
         || !Object.hasOwn(input,'email')) return GENERIC_AUTH_RESULT;
+      const requestedSku = Object.hasOwn(input,'sku') ? publicSku(input.sku) : PILOT_SKU;
+      if (!requestedSku) return GENERIC_AUTH_RESULT;
+      if (requestedSku === 'owner-admin' && Object.hasOwn(input,'orderHandle')) return GENERIC_AUTH_RESULT;
       const candidate = normalizedEmail(input.email);
       const metadata = publicAuthContext(context);
       if (!candidate || !metadata || !publicAuthLimiter?.consume) return GENERIC_AUTH_RESULT;
@@ -912,18 +930,18 @@ export function createCommerceService({
         return GENERIC_AUTH_RESULT;
       }
       if (allowed !== true || readFlags().publicAuthResumeEnabled !== true) return GENERIC_AUTH_RESULT;
-      let settings = buildPilotActionCodeSettings(null, actionCodeSettings);
+      let settings = buildPilotActionCodeSettings(null, actionCodeSettings, requestedSku);
       if (hasOrderHandle) {
         const order = await repository.getOrder(input.orderHandle);
         if (!order || order.authorizedRecipientBinding !== recipientBinding(candidate)
-          || order.sku !== PILOT_SKU || order.orderType !== 'digital_product'
+          || order.sku !== requestedSku || order.orderType !== 'digital_product'
           || typeof order.customerUid !== 'string' || order.customerUid.length < 1) {
           return GENERIC_AUTH_RESULT;
         }
-        settings = buildPilotActionCodeSettings(input.orderHandle, actionCodeSettings);
+        settings = buildPilotActionCodeSettings(input.orderHandle, actionCodeSettings, requestedSku);
       }
       const effect = await repository.createPublicDigitalAuthEmailEffect({
-        email:candidate,sku:PILOT_SKU,purpose:'sign_in',
+        email:candidate,sku:requestedSku,purpose:'sign_in',
         issuanceBucket:Math.floor(clock().getTime() / PUBLIC_AUTH_WINDOW_MS),
       });
       if (!effect) return GENERIC_AUTH_RESULT;
@@ -978,6 +996,12 @@ export function createCommerceService({
       const item = getCommerceItem(input.sku);
       if (item.orderType !== 'digital_product') {
         throw commerceError('DIGITAL_PRODUCT_REQUIRED', 'Digital product ordering is required');
+      }
+      if (item.tax?.accountantVerified !== true) {
+        try {
+          await alertOperator({code:'commerce_tax_pending_accountant_review',sku:item.sku,
+            taxCode:item.tax?.quickBooksTaxCode ?? null,reviewStatus:item.tax?.reviewStatus ?? null});
+        } catch { /* Audit failure must not leak to buyers. */ }
       }
       const order = {
         ...newOrder({item,customer:{name:input.customerName.trim()}}),
@@ -1049,14 +1073,26 @@ export function createCommerceService({
         && order.authorizedRecipientBinding !== identity.authorizedRecipientBinding) {
         throw commerceError('AUTH_SESSION_INVALID', 'Authentication is no longer valid');
       }
-      return Object.freeze({orderHandle,...customerStatus(order)});
+      const bookingUrl = getPostPaymentBookingUrl(order);
+      const status = customerStatus(order);
+      if (order.fulfillmentType === 'post_payment_booking') {
+        const bookingMessages = {
+          paid:'We have verified your payment. Your booking link is being prepared.',
+          fulfillment_delayed:'We have verified your payment; your booking link is delayed. Contact us if it does not appear soon.',
+          fulfilled:'Payment verified. Book your 30-minute strategy session now.',
+        };
+        return Object.freeze({orderHandle,status:status.status,
+          message:bookingMessages[status.status] ?? status.message,downloadReady:false,
+          ...(bookingUrl ? {bookingUrl} : {})});
+      }
+      return Object.freeze({orderHandle,...status});
     },
 
     async getBuyerCommerceCapability(appCheckContext) {
       if (!appCheckContext?.app) throw commerceError('APP_CHECK_REQUIRED', 'App Check is required');
       const flags = readFlags();
-      const configuredItem=getConfiguredCommerceItem(PILOT_SKU);
       const products = listCommerceCapabilities().map(item => {
+        const configuredItem=getConfiguredCommerceItem(item?.sku);
         const display = buyerDisplay(item);
         if (!display || typeof item?.sku !== 'string' || item.sku.length < 1 || item.sku.length > 128
           || typeof item.active !== 'boolean') throw commerceError('COMMERCE_CONFIGURATION_INVALID','Commerce is unavailable');

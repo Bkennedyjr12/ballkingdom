@@ -61,7 +61,7 @@ The source exports 25 deployed-function candidates. The scoped release allowlist
 requestPilotSignInLink,requestOwnerPilotSignInLink,createDigitalOrder,
 createControlledOwnerPilotOrder,getOrderStatus,createDownloadGrant,
 redeemDownloadGrant,getBuyerCommerceCapability,verifyOrderPayment,getCommerceReleaseState,
-resolvePublicAuthEmailQuarantine,getQuickBooksCommerceHealth,
+resolvePublicAuthEmailQuarantine,getQuickBooksCommerceHealth,ensureStrategySessionItem,
 requestRefundReview,reconcileOrder,reconcileRefund,quickBooksCommerceWebhook,
 reconcileCommerceOrders,dispatchCommerceEffects,stageInvoiceApprovals,approveInvoice,
 beginQuickBooksConnection,quickBooksOAuthCallback,beginMicrosoftConnection,
@@ -95,10 +95,10 @@ If cleanup still reports an index/read failure, the scheduled dispatcher records
 cleanup never becomes a single point of failure for an already-paid customer.
 
 ```bash
-firebase deploy --only functions:ballkingdom-integrations:requestPilotSignInLink,functions:ballkingdom-integrations:requestOwnerPilotSignInLink,functions:ballkingdom-integrations:createDigitalOrder,functions:ballkingdom-integrations:createControlledOwnerPilotOrder,functions:ballkingdom-integrations:getOrderStatus,functions:ballkingdom-integrations:createDownloadGrant,functions:ballkingdom-integrations:redeemDownloadGrant,functions:ballkingdom-integrations:getBuyerCommerceCapability,functions:ballkingdom-integrations:verifyOrderPayment,functions:ballkingdom-integrations:getCommerceReleaseState,functions:ballkingdom-integrations:resolvePublicAuthEmailQuarantine,functions:ballkingdom-integrations:getQuickBooksCommerceHealth,functions:ballkingdom-integrations:requestRefundReview,functions:ballkingdom-integrations:reconcileOrder,functions:ballkingdom-integrations:reconcileRefund,functions:ballkingdom-integrations:quickBooksCommerceWebhook,functions:ballkingdom-integrations:reconcileCommerceOrders,functions:ballkingdom-integrations:dispatchCommerceEffects,functions:ballkingdom-integrations:stageInvoiceApprovals,functions:ballkingdom-integrations:approveInvoice,functions:ballkingdom-integrations:beginQuickBooksConnection,functions:ballkingdom-integrations:quickBooksOAuthCallback,functions:ballkingdom-integrations:beginMicrosoftConnection,functions:ballkingdom-integrations:microsoftOAuthCallback,hosting:public \
+firebase deploy --only functions:ballkingdom-integrations:requestPilotSignInLink,functions:ballkingdom-integrations:requestOwnerPilotSignInLink,functions:ballkingdom-integrations:createDigitalOrder,functions:ballkingdom-integrations:createControlledOwnerPilotOrder,functions:ballkingdom-integrations:getOrderStatus,functions:ballkingdom-integrations:createDownloadGrant,functions:ballkingdom-integrations:redeemDownloadGrant,functions:ballkingdom-integrations:getBuyerCommerceCapability,functions:ballkingdom-integrations:verifyOrderPayment,functions:ballkingdom-integrations:getCommerceReleaseState,functions:ballkingdom-integrations:resolvePublicAuthEmailQuarantine,functions:ballkingdom-integrations:getQuickBooksCommerceHealth,functions:ballkingdom-integrations:ensureStrategySessionItem,functions:ballkingdom-integrations:requestRefundReview,functions:ballkingdom-integrations:reconcileOrder,functions:ballkingdom-integrations:reconcileRefund,functions:ballkingdom-integrations:quickBooksCommerceWebhook,functions:ballkingdom-integrations:reconcileCommerceOrders,functions:ballkingdom-integrations:dispatchCommerceEffects,functions:ballkingdom-integrations:stageInvoiceApprovals,functions:ballkingdom-integrations:approveInvoice,functions:ballkingdom-integrations:beginQuickBooksConnection,functions:ballkingdom-integrations:quickBooksOAuthCallback,functions:ballkingdom-integrations:beginMicrosoftConnection,functions:ballkingdom-integrations:microsoftOAuthCallback,hosting:public \
   --project the-ballers-kingdom --account lilpelejr12@gmail.com --dry-run
 
-firebase deploy --only functions:ballkingdom-integrations:requestPilotSignInLink,functions:ballkingdom-integrations:requestOwnerPilotSignInLink,functions:ballkingdom-integrations:createDigitalOrder,functions:ballkingdom-integrations:createControlledOwnerPilotOrder,functions:ballkingdom-integrations:getOrderStatus,functions:ballkingdom-integrations:createDownloadGrant,functions:ballkingdom-integrations:redeemDownloadGrant,functions:ballkingdom-integrations:getBuyerCommerceCapability,functions:ballkingdom-integrations:verifyOrderPayment,functions:ballkingdom-integrations:getCommerceReleaseState,functions:ballkingdom-integrations:resolvePublicAuthEmailQuarantine,functions:ballkingdom-integrations:getQuickBooksCommerceHealth,functions:ballkingdom-integrations:requestRefundReview,functions:ballkingdom-integrations:reconcileOrder,functions:ballkingdom-integrations:reconcileRefund,functions:ballkingdom-integrations:quickBooksCommerceWebhook,functions:ballkingdom-integrations:reconcileCommerceOrders,functions:ballkingdom-integrations:dispatchCommerceEffects,functions:ballkingdom-integrations:stageInvoiceApprovals,functions:ballkingdom-integrations:approveInvoice,functions:ballkingdom-integrations:beginQuickBooksConnection,functions:ballkingdom-integrations:quickBooksOAuthCallback,functions:ballkingdom-integrations:beginMicrosoftConnection,functions:ballkingdom-integrations:microsoftOAuthCallback,hosting:public \
+firebase deploy --only functions:ballkingdom-integrations:requestPilotSignInLink,functions:ballkingdom-integrations:requestOwnerPilotSignInLink,functions:ballkingdom-integrations:createDigitalOrder,functions:ballkingdom-integrations:createControlledOwnerPilotOrder,functions:ballkingdom-integrations:getOrderStatus,functions:ballkingdom-integrations:createDownloadGrant,functions:ballkingdom-integrations:redeemDownloadGrant,functions:ballkingdom-integrations:getBuyerCommerceCapability,functions:ballkingdom-integrations:verifyOrderPayment,functions:ballkingdom-integrations:getCommerceReleaseState,functions:ballkingdom-integrations:resolvePublicAuthEmailQuarantine,functions:ballkingdom-integrations:getQuickBooksCommerceHealth,functions:ballkingdom-integrations:ensureStrategySessionItem,functions:ballkingdom-integrations:requestRefundReview,functions:ballkingdom-integrations:reconcileOrder,functions:ballkingdom-integrations:reconcileRefund,functions:ballkingdom-integrations:quickBooksCommerceWebhook,functions:ballkingdom-integrations:reconcileCommerceOrders,functions:ballkingdom-integrations:dispatchCommerceEffects,functions:ballkingdom-integrations:stageInvoiceApprovals,functions:ballkingdom-integrations:approveInvoice,functions:ballkingdom-integrations:beginQuickBooksConnection,functions:ballkingdom-integrations:quickBooksOAuthCallback,functions:ballkingdom-integrations:beginMicrosoftConnection,functions:ballkingdom-integrations:microsoftOAuthCallback,hosting:public \
   --project the-ballers-kingdom --account lilpelejr12@gmail.com
 ```
 
@@ -309,3 +309,21 @@ above came from the separate signed-in QuickBooks views.
 - No tax-professional conclusion is made outside the owner's accepted nationwide residual-risk
   decision. California accountant confirmation and the electronic-only/no-tangible-copy constraint
   remain the recorded basis.
+
+
+## 2026-10-15 Strategy Session release (owner-approved)
+
+- Offer `strategy-session-30`: $100 total (tax included), QuickBooks item "Ballers Kingdom Strategy Session (30 min)",
+  Service, Services income, non-taxable (`NON`). US QuickBooks automated sales tax does not support tax-inclusive
+  pricing, so the tax treatment is owner-approved and **pending accountant review** (`accountantVerified=false`).
+  Service offers alone may pass the tax gate on owner approval; downloads still require accountant verification.
+- Offer `active=true`, `deployApproved=true`; the runtime still refuses until `ensureStrategySessionItem` (owner/admin,
+  App Check) records an exact item readback in `integrationControl/commerce-item-verification-strategy-session-30`.
+  The catalog reloads that record within about 60 seconds, so checkout opens without another deploy.
+- Flags: `COMMERCE_PUBLIC_AUTH_RESUME_ENABLED=true`, `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=true`,
+  `COMMERCE_CONTROLLED_OWNER_PILOT_ENABLED=false`, `COMMERCE_SERVICE_QBO_SEND_ENABLED=false`. The Home Inspection
+  Study Guide remains `active:false`, `deployApproved:false` and is test-verified closed.
+- After verified payment the order is fulfilled and `getOrderStatus` returns only the allowlisted
+  `https://calendly.com/ballerskingdom/30min` booking URL.
+- Emergency stop: set `COMMERCE_PUBLIC_DIGITAL_CHECKOUT_ENABLED=false` (keep AUTH_RESUME true so existing buyers can
+  resume) and redeploy the scoped Functions, or delete the item-verification document to close checkout immediately.
