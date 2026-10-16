@@ -52,7 +52,7 @@ test('booking link is released only after verified payment', () => {
 const good = {itemId:'42', name:STRATEGY_SESSION_QBO_ITEM_SPEC.name, type:'Service', active:true, unitPrice:100, incomeAccountName:'Services', taxable:false};
 test('item readback assertion', () => {
   assert.equal(assertServiceItemReadback(good), good);
-  for (const bad of [{unitPrice:97},{type:'NonInventory'},{incomeAccountName:'Sales'},{taxable:false},{active:false},{name:'x'}]) {
+  for (const bad of [{unitPrice:97},{type:'NonInventory'},{incomeAccountName:'Sales'},{taxable:true},{active:false},{name:'x'}]) {
     assert.throws(() => assertServiceItemReadback({...good, ...bad}), {code:'QBO_ITEM_MISMATCH'});
   }
 });
