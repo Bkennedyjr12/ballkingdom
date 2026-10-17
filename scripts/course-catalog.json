@@ -1,0 +1,683 @@
+{
+  "schemaVersion": 1,
+  "courses": [
+    {
+      "id": "education-by-design",
+      "title": "Education by Design: Decide, Return, and Plan Together",
+      "summary": "Compare realistic college routes, build a returning-learner plan, and agree on family support without giving up student agency.",
+      "audiences": [
+        "Incoming students",
+        "Enrolled students reconsidering direction",
+        "Returning adults",
+        "Families and supporters"
+      ],
+      "outcomes": [
+        "Submit a two-route decision brief, checked source/cost ledger, feasible weekly plan and support agreement. Explain one attractive option you ruled out, one unresolved fact and the next review date. Redact names, account details and private records before sharing."
+      ],
+      "estimatedMinutes": 185,
+      "availability": {
+        "status": "published",
+        "label": "Get College by Design + this written course",
+        "url": "https://ballerskingdom.gumroad.com/l/college-by-design",
+        "priceUsd": 49,
+        "priceStatus": "Includes the 23-page toolkit and this four-lesson written learning path."
+      },
+      "lessons": [
+        {
+          "id": "ed-01",
+          "title": "Choose criteria before comparing schools",
+          "artifact": "Two-route decision dashboard"
+        },
+        {
+          "id": "ed-02",
+          "title": "Check costs, requirements, and opportunity claims",
+          "artifact": "Source and affordability ledger"
+        },
+        {
+          "id": "ed-03",
+          "title": "Build a returning-learner plan that fits your life",
+          "artifact": "Returning-learner roadmap"
+        },
+        {
+          "id": "ed-04",
+          "title": "Hold a family planning conversation with clear boundaries",
+          "artifact": "Family or independent-support agreement"
+        }
+      ],
+      "path": "/courses/education-by-design.html",
+      "sample": {
+        "title": "Choose criteria before comparing schools",
+        "templateFields": [
+          "Decision and deadline",
+          "Route A / Route B",
+          "Non-negotiable requirements"
+        ],
+        "check": {
+          "question": "One school scores 88 but fails your required class schedule; another scores 73 and fits. Does 88 settle the decision?",
+          "answer": "No. Resolve the scheduling conflict or treat that route as presently infeasible.",
+          "reason": "Weighted preferences cannot remove a participation barrier."
+        }
+      }
+    },
+    {
+      "id": "relationships-and-opportunity",
+      "title": "Relationships into Opportunity",
+      "summary": "Build respectful outreach and evaluate internships through evidence, access, supervision and fit.",
+      "audiences": [
+        "Students",
+        "Returning learners",
+        "Early-career adults"
+      ],
+      "outcomes": [
+        "Present an opportunity map, a rehearsed outreach draft, a two-opportunity comparison and a two-week learning agreement. Explain one access barrier and an equivalent route. No real reply or placement is required."
+      ],
+      "estimatedMinutes": 185,
+      "availability": {
+        "status": "published",
+        "label": "Get the written course on Gumroad",
+        "url": "https://ballerskingdom.gumroad.com/l/relationships-and-opportunity",
+        "priceUsd": 29,
+        "priceStatus": "One-time written self-guided edition. Check current purchase details on Gumroad."
+      },
+      "lessons": [
+        {
+          "id": "rel-01",
+          "title": "Map people and communities by the question they can help answer",
+          "artifact": "Relationship opportunity map"
+        },
+        {
+          "id": "rel-02",
+          "title": "Make a small request and follow through respectfully",
+          "artifact": "Outreach draft and follow-through tracker"
+        },
+        {
+          "id": "rel-03",
+          "title": "Compare internships for learning and practical fit",
+          "artifact": "Internship opportunity comparison"
+        },
+        {
+          "id": "rel-04",
+          "title": "Turn an opportunity into a learning agreement",
+          "artifact": "Two-week learning agreement"
+        }
+      ],
+      "path": "/courses/relationships-and-opportunity.html",
+      "sample": {
+        "title": "Map people and communities by the question they can help answer",
+        "templateFields": [
+          "Learning question",
+          "Route / relevance / public contact channel",
+          "What I can contribute"
+        ],
+        "check": {
+          "question": "Does a course participant need a prestigious mentor to complete this activity?",
+          "answer": "No. A relevant public resource or an equivalent practice can demonstrate the same preparation.",
+          "reason": "Access and status are not evidence of learning."
+        }
+      }
+    },
+    {
+      "id": "evidence-portfolio",
+      "title": "Build an Evidence Portfolio",
+      "summary": "Show what you can do through truthful work samples, feedback and revision.",
+      "audiences": [
+        "Students",
+        "Career changers",
+        "Entrepreneurs"
+      ],
+      "outcomes": [
+        "Complete one accessible portfolio entry and a one-minute spoken or written explanation. Include original work, a labeled contribution, feedback or self-review, a revision and sharing permissions."
+      ],
+      "estimatedMinutes": 150,
+      "availability": {
+        "status": "published",
+        "label": "Get the written course on Gumroad",
+        "url": "https://ballerskingdom.gumroad.com/l/evidence-portfolio",
+        "priceUsd": 29,
+        "priceStatus": "One-time written self-guided edition. Check current purchase details on Gumroad."
+      },
+      "lessons": [
+        {
+          "id": "ev-01",
+          "title": "Choose a claim and the work that can support it",
+          "artifact": "Claim-to-evidence card"
+        },
+        {
+          "id": "ev-02",
+          "title": "Ask for feedback and show the revision",
+          "artifact": "Feedback-and-revision record"
+        },
+        {
+          "id": "ev-03",
+          "title": "Publish selectively and explain the work",
+          "artifact": "Accessible portfolio entry"
+        }
+      ],
+      "path": "/courses/evidence-portfolio.html",
+      "sample": {
+        "title": "Choose a claim and the work that can support it",
+        "templateFields": [
+          "Audience / capability",
+          "Exact claim",
+          "Artifact / location"
+        ],
+        "check": {
+          "question": "Can you call a fictional practice project a paid client project because the work looks professional?",
+          "answer": "No. Label the context accurately.",
+          "reason": "The sample can demonstrate skill without inventing a customer or result."
+        }
+      }
+    },
+    {
+      "id": "first-customer-experiment",
+      "title": "First Customer Experiment",
+      "summary": "Test a small offer, deliver responsibly, and record the economics without inventing demand.",
+      "audiences": [
+        "Students",
+        "Adults exploring self-employment",
+        "Early-stage entrepreneurs"
+      ],
+      "outcomes": [
+        "Submit a problem record, bounded offer, test rule, delivery/economics log and evidence-based review. Real commerce is optional; label simulations and zero-sale outcomes. Explain the difference between a compliment, commitment, cash received and sustainable income."
+      ],
+      "estimatedMinutes": 185,
+      "availability": {
+        "status": "published",
+        "label": "Get the written course on Gumroad",
+        "url": "https://ballerskingdom.gumroad.com/l/first-customer-experiment",
+        "priceUsd": 49,
+        "priceStatus": "One-time written self-guided edition. Check current purchase details on Gumroad."
+      },
+      "lessons": [
+        {
+          "id": "fc-01",
+          "title": "Find a problem you can investigate",
+          "artifact": "Problem discovery record"
+        },
+        {
+          "id": "fc-02",
+          "title": "Define a bounded offer and a test",
+          "artifact": "Offer and experiment card"
+        },
+        {
+          "id": "fc-03",
+          "title": "Deliver, get acceptance, and record the numbers",
+          "artifact": "Delivery and economics log"
+        },
+        {
+          "id": "fc-04",
+          "title": "Decide what to repeat, change, or stop",
+          "artifact": "Experiment review and next test"
+        }
+      ],
+      "path": "/courses/first-customer-experiment.html",
+      "sample": {
+        "title": "Find a problem you can investigate",
+        "templateFields": [
+          "Audience / situation / hypothesis",
+          "Three recent-behavior questions",
+          "Consent and note limits"
+        ],
+        "check": {
+          "question": "Does \u201cthat sounds cool\u201d prove someone will buy your offer?",
+          "answer": "No. It is a reaction, not a commitment or purchase.",
+          "reason": "Demand evidence depends on what people actually choose and do."
+        }
+      }
+    },
+    {
+      "id": "cradle-to-legacy",
+      "title": "Cradle to Legacy: Build an Enterprise That Can Continue",
+      "summary": "Move from a tested offer to a practical operating, financial and continuity plan.",
+      "audiences": [
+        "Early-stage entrepreneurs",
+        "Students continuing an enterprise experiment",
+        "Owners reviewing their operations"
+      ],
+      "outcomes": [
+        "Assemble a purpose/stage map, tested delivery checklist, four-week cash/capacity scenarios, bounded growth experiment and continuity map. Give a five-minute explanation of one growth choice and one risk you will address before expanding."
+      ],
+      "estimatedMinutes": 220,
+      "availability": {
+        "status": "published",
+        "label": "Get the written course on Gumroad",
+        "url": "https://ballerskingdom.gumroad.com/l/cradle-to-legacy",
+        "priceUsd": 79,
+        "priceStatus": "One-time written self-guided edition. Check current purchase details on Gumroad."
+      },
+      "lessons": [
+        {
+          "id": "cl-01",
+          "title": "Connect the enterprise to the life you want to build",
+          "artifact": "Enterprise purpose and stage map"
+        },
+        {
+          "id": "cl-02",
+          "title": "Make delivery repeatable before adding volume",
+          "artifact": "Tested delivery checklist"
+        },
+        {
+          "id": "cl-03",
+          "title": "Read cash, costs, and capacity together",
+          "artifact": "Four-week cash and capacity plan"
+        },
+        {
+          "id": "cl-04",
+          "title": "Choose growth experiments that protect the work",
+          "artifact": "Bounded growth experiment"
+        },
+        {
+          "id": "cl-05",
+          "title": "Plan continuity, ownership questions, and legacy",
+          "artifact": "Continuity and legacy question map"
+        }
+      ],
+      "path": "/courses/cradle-to-legacy.html",
+      "sample": {
+        "title": "Connect the enterprise to the life you want to build",
+        "templateFields": [
+          "Purpose / affected people",
+          "Current stage / evidence",
+          "Income aspiration labeled as goal"
+        ],
+        "check": {
+          "question": "Does a revenue goal prove that your current offer can support your household?",
+          "answer": "No. Demand, costs, timing and capacity need evidence.",
+          "reason": "A goal describes intent; records describe what has happened."
+        }
+      }
+    },
+    {
+      "id": "institutional-facilitation",
+      "title": "Facilitate Education and Enterprise Learning",
+      "summary": "Prepare, deliver and evaluate a bounded pilot using original performance assessments and learner choice.",
+      "audiences": [
+        "College staff",
+        "Educators",
+        "Community program facilitators"
+      ],
+      "outcomes": [
+        "Deliver a pilot charter, accessible session plan, minimal evidence/scoring plan and next-cycle decision memo. Rehearse one demonstration and score two fictional artifacts. No institutional certification, accreditation or effectiveness claim is conferred."
+      ],
+      "estimatedMinutes": 185,
+      "availability": {
+        "status": "prepared",
+        "label": "Ask about institutional delivery",
+        "url": "/contact.html",
+        "priceUsd": null,
+        "priceStatus": "Scope and institutional use quoted separately."
+      },
+      "lessons": [
+        {
+          "id": "fac-01",
+          "title": "Define a pilot and a performance outcome",
+          "artifact": "Pilot charter and assessment map"
+        },
+        {
+          "id": "fac-02",
+          "title": "Teach with demonstration, practice, and a debrief",
+          "artifact": "Accessible session plan"
+        },
+        {
+          "id": "fac-03",
+          "title": "Collect useful evidence with consent and restraint",
+          "artifact": "Privacy-aware evidence and scoring plan"
+        },
+        {
+          "id": "fac-04",
+          "title": "Decide whether to revise, repeat, or expand",
+          "artifact": "Pilot review and next-cycle plan"
+        }
+      ],
+      "path": "/courses/institutional-facilitation.html",
+      "sample": {
+        "title": "Define a pilot and a performance outcome",
+        "templateFields": [
+          "Audience / setting / staffing",
+          "Outcome / artifact",
+          "Dates / workload / access needs"
+        ],
+        "check": {
+          "question": "Does a positive satisfaction survey prove that the course caused improved career outcomes?",
+          "answer": "No. Satisfaction and causal effectiveness are different questions.",
+          "reason": "Match the claim to the design and evidence collected."
+        }
+      }
+    },
+    {
+      "id": "ai-implementation",
+      "title": "AI Implementation: A Reviewed Workflow You Can Operate",
+      "summary": "Choose an appropriate use case, compare tools with synthetic data, and build a tested workflow specification with clear human authority.",
+      "audiences": [
+        "Owners",
+        "Operations staff",
+        "People leading an AI pilot"
+      ],
+      "outcomes": [
+        "Submit the current workflow/baseline, three-case tool test, versioned brief, tested pipeline, agent contract with four failure simulations and a pilot decision memo. The final demonstration uses synthetic or authorized public inputs and no live external writes. Explain one limitation and one reason to stop."
+      ],
+      "estimatedMinutes": 255,
+      "availability": {
+        "status": "published",
+        "label": "Get the written course on Gumroad",
+        "url": "https://ballerskingdom.gumroad.com/l/ballers-ai-implementation",
+        "priceUsd": 99,
+        "priceStatus": "One-time written self-guided edition. Check current purchase details on Gumroad."
+      },
+      "lessons": [
+        {
+          "id": "ai-01",
+          "title": "Map current work before choosing AI",
+          "artifact": "Current-state workflow and pilot choice"
+        },
+        {
+          "id": "ai-02",
+          "title": "Compare tools with the same task and test set",
+          "artifact": "Tool comparison and test set"
+        },
+        {
+          "id": "ai-03",
+          "title": "Build a repeatable review habit",
+          "artifact": "Versioned task brief and review log"
+        },
+        {
+          "id": "ai-04",
+          "title": "Specify a pipeline with inspectable handoffs",
+          "artifact": "Tested pipeline specification"
+        },
+        {
+          "id": "ai-05",
+          "title": "Design a bounded agent and a stop control",
+          "artifact": "Agent contract and failure simulation"
+        },
+        {
+          "id": "ai-06",
+          "title": "Prepare a reviewable operating and governance package",
+          "artifact": "Reviewed operating package and pilot decision"
+        }
+      ],
+      "path": "/courses/ai-implementation.html",
+      "sample": {
+        "title": "Map current work before choosing AI",
+        "templateFields": [
+          "Task / requester / owner",
+          "Inputs and authorized data",
+          "Current steps / time / corrections"
+        ],
+        "check": {
+          "question": "If a tool drafts faster but doubles correction time, has the workflow necessarily improved?",
+          "answer": "No. Compare total work and quality, not drafting speed alone.",
+          "reason": "The outcome includes review, corrections and final usefulness."
+        }
+      }
+    },
+    {
+      "id": "guiding-people-through-change",
+      "title": "Guiding People Through Change: Practical Facilitation",
+      "summary": "Practice listening, clarify a change, agree on manageable next steps, and teach a bounded session with appropriate referral boundaries.",
+      "audiences": [
+        "People leaders",
+        "Educators",
+        "Community facilitators"
+      ],
+      "outcomes": [
+        "Submit a change facts/impact map, listening practice, transition record, seven-day agreement, verified-or-labeled support map and a revised 20-minute teach-back. Use fictional cases and no compelled personal disclosure. Explain the limits of your authority and one setting that requires additional expertise."
+      ],
+      "estimatedMinutes": 255,
+      "availability": {
+        "status": "published",
+        "label": "Get the written course on Gumroad",
+        "url": "https://ballerskingdom.gumroad.com/l/guiding-people-through-change",
+        "priceUsd": 79,
+        "priceStatus": "One-time written self-guided edition. Check current purchase details on Gumroad."
+      },
+      "lessons": [
+        {
+          "id": "chg-01",
+          "title": "Describe the change and the people affected",
+          "artifact": "Change facts and impact map"
+        },
+        {
+          "id": "chg-02",
+          "title": "Listen without interpreting for the other person",
+          "artifact": "Listening practice and observer notes"
+        },
+        {
+          "id": "chg-03",
+          "title": "Acknowledge what is ending and preserve useful knowledge",
+          "artifact": "Transition and knowledge-preservation record"
+        },
+        {
+          "id": "chg-04",
+          "title": "Agree on one next step within real authority",
+          "artifact": "Seven-day action agreement"
+        },
+        {
+          "id": "chg-05",
+          "title": "Keep role boundaries and use the appropriate support route",
+          "artifact": "Role-boundary and support-route map"
+        },
+        {
+          "id": "chg-06",
+          "title": "Teach back a practical session and revise it",
+          "artifact": "Reviewed teach-back and revised session kit"
+        }
+      ],
+      "path": "/courses/guiding-people-through-change.html",
+      "sample": {
+        "title": "Describe the change and the people affected",
+        "templateFields": [
+          "Change / source / date",
+          "Decided facts / open questions",
+          "Affected groups / different practical effects"
+        ],
+        "check": {
+          "question": "Can a facilitator promise no job or workload effects simply to reassure people?",
+          "answer": "No. State only what is authorized and verified.",
+          "reason": "Unsupported reassurance can create a commitment and reduce trust."
+        }
+      }
+    }
+  ],
+  "orientations": [
+    {
+      "id": "recruiting",
+      "title": "The Recruiting Playbook",
+      "path": "/courses/resource-recruiting.html",
+      "firstAction": "Write two schools you want to compare and one academic or practical requirement you need to verify.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/gfjmoo",
+      "purpose": "a school-fit comparison, a truthful outreach draft and a ninety-day recruiting plan",
+      "artifact": "a school-fit comparison",
+      "claimBoundary": "An offer, roster spot, scholarship or admission is not guaranteed; current rules need authoritative verification.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 2900
+    },
+    {
+      "id": "car-ride",
+      "title": "The Car Ride Home",
+      "path": "/courses/resource-car-ride.html",
+      "firstAction": "Ask whether your athlete wants to talk after the game, later, or not today. Respect the answer.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/ofopvv",
+      "purpose": "a calmer postgame conversation, a family sideline agreement and a reflection habit",
+      "artifact": "a voluntary family conversation agreement",
+      "claimBoundary": "Respect a child\u2019s privacy and choice; no family or psychological outcome is guaranteed.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 1200
+    },
+    {
+      "id": "scorecard",
+      "title": "Business Readiness Scorecard Pro",
+      "path": "/courses/resource-scorecard.html",
+      "firstAction": "Choose one business pillar and identify the current record you could use to check your rating.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/ejldv",
+      "purpose": "an evidence-based readiness review and a prioritized action plan",
+      "artifact": "one evidence-backed improvement plan",
+      "claimBoundary": "A readiness score is educational, not loan approval, a valuation or a validated prediction of business success.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 4700
+    },
+    {
+      "id": "train-develop-serve-lead",
+      "title": "Train. Develop. Serve. Lead.",
+      "path": "/courses/resource-train-develop-serve-lead.html",
+      "firstAction": "Choose one manageable practice for this week and write when you will review it.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/train-develop-serve-lead",
+      "purpose": "a practical month of training, development, service and leadership",
+      "artifact": "a weekly practice and review plan",
+      "claimBoundary": "Participation and reflection are not guarantees of personal transformation; faith reflection is optional.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 1200
+    },
+    {
+      "id": "your-next-season",
+      "title": "Your Next Season",
+      "path": "/courses/resource-your-next-season.html",
+      "firstAction": "Block your fixed commitments in a real weekly calendar before adding one new goal.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/your-next-season",
+      "purpose": "a clearer set of priorities, boundaries, support and a workable week",
+      "artifact": "a workable weekly plan",
+      "claimBoundary": "This planning resource is not therapy or individualized mental-health care.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 1900
+    },
+    {
+      "id": "own-your-semester",
+      "title": "Own Your Semester",
+      "path": "/courses/resource-own-your-semester.html",
+      "firstAction": "Choose one assignment, confirm its deadline, and schedule the next small action.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/own-your-semester",
+      "purpose": "an assignment plan, practice schedule, error log and help request",
+      "artifact": "a two-week study and assignment plan",
+      "claimBoundary": "Academic results depend on context and action; no grade or admission outcome is promised.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 1900
+    },
+    {
+      "id": "career-direction-action-toolkit",
+      "title": "Career Direction & Action Toolkit",
+      "path": "/courses/resource-career-direction-action-toolkit.html",
+      "firstAction": "Choose two roles and find one actual responsibility you can compare.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/career-direction-action-toolkit",
+      "purpose": "a target-role comparison, truthful accomplishment evidence and a ninety-day action plan",
+      "artifact": "a role comparison and evidence-backed application plan",
+      "claimBoundary": "No job, interview, salary or promotion is guaranteed.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 2900
+    },
+    {
+      "id": "digital-operating-plan",
+      "title": "Build Your Digital Operating Plan",
+      "path": "/courses/resource-digital-operating-plan.html",
+      "firstAction": "Map one customer\u2019s path from inquiry to delivery and name the handoff that needs attention.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/digital-operating-plan",
+      "purpose": "a customer path, tool choices and a reviewed automation specification",
+      "artifact": "a bounded automation specification",
+      "claimBoundary": "Do not upload private data or authorize messages, charges or account changes through a worksheet.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 2900
+    },
+    {
+      "id": "matchday-body",
+      "title": "Matchday Body: Train, Recover, Repeat",
+      "path": "/courses/resource-matchday-body.html",
+      "firstAction": "Write your actual training and competition schedule and one question for the appropriate coach or qualified professional.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/matchday-body",
+      "purpose": "a shared participation schedule, preparedness check and coach conversation",
+      "artifact": "a participation and preparedness plan",
+      "claimBoundary": "General education only; no individualized exercise prescription, injury diagnosis or return-to-play clearance.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 1900
+    },
+    {
+      "id": "next-play",
+      "title": "Next Play",
+      "path": "/courses/resource-next-play.html",
+      "firstAction": "Choose one observable action within your control and a short cue to practice.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/next-play",
+      "purpose": "a preparation routine, process goal, reset cue and postgame reflection",
+      "artifact": "a process-goal and reflection log",
+      "claimBoundary": "This workbook is not mental-health treatment or a promise of performance gains.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 1900
+    },
+    {
+      "id": "earn-your-voice",
+      "title": "Earn Your Voice: Playing Time, Club Fit & Opportunity",
+      "path": "/courses/resource-earn-your-voice.html",
+      "firstAction": "Record one observable event and draft one respectful question about expectations.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/earn-your-voice",
+      "purpose": "an evidence log, respectful meeting plan and club-fit comparison",
+      "artifact": "a respectful meeting and opportunity plan",
+      "claimBoundary": "Playing time, selection and opportunities are not guaranteed; no retaliation or pressure tactics.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 1900
+    },
+    {
+      "id": "ball-mastery-lab",
+      "title": "Ball Mastery Lab",
+      "path": "/courses/resource-ball-mastery-lab.html",
+      "firstAction": "Choose a safe space and an activity appropriate to your experience, with qualified guidance where needed.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/ball-mastery-lab",
+      "purpose": "adaptable receiving, passing, dribbling and finishing practice records",
+      "artifact": "an adaptable technical practice record",
+      "claimBoundary": "Physical demonstrations require qualified review; stop for pain or unsafe conditions and seek appropriate support.",
+      "description": "A practical workbook with a specific starting action and a review habit.",
+      "priceCents": 1900
+    },
+    {
+      "id": "college-by-design",
+      "title": "College by Design",
+      "path": "/courses/resource-college-by-design.html",
+      "firstAction": "Name an education decision and two realistic routes you can investigate.",
+      "resourceUrl": "https://ballerskingdom.gumroad.com/l/college-by-design",
+      "purpose": "an education decision brief, relationship map, enterprise experiment and ninety-day portfolio",
+      "artifact": "an education-and-enterprise portfolio",
+      "claimBoundary": "Self-guided toolkit; no admissions, internship, employment, income or wealth guarantee.",
+      "description": "A 23-page student and family toolkit with four PDFs and start-here instructions.",
+      "priceCents": 4900
+    },
+    {
+      "id": "ai-implementation",
+      "title": "AI Implementation",
+      "path": "/courses/resource-ai-implementation.html",
+      "firstAction": "Choose a low-risk recurring task and list the inputs you are authorized to use.",
+      "resourceUrl": null,
+      "purpose": "a current-workflow review, a bounded tool trial and a human-reviewed implementation plan",
+      "artifact": "a tested, privacy-aware workflow specification",
+      "claimBoundary": "No confidential uploads, security/compliance certification, guaranteed ninety-day outcome or unapproved outbound actions.",
+      "description": "Choose an appropriate use case, compare tools with synthetic data, and build a tested workflow specification with clear human authority."
+    },
+    {
+      "id": "guiding-people-through-change",
+      "title": "Guiding People Through Change: Facilitator Learning Path",
+      "path": "/courses/resource-guiding-people-through-change.html",
+      "firstAction": "Separate the known facts about one change from the questions an authorized owner must answer.",
+      "resourceUrl": null,
+      "purpose": "a listening plan, practical next-step conversation and a bounded teach-back",
+      "artifact": "a facilitator conversation and referral-boundary plan",
+      "claimBoundary": "Educational facilitation only; no therapy, counseling-grade claim, accredited certification or unverified degree specialization.",
+      "description": "Practice listening, clarify a change, agree on manageable next steps, and teach a bounded session with appropriate referral boundaries."
+    },
+    {
+      "id": "ai-weekend-study-guide",
+      "title": "AI Weekend Study Guide",
+      "path": "/courses/resource-ai-weekend-study-guide.html",
+      "firstAction": "Choose one small practice task using synthetic or public material, and write how you will check the result.",
+      "resourceUrl": null,
+      "purpose": "a focused set of AI learning notes, a small practice task and a next-week plan",
+      "artifact": "a checked practice artifact and follow-up plan",
+      "claimBoundary": "A study guide is not evidence of current provider access, paid course completion or implementation success.",
+      "description": "A practical workbook with a specific starting action and a review habit."
+    }
+  ],
+  "welcome": {
+    "videoId": "r1qIDsBBbqw",
+    "url": "https://www.youtube.com/watch?v=r1qIDsBBbqw",
+    "transcript": "Hey, I\u2019m Brian Kennedy Junior. Welcome to The Ballers Kingdom. Getting better takes more than showing up. It takes purpose, consistent work, and someone who sees what you\u2019re capable of. That\u2019s what we\u2019re here for\u2014to challenge you, support you, and help you take the next step. Dedicated to training and development at the highest level. Let\u2019s get to work. Visit ballkingdom dot com.",
+    "type": "Authorized Brian AI avatar general welcome; not course-specific instruction",
+    "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/brian-course-welcome-natural-v4.mp4",
+    "captionsPath": "/assets/captions/brian-course-welcome.vtt",
+    "voice": "Brian approved Natural Voice"
+  },
+  "metadataPolicy": "Public course titles, artifacts, one short free exercise per course, orientation actions and exact authorized general-welcome transcript only. No paid lesson teaching or demo scripts."
+}
