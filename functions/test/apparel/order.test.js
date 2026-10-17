@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {APPAREL_CATALOG, assessApparelReadiness} from '../../src/apparel/catalog.js';
+import {normalizeApparelSelection, normalizeUSShippingAddress, buildApparelQuote} from '../../src/apparel/order.js';
+const selection={productId:'tee-bk',size:'M',color:'black',quantity:2};
+const address={name:'Example Buyer',line1:'123 Example St',city:'Ontario',state:'CA',postalCode:'91764',country:'US'};
+const variant={...selection,quantity:undefined,supplierSku:'REAL-SKU',verified:true,artworkApproved:true,sampleApproved:true,merchantName:'The Ballers Kingdom',unitPriceCents:3000,landedCostCents:1400,currency:'USD'};
+const input=()=>({selection,variant,shipping:{verified:true,amountCents:500,address},tax:{verified:true,amountCents:600},now:1700000000000});
+test('all 12 concepts remain unavailable with no purchasable prices',()=>{assert.equal(APPAREL_CATALOG.length,12);for(const p of APPAREL_CATALOG){assert.equal(p.comingSoon,true);assert.equal('price' in p,false);}assert.equal(assessApparelReadiness({}).ready,false);assert.ok(assessApparelReadiness({}).reasons.length>=6);});
+test('selection permits only bounded catalogue choices and rejects forged price',()=>{assert.deepEqual(normalizeApparelSelection(selection),selection);for(const patch of [{price:1},{quantity:11},{quantity:1.1},{size:'XXXXL'},{color:'white'},{productId:'other'}])assert.throws(()=>normalizeApparelSelection({...selection,...patch}));});
+test('US address requires deliverable fields and rejects unsupported destination',()=>{assert.equal(normalizeUSShippingAddress(address).country,'US');for(const patch of [{line1:''},{postalCode:'123'},{country:'CA'},{state:'ZZ'},{name:'x\ny'}])assert.throws(()=>normalizeUSShippingAddress({...address,...patch}));});
+test('verified quote computes server total and expires in fifteen minutes',()=>{const q=buildApparelQuote(input());assert.equal(q.totalCents,7100);assert.equal(q.subtotalCents,6000);assert.equal(q.expiresAt,1700000900000);assert.equal(q.merchantName,'The Ballers Kingdom');});
+test('quote rejects unverified supplier, sample, artwork, shipping, tax and wrong merchant',()=>{for(const patch of [{verified:false},{supplierSku:''},{sampleApproved:false},{artworkApproved:false},{merchantName:'Other'},{productId:'tee-jr'},{unitPriceCents:-1},{landedCostCents:undefined}])assert.throws(()=>buildApparelQuote({...input(),variant:{...variant,...patch}}));for(const key of ['shipping','tax'])assert.throws(()=>buildApparelQuote({...input(),[key]:{...input()[key],verified:false}}));});
+test('quote rejects overflow and forged selection price',()=>{assert.throws(()=>buildApparelQuote({...input(),variant:{...variant,unitPriceCents:Number.MAX_SAFE_INTEGER}}));assert.throws(()=>buildApparelQuote({...input(),selection:{...selection,unitPriceCents:1}}));assert.throws(()=>buildApparelQuote({...input(),now:NaN}));});
