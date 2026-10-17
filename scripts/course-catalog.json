@@ -679,5 +679,12 @@
     "captionsPath": "/assets/captions/brian-course-welcome.vtt",
     "voice": "Brian approved Natural Voice"
   },
-  "metadataPolicy": "Public course titles, artifacts, one short free exercise per course, orientation actions and exact authorized general-welcome transcript only. No paid lesson teaching or demo scripts."
+  "metadataPolicy": "Public course titles, artifacts, one short free exercise per course, orientation actions and exact authorized general-welcome transcript only. No paid lesson teaching or demo scripts.",
+  "courseIntros": {
+    "education-by-design": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/education-by-design-introduction-v1.mp4",
+      "captionsUrl": "/assets/captions/education-by-design-intro.vtt",
+      "transcript": "Welcome to Education by Design. I\u2019m Brian Kennedy Jr. I want you to approach education with a sense of possibility and a plan you can act on. That means asking what you want to learn, what you want to build, and which environment can help you take the next step. In this course, you will compare two realistic routes, check the facts that matter, and work through the time and support your plan requires. If you are returning to college, your experience and responsibilities belong in the plan. If you are a family member, your role can support the learner\u2019s independence. You will leave with a decision brief, a source ledger, a workable week, and a support agreement. You can use your own situation privately or work through our fictional examples. Start by writing the decision you face and the date you need to make it. Then open the first lesson and choose the criteria that matter to you."
+    }
+  }
 }
