@@ -3,7 +3,7 @@
   'use strict';
   const approvedMedia = 'https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/brian-course-welcome-natural-v4.mp4';
   const courseIntro = 'https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/education-by-design-introduction-v1.mp4';
-  const captionSources = new Map([[approvedMedia, '/assets/captions/brian-course-welcome.vtt'], [courseIntro, 'https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/education-by-design-intro.vtt']]);
+  const captionSources = new Map([[approvedMedia, '/assets/captions/brian-course-welcome.vtt'], [courseIntro, '/assets/captions/education-by-design-intro.vtt']]);
   document.querySelectorAll('[data-load-video]').forEach(button => {
     button.addEventListener('click', () => {
       const host = button.closest('[data-media-url]');
