@@ -22,3 +22,5 @@ jobs:
           node --check scripts/build-site-preview.mjs
       - name: Verify source and public packaging
         run: node --test tests/*.test.mjs
+      - name: Verify physical apparel domain and supplier transport
+        run: node --test functions/test/apparel/*.test.js functions/test/apliiq.test.js
