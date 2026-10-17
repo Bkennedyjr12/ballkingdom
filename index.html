@@ -180,6 +180,157 @@
       .home-hero .hero-stats .lbl { font-size: .65rem; letter-spacing: .1em; }
       .home-tools-grid { grid-template-columns: 1fr; }
     }
+
+    /* ---- The Three F's ---- */
+    .tf-section {
+      position: relative;
+      overflow: hidden;
+      padding: 110px 0 100px;
+      background:
+        radial-gradient(ellipse 70% 60% at 85% 0%, rgba(255,255,255,0.06), transparent 70%),
+        linear-gradient(180deg, var(--black) 0%, var(--ink) 100%);
+      border-top: 1px solid var(--gray-200);
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .tf-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: 48px;
+      align-items: end;
+      margin-bottom: 56px;
+    }
+    .tf-kicker {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: var(--gray-400);
+      font-family: var(--font-display);
+      letter-spacing: 0.3em;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .tf-kicker::before { content: ""; width: 36px; height: 2px; background: var(--white); }
+    .tf-head h2 {
+      font-size: clamp(2.2rem, 4.6vw, 3.8rem);
+      line-height: 1.02;
+      margin: 0;
+    }
+    .tf-head h2 em {
+      display: block;
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--gray-600);
+    }
+    .tf-intro { color: var(--gray-600); font-size: 1.05rem; line-height: 1.7; margin: 0; }
+    .tf-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid var(--gray-200);
+      border-radius: 14px;
+      background: rgba(18,18,18,0.7);
+      overflow: hidden;
+    }
+    .tf-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: 40px 34px 38px;
+      border-right: 1px solid var(--gray-200);
+      transition: background 220ms ease;
+    }
+    .tf-card:last-child { border-right: 0; }
+    .tf-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 34px;
+      width: 48px; height: 3px;
+      background: var(--white);
+      transition: width 260ms ease;
+    }
+    .tf-card:hover { background: rgba(255,255,255,0.03); }
+    .tf-card:hover::before { width: calc(100% - 68px); }
+    .tf-num {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 4.2rem;
+      line-height: 1;
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(255,255,255,0.35);
+      margin-bottom: 22px;
+    }
+    .tf-card h3 { font-size: clamp(1.6rem, 2.4vw, 2rem); letter-spacing: 0.04em; margin: 0 0 6px; }
+    .tf-sub {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: 1.12rem;
+      color: var(--white);
+      margin: 0 0 16px;
+    }
+    .tf-card > p:not(.tf-sub) { color: var(--gray-600); font-size: 0.97rem; line-height: 1.65; margin: 0 0 24px; }
+    .tf-list {
+      list-style: none;
+      margin: auto 0 0;
+      padding: 20px 0 0;
+      border-top: 1px solid var(--gray-200);
+      display: grid;
+      gap: 10px;
+    }
+    .tf-list li {
+      position: relative;
+      padding-left: 22px;
+      color: var(--cream);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .tf-list li::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0.5em;
+      width: 10px; height: 2px;
+      background: var(--gray-400);
+    }
+    .tf-band {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+      margin-top: 40px;
+      padding: 34px 38px;
+      border-radius: 14px;
+      background: var(--stone);
+      border: 1px solid var(--gray-200);
+    }
+    .tf-band-brand img { width: min(300px, 100%); height: auto; margin-bottom: 14px; opacity: 0.96; }
+    .tf-band-brand p {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: clamp(1.15rem, 2vw, 1.45rem);
+      line-height: 1.35;
+      color: var(--white);
+      margin: 0;
+    }
+    .tf-band-actions { display: flex; flex-wrap: wrap; gap: 12px; flex-shrink: 0; }
+    @media (max-width: 960px) {
+      .tf-head { grid-template-columns: 1fr; gap: 20px; }
+      .tf-grid { grid-template-columns: 1fr; }
+      .tf-card { border-right: 0; border-bottom: 1px solid var(--gray-200); }
+      .tf-card:last-child { border-bottom: 0; }
+      .tf-band { flex-direction: column; align-items: flex-start; }
+    }
+    @media (max-width: 560px) {
+      .tf-section { padding: 72px 0 64px; }
+      .tf-head { margin-bottom: 36px; }
+      .tf-card { padding: 32px 24px 30px; }
+      .tf-card::before { left: 24px; }
+      .tf-num { font-size: 3.4rem; margin-bottom: 16px; }
+      .tf-band { padding: 28px 24px; }
+      .tf-band-actions, .tf-band-actions .btn { width: 100%; }
+      .tf-band-actions .btn { justify-content: center; text-align: center; }
+    }
   </style>
 
   <script type="application/ld+json">
@@ -297,28 +448,58 @@
 </section>
 
 <!-- 3 F'S VALUES -->
-<section>
+<section class="tf-section" id="three-fs" aria-labelledby="three-fs-title">
   <div class="container">
-    <div class="section-header">
-      <div class="kicker">The Three F's</div>
-      <h2>What we stand on.</h2>
-      <p class="lead">Every player, every parent, every program — built on the same three pillars.</p>
+    <div class="tf-head">
+      <div data-reveal>
+        <div class="tf-kicker">The Three F's</div>
+        <h2 id="three-fs-title">What we stand on. <em>How we develop players.</em></h2>
+      </div>
+      <p class="tf-intro" data-reveal>Every player, every parent, every program is built on the same three pillars. They shape how we coach, how we communicate, and how we measure progress — session after session.</p>
     </div>
-    <div class="pillars">
-      <div class="pillar" data-reveal>
-        <div class="icon">F</div>
+    <div class="tf-grid">
+      <article class="tf-card" data-reveal>
+        <div class="tf-num" aria-hidden="true">01</div>
         <h3>Faith</h3>
-        <p>We coach with conviction. Character shapes performance — on the field, in the classroom, in life. Discipline, humility, and the long view.</p>
-      </div>
-      <div class="pillar" data-reveal>
-        <div class="icon">F</div>
+        <p class="tf-sub">Character before competition.</p>
+        <p>We coach with conviction. Brian’s Christian faith grounds a standard of discipline, humility, and service that shows up in every rep — on the field, in the classroom, and in life.</p>
+        <ul class="tf-list">
+          <li>Discipline in the details</li>
+          <li>Humility in wins and losses</li>
+          <li>Accountability that outlasts the session</li>
+        </ul>
+      </article>
+      <article class="tf-card" data-reveal>
+        <div class="tf-num" aria-hidden="true">02</div>
         <h3>Family</h3>
-        <p>We partner with parents, not replace them. Every athlete is someone's son or daughter first. Communication is constant; the standards are shared.</p>
-      </div>
-      <div class="pillar" data-reveal>
-        <div class="icon">F</div>
+        <p class="tf-sub">Parents are partners.</p>
+        <p>Every athlete is someone’s son or daughter first. We work alongside families, not around them — with clear communication, shared standards, and goals everyone understands.</p>
+        <ul class="tf-list">
+          <li>Goals set with player and parent</li>
+          <li>Honest feedback on progress</li>
+          <li>The same standard at home and on the field</li>
+        </ul>
+      </article>
+      <article class="tf-card" data-reveal>
+        <div class="tf-num" aria-hidden="true">03</div>
         <h3>Furtherment</h3>
-        <p>Move them forward — next level of play, next classroom, next business idea. We're in the development business. You leave better than you arrived.</p>
+        <p class="tf-sub">Leave better than you arrived.</p>
+        <p>We’re in the development business. Next level of play, next classroom, next opportunity — every plan is built to move the player forward from where they started.</p>
+        <ul class="tf-list">
+          <li>Individual development plans</li>
+          <li>Technical, physical, and mental growth</li>
+          <li>A clear path to the next level</li>
+        </ul>
+      </article>
+    </div>
+    <div class="tf-band" data-reveal>
+      <div class="tf-band-brand">
+        <img src="assets/img/logo-nav-white.png" alt="The Ballers Kingdom" width="1537" height="110" loading="lazy" decoding="async" />
+        <p>Dedicated to training and development at the highest level.</p>
+      </div>
+      <div class="tf-band-actions">
+        <a class="btn btn-primary" href="soccer.html">Explore Training →</a>
+        <a class="btn btn-ghost" href="about.html">Meet Brian</a>
       </div>
     </div>
   </div>
