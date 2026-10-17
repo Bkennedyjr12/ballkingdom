@@ -779,6 +779,104 @@
     }
   },
   "resourceIntros": {
+    "ai-weekend-study-guide": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/ai-weekend-study-guide-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/ai-weekend-study-guide-resource-intro.vtt",
+      "transcript": "Welcome to AI Weekend Study Guide. I’m Brian Kennedy Jr. Your goal is a checked practice artifact and follow-up plan. Choose one small practice task using synthetic or public material, and write how you will check the result. Keep your work private, record what you tried, and set a review date. A study guide is not evidence of current provider access, paid course completion or implementation success.",
+      "durationSeconds": 24.958333,
+      "title": "AI Weekend Study Guide"
+    },
+    "ball-mastery-lab": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/ball-mastery-lab-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/ball-mastery-lab-resource-intro.vtt",
+      "transcript": "Welcome to Ball Mastery Lab. I’m Brian Kennedy Jr. Your goal is an adaptable technical practice record. Choose a safe space and an activity appropriate to your experience, with qualified guidance where needed. Keep your work private, record what you tried, and set a review date. Physical demonstrations require qualified review; stop for pain or unsafe conditions and seek appropriate support.",
+      "durationSeconds": 24.625,
+      "title": "Ball Mastery Lab"
+    },
+    "car-ride": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/car-ride-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/car-ride-resource-intro.vtt",
+      "transcript": "Welcome to The Car Ride Home. I’m Brian Kennedy Jr. Your goal is a voluntary family conversation agreement. Ask whether your athlete wants to talk after the game, later, or not today. Respect the answer. Keep your work private, record what you tried, and set a review date. Respect a child’s privacy and choice; no family or psychological outcome is guaranteed.",
+      "durationSeconds": 23.958333,
+      "title": "The Car Ride Home"
+    },
+    "career-direction-action-toolkit": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/career-direction-action-toolkit-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/career-direction-action-toolkit-resource-intro.vtt",
+      "transcript": "Welcome to Career Direction & Action Toolkit. I’m Brian Kennedy Jr. Your goal is a role comparison and evidence-backed application plan. Choose two roles and find one actual responsibility you can compare. Keep your work private, record what you tried, and set a review date. No job, interview, salary or promotion is guaranteed.",
+      "durationSeconds": 21.916667,
+      "title": "Career Direction & Action Toolkit"
+    },
+    "college-by-design": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/college-by-design-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/college-by-design-resource-intro.vtt",
+      "transcript": "Welcome to College by Design. I’m Brian Kennedy Jr. Your goal is an education-and-enterprise portfolio. Name an education decision and two realistic routes you can investigate. Keep your work private, record what you tried, and set a review date. Self-guided toolkit; no admissions, internship, employment, income or wealth guarantee.",
+      "durationSeconds": 22.375,
+      "title": "College by Design"
+    },
+    "digital-operating-plan": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/digital-operating-plan-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/digital-operating-plan-resource-intro.vtt",
+      "transcript": "Welcome to Build Your Digital Operating Plan. I’m Brian Kennedy Jr. Your goal is a bounded automation specification. Map one customer’s path from inquiry to delivery and name the handoff that needs attention. Keep your work private, record what you tried, and set a review date. Do not upload private data or authorize messages, charges or account changes through a worksheet.",
+      "durationSeconds": 24.125,
+      "title": "Build Your Digital Operating Plan"
+    },
+    "earn-your-voice": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/earn-your-voice-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/earn-your-voice-resource-intro.vtt",
+      "transcript": "Welcome to Earn Your Voice: Playing Time, Club Fit & Opportunity. I’m Brian Kennedy Jr. Your goal is a respectful meeting and opportunity plan. Record one observable event and draft one respectful question about expectations. Keep your work private, record what you tried, and set a review date. Playing time, selection and opportunities are not guaranteed; no retaliation or pressure tactics.",
+      "durationSeconds": 26.083333,
+      "title": "Earn Your Voice: Playing Time, Club Fit & Opportunity"
+    },
+    "matchday-body": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/matchday-body-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/matchday-body-resource-intro.vtt",
+      "transcript": "Welcome to Matchday Body: Train, Recover, Repeat. I’m Brian Kennedy Jr. Your goal is a participation and preparedness plan. Write your actual training and competition schedule and one question for the appropriate coach or qualified professional. Keep your work private, record what you tried, and set a review date. General education only; no individualized exercise prescription, injury diagnosis or return-to-play clearance.",
+      "durationSeconds": 26.458008,
+      "title": "Matchday Body: Train, Recover, Repeat"
+    },
+    "next-play": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/next-play-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/next-play-resource-intro.vtt",
+      "transcript": "Welcome to Next Play. I’m Brian Kennedy Jr. Your goal is a process-goal and reflection log. Choose one observable action within your control and a short cue to practice. Keep your work private, record what you tried, and set a review date. This workbook is not mental-health treatment or a promise of performance gains.",
+      "durationSeconds": 19.583008,
+      "title": "Next Play"
+    },
+    "own-your-semester": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/own-your-semester-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/own-your-semester-resource-intro.vtt",
+      "transcript": "Welcome to Own Your Semester. I’m Brian Kennedy Jr. Your goal is a two-week study and assignment plan. Choose one assignment, confirm its deadline, and schedule the next small action. Keep your work private, record what you tried, and set a review date. Academic results depend on context and action; no grade or admission outcome is promised.",
+      "durationSeconds": 22.208333,
+      "title": "Own Your Semester"
+    },
+    "recruiting": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/recruiting-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/recruiting-resource-intro.vtt",
+      "transcript": "Welcome to The Recruiting Playbook. I’m Brian Kennedy Jr. Your goal is a school-fit comparison. Write two schools you want to compare and one academic or practical requirement you need to verify. Keep your work private, record what you tried, and set a review date. An offer, roster spot, scholarship or admission is not guaranteed; current rules need authoritative verification.",
+      "durationSeconds": 24.541667,
+      "title": "The Recruiting Playbook"
+    },
+    "scorecard": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/scorecard-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/scorecard-resource-intro.vtt",
+      "transcript": "Welcome to Business Readiness Scorecard Pro. I’m Brian Kennedy Jr. Your goal is one evidence-backed improvement plan. Choose one business pillar and identify the current record you could use to check your rating. Keep your work private, record what you tried, and set a review date. A readiness score is educational, not loan approval, a valuation or a validated prediction of business success.",
+      "durationSeconds": 24.041667,
+      "title": "Business Readiness Scorecard Pro"
+    },
+    "train-develop-serve-lead": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/train-develop-serve-lead-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/train-develop-serve-lead-resource-intro.vtt",
+      "transcript": "Welcome to Train. Develop. Serve. Lead.. I’m Brian Kennedy Jr. Your goal is a weekly practice and review plan. Choose one manageable practice for this week and write when you will review it. Keep your work private, record what you tried, and set a review date. Participation and reflection are not guarantees of personal transformation; faith reflection is optional.",
+      "durationSeconds": 22.791667,
+      "title": "Train. Develop. Serve. Lead."
+    },
+    "your-next-season": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/your-next-season-resource-intro.mp4",
+      "captionsUrl": "/assets/captions/your-next-season-resource-intro.vtt",
+      "transcript": "Welcome to Your Next Season. I’m Brian Kennedy Jr. Your goal is a workable weekly plan. Block your fixed commitments in a real weekly calendar before adding one new goal. Keep your work private, record what you tried, and set a review date. This planning resource is not therapy or individualized mental-health care.",
+      "durationSeconds": 19.916667,
+      "title": "Your Next Season"
+    },
     "ai-implementation": {
       "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/ai-implementation-intro.mp4",
       "captionsUrl": "/assets/captions/ai-implementation-intro.vtt",
