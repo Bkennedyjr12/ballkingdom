@@ -674,7 +674,10 @@
     "videoId": "r1qIDsBBbqw",
     "url": "https://www.youtube.com/watch?v=r1qIDsBBbqw",
     "transcript": "Hey, I\u2019m Brian Kennedy Junior. Welcome to The Ballers Kingdom. Getting better takes more than showing up. It takes purpose, consistent work, and someone who sees what you\u2019re capable of. That\u2019s what we\u2019re here for\u2014to challenge you, support you, and help you take the next step. Dedicated to training and development at the highest level. Let\u2019s get to work. Visit ballkingdom dot com.",
-    "type": "Authorized Brian AI avatar general welcome; not course-specific instruction"
+    "type": "Authorized Brian AI avatar general welcome; not course-specific instruction",
+    "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/brian-course-welcome-natural-v4.mp4",
+    "captionsPath": "/assets/captions/brian-course-welcome.vtt",
+    "voice": "Brian approved Natural Voice"
   },
   "metadataPolicy": "Public course titles, artifacts, one short free exercise per course, orientation actions and exact authorized general-welcome transcript only. No paid lesson teaching or demo scripts."
 }

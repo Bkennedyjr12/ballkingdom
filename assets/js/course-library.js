@@ -1,18 +1,17 @@
-/* No provider connection until the visitor explicitly loads the welcome player. */
+/* No video-host connection until the learner explicitly loads the welcome player. */
 (() => {
   'use strict';
+  const approvedMedia = 'https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/brian-course-welcome-natural-v4.mp4';
   document.querySelectorAll('[data-load-video]').forEach(button => {
     button.addEventListener('click', () => {
-      const host = button.closest('[data-video-id]');
-      if (!host || host.dataset.videoId !== 'r1qIDsBBbqw') return;
-      const frame = document.createElement('iframe');
-      frame.src = 'https://www.youtube-nocookie.com/embed/r1qIDsBBbqw?autoplay=0&rel=0&cc_load_policy=1';
-      frame.title = 'Brian Kennedy Jr. — The Ballers Kingdom authorized AI avatar welcome';
-      frame.allow = 'encrypted-media; picture-in-picture';
-      frame.allowFullscreen = true;
-      frame.referrerPolicy = 'strict-origin-when-cross-origin';
-      host.replaceChildren(frame);
-      frame.focus();
-    }, {once: true});
+      const host = button.closest('[data-media-url]');
+      if (!host || host.dataset.mediaUrl !== approvedMedia) return;
+      const video = document.createElement('video');
+      video.controls = true; video.autoplay = false; video.playsInline = true; video.preload = 'metadata';
+      video.setAttribute('aria-label', 'Brian Kennedy Jr. — authorized AI avatar welcome with approved natural voice');
+      video.src = approvedMedia;
+      const captions = document.createElement('track'); captions.kind = 'captions'; captions.srclang = 'en'; captions.label = 'English'; captions.src = '/assets/captions/brian-course-welcome.vtt'; captions.default = true;
+      video.append(captions); host.replaceChildren(video); video.focus();
+    }, {once:true});
   });
 })();
