@@ -3,7 +3,7 @@ export const FAQ=Object.freeze({
  consulting:{answer:'Consulting covers life, academic, career, business, and digital development. A consultation is the starting point for discussing your goal and scope.',link:'/yvp',label:'Explore consulting'},
  booking:{answer:'Use the contact page to find the current consultation booking path. Availability and any service terms are confirmed through that process.',link:'/contact',label:'Contact and book'},
  products:{answer:'The public products page lists digital guides and personalized-solution options. Check that page for current availability and purchase details.',link:'/products',label:'View products'},
- shop:{answer:'Visit Apparel & Shop for the current collection preview and availability. This guide cannot confirm stock or place an order.',link:'/shop',label:'Visit apparel'},
+ shop:{answer:'Kingdom Goods is our coming-soon apparel shop, to be operated by Building Kingdoms Collaborative, doing business as The Builders Kingdom. Preview the collection; apparel checkout is not live.',link:'/shop#apparel-collection',label:'Preview Kingdom Goods'},
  purpose:{answer:'Your Game is the public contribution-role and daily-practice tool. Its current page explains how device-only assessment and journal data are handled.',link:'/your-game',label:'Open Your Game'},
  contact:{answer:'For service questions that need a person, contact The Ballers Kingdom through the public contact page. This guide cannot access accounts, private workout plans, or booking records.',link:'/contact',label:'Contact The Ballers Kingdom'}
 });
