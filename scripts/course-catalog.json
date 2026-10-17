@@ -57,6 +57,11 @@
           "answer": "No. Resolve the scheduling conflict or treat that route as presently infeasible.",
           "reason": "Weighted preferences cannot remove a participation barrier."
         }
+      },
+      "videoEdition": {
+        "intro": true,
+        "lessonVideoCount": 4,
+        "format": "Authorized Brian avatar introduction and narrated original worked examples; written teaching and practice retained"
       }
     },
     {
@@ -114,6 +119,11 @@
           "answer": "No. A relevant public resource or an equivalent practice can demonstrate the same preparation.",
           "reason": "Access and status are not evidence of learning."
         }
+      },
+      "videoEdition": {
+        "intro": true,
+        "lessonVideoCount": 4,
+        "format": "Authorized Brian avatar introduction and narrated original worked examples; written teaching and practice retained"
       }
     },
     {
@@ -166,6 +176,11 @@
           "answer": "No. Label the context accurately.",
           "reason": "The sample can demonstrate skill without inventing a customer or result."
         }
+      },
+      "videoEdition": {
+        "intro": true,
+        "lessonVideoCount": 3,
+        "format": "Authorized Brian avatar introduction and narrated original worked examples; written teaching and practice retained"
       }
     },
     {
@@ -219,10 +234,15 @@
           "Consent and note limits"
         ],
         "check": {
-          "question": "Does \u201cthat sounds cool\u201d prove someone will buy your offer?",
+          "question": "Does “that sounds cool” prove someone will buy your offer?",
           "answer": "No. It is a reaction, not a commitment or purchase.",
           "reason": "Demand evidence depends on what people actually choose and do."
         }
+      },
+      "videoEdition": {
+        "intro": true,
+        "lessonVideoCount": 4,
+        "format": "Authorized Brian avatar introduction and narrated original worked examples; written teaching and practice retained"
       }
     },
     {
@@ -285,6 +305,11 @@
           "answer": "No. Demand, costs, timing and capacity need evidence.",
           "reason": "A goal describes intent; records describe what has happened."
         }
+      },
+      "videoEdition": {
+        "intro": true,
+        "lessonVideoCount": 5,
+        "format": "Authorized Brian avatar introduction and narrated original worked examples; written teaching and practice retained"
       }
     },
     {
@@ -342,6 +367,11 @@
           "answer": "No. Satisfaction and causal effectiveness are different questions.",
           "reason": "Match the claim to the design and evidence collected."
         }
+      },
+      "videoEdition": {
+        "intro": true,
+        "lessonVideoCount": 4,
+        "format": "Authorized Brian avatar introduction and narrated original worked examples; written teaching and practice retained"
       }
     },
     {
@@ -409,6 +439,11 @@
           "answer": "No. Compare total work and quality, not drafting speed alone.",
           "reason": "The outcome includes review, corrections and final usefulness."
         }
+      },
+      "videoEdition": {
+        "intro": true,
+        "lessonVideoCount": 6,
+        "format": "Authorized Brian avatar introduction and narrated original worked examples; written teaching and practice retained"
       }
     },
     {
@@ -476,6 +511,11 @@
           "answer": "No. State only what is authorized and verified.",
           "reason": "Unsupported reassurance can create a commitment and reduce trust."
         }
+      },
+      "videoEdition": {
+        "intro": true,
+        "lessonVideoCount": 6,
+        "format": "Authorized Brian avatar introduction and narrated original worked examples; written teaching and practice retained"
       }
     }
   ],
@@ -500,7 +540,7 @@
       "resourceUrl": "https://ballerskingdom.gumroad.com/l/ofopvv",
       "purpose": "a calmer postgame conversation, a family sideline agreement and a reflection habit",
       "artifact": "a voluntary family conversation agreement",
-      "claimBoundary": "Respect a child\u2019s privacy and choice; no family or psychological outcome is guaranteed.",
+      "claimBoundary": "Respect a child’s privacy and choice; no family or psychological outcome is guaranteed.",
       "description": "A practical workbook with a specific starting action and a review habit.",
       "priceCents": 1200
     },
@@ -568,7 +608,7 @@
       "id": "digital-operating-plan",
       "title": "Build Your Digital Operating Plan",
       "path": "/courses/resource-digital-operating-plan.html",
-      "firstAction": "Map one customer\u2019s path from inquiry to delivery and name the handoff that needs attention.",
+      "firstAction": "Map one customer’s path from inquiry to delivery and name the handoff that needs attention.",
       "resourceUrl": "https://ballerskingdom.gumroad.com/l/digital-operating-plan",
       "purpose": "a customer path, tool choices and a reviewed automation specification",
       "artifact": "a bounded automation specification",
@@ -673,7 +713,7 @@
   "welcome": {
     "videoId": "r1qIDsBBbqw",
     "url": "https://www.youtube.com/watch?v=r1qIDsBBbqw",
-    "transcript": "Hey, I\u2019m Brian Kennedy Junior. Welcome to The Ballers Kingdom. Getting better takes more than showing up. It takes purpose, consistent work, and someone who sees what you\u2019re capable of. That\u2019s what we\u2019re here for\u2014to challenge you, support you, and help you take the next step. Dedicated to training and development at the highest level. Let\u2019s get to work. Visit ballkingdom dot com.",
+    "transcript": "Hey, I’m Brian Kennedy Junior. Welcome to The Ballers Kingdom. Getting better takes more than showing up. It takes purpose, consistent work, and someone who sees what you’re capable of. That’s what we’re here for—to challenge you, support you, and help you take the next step. Dedicated to training and development at the highest level. Let’s get to work. Visit ballkingdom dot com.",
     "type": "Authorized Brian AI avatar general welcome; not course-specific instruction",
     "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/brian-course-welcome-natural-v4.mp4",
     "captionsPath": "/assets/captions/brian-course-welcome.vtt",
@@ -681,10 +721,77 @@
   },
   "metadataPolicy": "Public course titles, artifacts, one short free exercise per course, orientation actions and exact authorized general-welcome transcript only. No paid lesson teaching or demo scripts.",
   "courseIntros": {
+    "ai-implementation": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/ai-implementation-intro.mp4",
+      "captionsUrl": "/assets/captions/ai-implementation-intro.vtt",
+      "transcript": "Welcome to AI Implementation. I’m Brian Kennedy Jr. This introduction will help you put the workbook to use. You will work toward a current-workflow review, a bounded tool trial and a human-reviewed implementation plan. Start with one work task and its current result. Define the information the tool may use, the quality check and the action that requires human approval before introducing automation. Choose a real situation you can work on privately, or use a clearly labeled fictional example. You can write, speak your response or use another accessible format. As you work, keep a record of what you tried, what you noticed and what you changed. The useful result is a tested, privacy-aware workflow specification, with enough detail that you can explain your next step. No confidential uploads, security/compliance certification, guaranteed ninety-day outcome or unapproved outbound actions. Begin with the starting reflection in your workbook. Name the decision or practice you want help with, set a review date, and open the first exercise.",
+      "durationSeconds": 64.166667,
+      "title": "AI Implementation: A Reviewed Workflow You Can Operate"
+    },
+    "cradle-to-legacy": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/cradle-to-legacy-intro.mp4",
+      "captionsUrl": "/assets/captions/cradle-to-legacy-intro.vtt",
+      "transcript": "Welcome to Cradle to Legacy. I’m Brian Kennedy Jr. I want entrepreneurship to create practical opportunity now and give you a way to think about what you are building over time. In this course, we move from a tested offer toward repeatable delivery, clearer money records, responsible growth and continuity. You will connect the enterprise to the life you want, map how work gets done, look at cash and capacity together, and design one bounded growth test. Then we will ask what should continue if you are unavailable and what you want the enterprise to contribute beyond the next sale. This is education and planning. It does not promise income, wealth or a business that someone can inherit. Your work will be grounded in records, honest assumptions and the advice your situation needs. Start with your purpose and the evidence of the stage you are in today.",
+      "durationSeconds": 52.375,
+      "title": "Cradle to Legacy: Build an Enterprise That Can Continue"
+    },
+    "evidence-portfolio": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/evidence-portfolio-intro.mp4",
+      "captionsUrl": "/assets/captions/evidence-portfolio-intro.vtt",
+      "transcript": "Welcome to Build an Evidence Portfolio. I’m Brian Kennedy Jr. Your education, work and entrepreneurship can produce evidence of what you can do. This course helps you make that evidence clear and truthful. We will choose one capability, identify a sample that supports it, ask for useful feedback and show how the work changed. You will also practice explaining your contribution without taking credit for someone else’s work or claiming results you did not measure. A practice project can count when it is labeled honestly. Your portfolio can remain private, and you can use text, audio or another accessible format. By the end, you will have one complete entry with an artifact, a revision and a clear explanation. Start with one audience you want to help understand your work. Then choose the capability you want that person to be able to see.",
+      "durationSeconds": 50.708333,
+      "title": "Build an Evidence Portfolio"
+    },
+    "first-customer-experiment": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/first-customer-experiment-intro.mp4",
+      "captionsUrl": "/assets/captions/first-customer-experiment-intro.vtt",
+      "transcript": "Welcome to First Customer Experiment. I’m Brian Kennedy Jr. Entrepreneurship becomes practical when you identify a need, offer something useful and learn from a real response. This course takes you through a small version of that process. You will investigate a problem, define a bounded offer, plan a test and record what happens. If a suitable agreement is made, you can deliver the work and track the money and time involved. If a sale is not appropriate, you can use a no-payment demonstration or our fictional case. We will be honest about the difference between a compliment, a commitment and cash received. You are not required to spend money or produce a sale to finish. Your result is a documented experiment and a reasoned next step. Begin by choosing a group you can appropriately reach and one problem you want to understand better.",
+      "durationSeconds": 50.375,
+      "title": "First Customer Experiment"
+    },
+    "guiding-people-through-change": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/guiding-people-through-change-intro.mp4",
+      "captionsUrl": "/assets/captions/guiding-people-through-change-intro.vtt",
+      "transcript": "Welcome to Guiding People Through Change: Facilitator Learning Path. I’m Brian Kennedy Jr. This introduction will help you put the workbook to use. You will work toward a listening plan, practical next-step conversation and a bounded teach-back. Ask what is changing for the person and what support they say they need. Practice listening without diagnosing, prescribing or assuming one reaction fits everyone. Choose a real situation you can work on privately, or use a clearly labeled fictional example. You can write, speak your response or use another accessible format. As you work, keep a record of what you tried, what you noticed and what you changed. The useful result is a facilitator conversation and referral-boundary plan, with enough detail that you can explain your next step. Educational facilitation only; no therapy, counseling-grade claim, accredited certification or unverified degree specialization. Begin with the starting reflection in your workbook. Name the decision or practice you want help with, set a review date, and open the first exercise.",
+      "durationSeconds": 64.625,
+      "title": "Guiding People Through Change: Practical Facilitation"
+    },
+    "institutional-facilitation": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/institutional-facilitation-intro.mp4",
+      "captionsUrl": "/assets/captions/institutional-facilitation-intro.vtt",
+      "transcript": "Welcome to Facilitate Education and Enterprise Learning. I’m Brian Kennedy Jr. This course is for educators and program teams who want learners to leave with work they can use. You will define a focused pilot, plan a demonstration and practice sequence, and assess observable performance through an original rubric. We will make room for different access needs and for learners who choose private examples instead of public sharing, outreach or selling. You will also build a minimal evidence plan that keeps consent, missing work and the limits of a small pilot visible. The result is a delivery package and a next-cycle decision, not a claim of accreditation or proven long-term impact. Start by choosing one primary learner group and one artifact they should be able to produce. That choice will guide the session, the assessment and the evidence you collect.",
+      "durationSeconds": 49.583008,
+      "title": "Facilitate Education and Enterprise Learning"
+    },
+    "relationships-and-opportunity": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/relationships-and-opportunity-intro.mp4",
+      "captionsUrl": "/assets/captions/relationships-and-opportunity-intro.vtt",
+      "transcript": "Welcome to Relationships into Opportunity. I’m Brian Kennedy Jr. Relationships can make education and entrepreneurship an adventure, but they also involve real limits, unequal access and other people’s choices. We will work with that honestly. You will start with a question you want to understand, find appropriate people or resources, and practice a small, respectful request. Then you will compare internships and other experiences by the work, feedback, costs and support they actually offer. The goal is to build useful relationships and make informed choices. You do not need a famous contact, a reply or an internship offer to demonstrate learning here. You need preparation, a clear request, an accurate record and a next step. You can practice through role-play if contacting someone is not appropriate. Open the first lesson and write one question about a field, role or problem you want to explore.",
+      "durationSeconds": 56.625,
+      "title": "Relationships into Opportunity"
+    },
     "education-by-design": {
       "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/education-by-design-introduction-v1.mp4",
       "captionsUrl": "/assets/captions/education-by-design-intro.vtt",
-      "transcript": "Welcome to Education by Design. I\u2019m Brian Kennedy Jr. I want you to approach education with a sense of possibility and a plan you can act on. That means asking what you want to learn, what you want to build, and which environment can help you take the next step. In this course, you will compare two realistic routes, check the facts that matter, and work through the time and support your plan requires. If you are returning to college, your experience and responsibilities belong in the plan. If you are a family member, your role can support the learner\u2019s independence. You will leave with a decision brief, a source ledger, a workable week, and a support agreement. You can use your own situation privately or work through our fictional examples. Start by writing the decision you face and the date you need to make it. Then open the first lesson and choose the criteria that matter to you."
+      "transcript": "Welcome to Education by Design. I’m Brian Kennedy Jr. I want you to approach education with a sense of possibility and a plan you can act on. That means asking what you want to learn, what you want to build, and which environment can help you take the next step. In this course, you will compare two realistic routes, check the facts that matter, and work through the time and support your plan requires. If you are returning to college, your experience and responsibilities belong in the plan. If you are a family member, your role can support the learner’s independence. You will leave with a decision brief, a source ledger, a workable week, and a support agreement. You can use your own situation privately or work through our fictional examples. Start by writing the decision you face and the date you need to make it. Then open the first lesson and choose the criteria that matter to you.",
+      "durationSeconds": 51.75,
+      "title": "Education by Design: Decide, Return, and Plan Together"
+    }
+  },
+  "resourceIntros": {
+    "ai-implementation": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/ai-implementation-intro.mp4",
+      "captionsUrl": "/assets/captions/ai-implementation-intro.vtt",
+      "transcript": "Welcome to AI Implementation. I’m Brian Kennedy Jr. This introduction will help you put the workbook to use. You will work toward a current-workflow review, a bounded tool trial and a human-reviewed implementation plan. Start with one work task and its current result. Define the information the tool may use, the quality check and the action that requires human approval before introducing automation. Choose a real situation you can work on privately, or use a clearly labeled fictional example. You can write, speak your response or use another accessible format. As you work, keep a record of what you tried, what you noticed and what you changed. The useful result is a tested, privacy-aware workflow specification, with enough detail that you can explain your next step. No confidential uploads, security/compliance certification, guaranteed ninety-day outcome or unapproved outbound actions. Begin with the starting reflection in your workbook. Name the decision or practice you want help with, set a review date, and open the first exercise.",
+      "durationSeconds": 64.166667,
+      "title": "AI Implementation: A Reviewed Workflow You Can Operate"
+    },
+    "guiding-people-through-change": {
+      "mediaUrl": "https://storage.googleapis.com/the-ballers-kingdom.firebasestorage.app/course-media/batch-20261017/guiding-people-through-change-intro.mp4",
+      "captionsUrl": "/assets/captions/guiding-people-through-change-intro.vtt",
+      "transcript": "Welcome to Guiding People Through Change: Facilitator Learning Path. I’m Brian Kennedy Jr. This introduction will help you put the workbook to use. You will work toward a listening plan, practical next-step conversation and a bounded teach-back. Ask what is changing for the person and what support they say they need. Practice listening without diagnosing, prescribing or assuming one reaction fits everyone. Choose a real situation you can work on privately, or use a clearly labeled fictional example. You can write, speak your response or use another accessible format. As you work, keep a record of what you tried, what you noticed and what you changed. The useful result is a facilitator conversation and referral-boundary plan, with enough detail that you can explain your next step. Educational facilitation only; no therapy, counseling-grade claim, accredited certification or unverified degree specialization. Begin with the starting reflection in your workbook. Name the decision or practice you want help with, set a review date, and open the first exercise.",
+      "durationSeconds": 64.625,
+      "title": "Guiding People Through Change: Practical Facilitation"
     }
   }
 }
