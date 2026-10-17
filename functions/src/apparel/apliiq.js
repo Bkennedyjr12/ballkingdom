@@ -61,7 +61,7 @@ export function createApliiqClient({fetchImpl = globalThis.fetch, key, secret, t
       timer = setTimeout(() => { reject(new Error('deadline')); controller.abort(); }, timeoutMs);
     });
     const work = async () => {
-      const response = await fetchImpl(url, {method, headers:{Accept:'application/json', ...(body === undefined ? {} : {'Content-Type':'application/json'}), 'x-apliiq-auth':`${timestamp}:${signature}:${key}:${state}`}, ...(body === undefined ? {} : {body}), signal:controller.signal, redirect:'error'});
+      const response = await fetchImpl(url, {method, headers:{Accept:'application/json', ...(body === undefined ? {} : {'Content-Type':'application/json'}), Authorization:`x-apliiq-auth ${timestamp}:${signature}:${key}:${state}`}, ...(body === undefined ? {} : {body}), signal:controller.signal, redirect:'error'});
       const httpStatus = response.status;
       if (!Number.isInteger(httpStatus)) return unknown('invalid-response');
       if (httpStatus !== 200) {

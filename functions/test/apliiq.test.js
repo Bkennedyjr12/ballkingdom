@@ -13,7 +13,7 @@ test('POST signs exact serialized bytes and accepts only processed 200 with vali
  const api=client(async(url,options)=>{
   calls++; assert.equal(url,'https://api.apliiq.com/v1/Order');assert.equal(options.method,'POST');assert.equal(options.redirect,'error');
   const expected=createHmac('sha256',secret).update(key+'1700000000fixture-nonce'+Buffer.from(options.body).toString('base64')).digest('base64');
-  assert.equal(options.headers['x-apliiq-auth'],`1700000000:${expected}:${key}:fixture-nonce`);
+  assert.equal(options.headers.Authorization,`x-apliiq-auth 1700000000:${expected}:${key}:fixture-nonce`);
   assert.equal(options.headers['Content-Type'],'application/json'); assert.equal(options.body,JSON.stringify(order()));
   assert.ok(!Object.values(options.headers).includes(secret));return response(200,{id:456});
  });
@@ -23,7 +23,7 @@ test('GET signs empty body and accepts documented single-order array',async()=>{
  const api=client(async(url,options)=>{
   assert.equal(url,'https://api.apliiq.com/v1/Order/456');assert.equal(options.method,'GET');assert.equal(options.body,undefined);
   const sig=createHmac('sha256',secret).update(key+'1700000000fixture-nonce').digest('base64');
-  assert.equal(options.headers['x-apliiq-auth'],`1700000000:${sig}:${key}:fixture-nonce`);
+  assert.equal(options.headers.Authorization,`x-apliiq-auth 1700000000:${sig}:${key}:fixture-nonce`);
   return response(200,[{OrderId:456,Status:'Shipped',StoreSystemOrderId:'store-1',SN:[{TrackingNumber:'fixture-tracking'}]}]);
  });
  const result=await api.getOrder('456');assert.equal(result.status,'found');assert.equal(result.supplierOrderId,'456');assert.equal(result.order.Status,'Shipped');
@@ -75,8 +75,8 @@ test('oversized native response stream fails closed; POST conflict stays unknown
  const conflict=await client(async()=>response(409,{id:456})).createOrder(order());assert.equal(conflict.status,'unknown');assert.equal(conflict.manualReview,true);
 });
 test('fresh nonces generated per request and invalid generators fail before fetch',async()=>{
- const headers=[];const api=createApliiqClient({key,secret,fetchImpl:async(_url,options)=>{headers.push(options.headers['x-apliiq-auth']);return response(200,{id:1});}});
- await api.createOrder(order());await api.createOrder(order());assert.notEqual(headers[0].split(':')[3],headers[1].split(':')[3]);
+ const headers=[];const api=createApliiqClient({key,secret,fetchImpl:async(_url,options)=>{headers.push(options.headers.Authorization);return response(200,{id:1});}});
+ await api.createOrder(order());await api.createOrder(order());assert.notEqual(headers[0].replace(/^x-apliiq-auth /,'').split(':')[3],headers[1].replace(/^x-apliiq-auth /,'').split(':')[3]);
  let calls=0;
  for(const options of [{now:()=>NaN},{nonce:()=> 'bad:nonce'}]){
   const invalid=createApliiqClient({key,secret,fetchImpl:()=>{calls++;},...options});await assert.rejects(invalid.createOrder(order()),/configuration/);
